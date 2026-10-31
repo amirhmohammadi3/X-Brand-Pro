@@ -12,6 +12,8 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { OtpModule } from './modules/otp/otp.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
+import { DevSmsModule, SmsModule } from './modules/sms/sms.module.js';
+import { devSmsEnabled } from './modules/sms/dev-sms.controller.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -58,6 +60,12 @@ import { RedisModule } from './redis/redis.module.js';
     UsersModule,
     AuthModule,
     OtpModule,
+    SmsModule,
+    // Dev-only raw outbox (B1.5): never registered in production — loadEnv
+    // additionally rejects DEV_TOOLS=true with NODE_ENV=production at boot.
+    ...(devSmsEnabled(process.env.NODE_ENV, process.env.DEV_TOOLS === 'true')
+      ? [DevSmsModule]
+      : []),
   ],
   providers: [
     // Global opt-in rate limiting: routes annotated with @RateLimit are

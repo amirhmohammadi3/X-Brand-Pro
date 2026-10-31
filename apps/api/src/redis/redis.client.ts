@@ -17,6 +17,12 @@ export interface RedisLike {
   expire(key: string, seconds: number, mode: 'NX'): Promise<unknown>;
   /** -2 missing key, -1 no expiry, otherwise seconds left. */
   ttl(key: string): Promise<number>;
+  /** `LPUSH key value` — new list length. */
+  lpush(key: string, value: string): Promise<number>;
+  /** `LTRIM key start stop` — keeps [start, stop], trims the rest. */
+  ltrim(key: string, start: number, stop: number): Promise<unknown>;
+  /** `LRANGE key start stop` — elements from head (start) to tail (stop). */
+  lrange(key: string, start: number, stop: number): Promise<string[]>;
 }
 
 const LOG_SILENT = (): void => undefined;
@@ -65,6 +71,18 @@ export class RedisService implements RedisLike, OnApplicationShutdown {
 
   ttl(key: string): Promise<number> {
     return this.redis.ttl(key);
+  }
+
+  lpush(key: string, value: string): Promise<number> {
+    return this.redis.lpush(key, value);
+  }
+
+  ltrim(key: string, start: number, stop: number): Promise<unknown> {
+    return this.redis.ltrim(key, start, stop);
+  }
+
+  lrange(key: string, start: number, stop: number): Promise<string[]> {
+    return this.redis.lrange(key, start, stop);
   }
 
   async onApplicationShutdown(): Promise<void> {

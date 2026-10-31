@@ -198,3 +198,25 @@ All under `/api/v1/auth`. Tokens travel in httpOnly cookies (`at` access JWT, `r
 - Errors: 401 UNAUTHENTICATED, 404 NOT_FOUND (unknown id OR another user's session — no existence leak)
 - Rate limit: none
 - Notes: revokes with reason `revoked_by_user`
+
+## SMS (B1.5)
+
+### POST /api/v1/admin/sms/test
+
+- Module: sms - Prompt: B1.5
+- Auth: permission `settings.manage` (admin and super_admin via ROLE_PERMISSIONS)
+- Request: SmsTestBody (body; strict) — `to` (iranMobileSchema, normalized to E.164)
+- Response: SmsTestResult (status 200) — `{ driver, ok, providerMessageId?, errorCode? }`
+- Errors: 400 VALIDATION_FAILED, 401 UNAUTHENTICATED, 403 FORBIDDEN (missing permission), 429 RATE_LIMITED, 503 SERVICE_UNAVAILABLE (limiter down — failClosed)
+- Rate limit: 5 req / 60 s per user (key `admin.sms.test`, failClosed)
+- Notes: sends a fixed test message through the CURRENTLY configured provider SYNCHRONOUSLY (not queued); provider failures — including unconfigured credentials — come back as `ok: false` with `errorCode` (e.g. `NOT_CONFIGURED`, provider RetStatus), never a 500; the active driver is read from `sms.provider` at call time
+
+### GET /api/v1/dev/sms-outbox
+
+- Module: sms (dev tools) - Prompt: B1.5
+- Auth: public
+- Request: none
+- Response: DevSmsOutboxItem[] (status 200) — `{ to, text, at }`, newest first
+- Errors: none beyond envelope defaults
+- Rate limit: none
+- Notes: registered ONLY when `DEV_TOOLS=true` AND `NODE_ENV != production` (`loadEnv` rejects that combination in production at boot); reads the `dev:sms:outbox` Redis list written by the fake driver (trimmed to the newest 50); recipients are raw in the list but log lines are masked via `maskTarget`

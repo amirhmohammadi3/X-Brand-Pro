@@ -5,9 +5,10 @@ import {
   HttpStatus,
   Injectable,
 } from '@nestjs/common';
-import { roleSatisfies } from '../../modules/users/users.service.js';
+import { roleHasPermissions, roleSatisfies } from '../../modules/users/users.service.js';
 import type { UserRole } from '@app/contracts';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
+import { PERMISSIONS_KEY } from '../decorators/permissions.decorator.js';
 import { ROLES_KEY } from '../decorators/roles.decorator.js';
 // Reflector is constructor-injected: Nest reads its type at runtime via
 // emitDecoratorMetadata — type-only would break DI (found when B1.3 added
@@ -25,6 +26,9 @@ export interface AuthenticatedRequest {
  *  - @Public() routes pass without identity.
  *  - @Roles('a','b') routes require an authenticated, ACTIVE user whose role
  *    satisfies ANY of the listed roles; super_admin always passes.
+ *  - @RequirePermissions('a.b') routes (B1.5) require an authenticated,
+ *    ACTIVE user whose role holds EVERY listed permission (ROLE_PERMISSIONS
+ *    map, super_admin holds `*`).
  *  - Routes with neither decorator pass (they must be genuinely public or
  *    ownership-checked in the service — AGENTS.md 6/9).
  *
@@ -47,7 +51,15 @@ export class RolesGuard implements CanActivate {
       context.getHandler(),
       context.getClass(),
     ]);
-    if (!roles || roles.length === 0) return true;
+
+    const permissions = this.reflector.getAllAndOverride<readonly string[]>(PERMISSIONS_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]);
+    if ((!roles || roles.length === 0) && (!permissions || permissions.length === 0)) {
+      // No @Roles / @RequirePermissions metadata — nothing to enforce here.
+      return true;
+    }
 
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const user = req.user;
@@ -63,9 +75,15 @@ export class RolesGuard implements CanActivate {
         HttpStatus.FORBIDDEN,
       );
     }
-    if (!roleSatisfies(user.role, roles)) {
+    if (roles && roles.length > 0 && !roleSatisfies(user.role, roles)) {
       throw new HttpException(
         { code: 'FORBIDDEN' as const, message: 'Insufficient role' },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    if (permissions && permissions.length > 0 && !roleHasPermissions(user.role, permissions)) {
+      throw new HttpException(
+        { code: 'FORBIDDEN' as const, message: 'Insufficient permissions' },
         HttpStatus.FORBIDDEN,
       );
     }

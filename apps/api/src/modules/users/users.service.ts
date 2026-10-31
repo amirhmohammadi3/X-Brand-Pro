@@ -21,6 +21,27 @@ export function roleSatisfies(userRole: UserRole, required: readonly string[]): 
 }
 
 /**
+ * Static role → permission map (B1.5). Feature prompts register their
+ * permission names here as they introduce guarded endpoints; there is no
+ * per-user override table yet (a follow-up when B1.14 lands).
+ * `*` means every permission.
+ */
+export const ROLE_PERMISSIONS: Readonly<Record<UserRole, readonly string[]>> = {
+  user: [],
+  owner: [],
+  moderator: [],
+  admin: ['settings.manage'],
+  super_admin: ['*'],
+};
+
+/** True when the role holds EVERY listed permission (ALL-of semantics). */
+export function roleHasPermissions(userRole: UserRole, required: readonly string[]): boolean {
+  const held = ROLE_PERMISSIONS[userRole] ?? [];
+  if (held.includes('*')) return true;
+  return required.every((permission) => held.includes(permission));
+}
+
+/**
  * Users domain service (B1.2). The auth prompts (B1.3, B1.7, B1.8) use
  * `create`/lookup methods; the admin API (B1.14) uses the role/status
  * mutations, which enforce the invariant that the system always keeps at

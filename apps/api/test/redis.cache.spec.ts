@@ -73,6 +73,15 @@ describe('CacheService (B0.3)', () => {
       ttl: async () => {
         throw new Error('down');
       },
+      lpush: async () => {
+        throw new Error('down');
+      },
+      ltrim: async () => {
+        throw new Error('down');
+      },
+      lrange: async () => {
+        throw new Error('down');
+      },
     };
     const failing = new CacheService(broken);
     await expect(failing.get('k')).resolves.toBeNull();

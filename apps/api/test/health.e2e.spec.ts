@@ -82,7 +82,9 @@ describe('Health e2e (B0.1)', () => {
 
   it('thrown generic Error returns 500 INTERNAL_ERROR without leaking the message (production-like)', async () => {
     // Force production mode for this scenario by starting a separate app.
+    // DEV_TOOLS must go off too: B1.5 rejects DEV_TOOLS=true in production.
     process.env.NODE_ENV = 'production';
+    process.env.DEV_TOOLS = 'false';
     const prodApp = await createTestApp([ProbeModule]);
     await prodApp.init();
     const res = await request(prodApp.getHttpServer()).get('/api/v1/probe/boom').expect(500);
@@ -92,6 +94,7 @@ describe('Health e2e (B0.1)', () => {
     expect(JSON.stringify(res.body)).not.toContain('super secret internals');
     await prodApp.close();
     process.env.NODE_ENV = 'test';
+    process.env.DEV_TOOLS = 'true';
   });
 
   it('CORS allows the configured public origin and echoes X-Request-Id on preflight', async () => {

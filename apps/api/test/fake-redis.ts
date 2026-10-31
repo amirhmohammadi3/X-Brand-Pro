@@ -61,4 +61,39 @@ export class FakeRedis implements RedisLike {
     const left = Math.ceil((entry.expiresAt - Date.now()) / 1000);
     return left > 0 ? left : -2;
   }
+
+  // --- list commands (B1.5, dev SMS outbox) ---
+
+  async lpush(key: string, value: string): Promise<number> {
+    const entry = this.store.get(key);
+    const list: string[] = entry ? JSON.parse(entry.value) : [];
+    list.unshift(value);
+    this.store.set(key, {
+      value: JSON.stringify(list),
+      expiresAt: entry?.expiresAt ?? null,
+    });
+    return list.length;
+  }
+
+  async ltrim(key: string, start: number, stop: number): Promise<unknown> {
+    const entry = this.store.get(key);
+    if (!entry) return 'OK';
+    const list: string[] = JSON.parse(entry.value);
+    const kept = list.slice(start, stop + 1);
+    if (kept.length === 0) {
+      this.store.delete(key);
+    } else {
+      this.store.set(key, { value: JSON.stringify(kept), expiresAt: entry.expiresAt });
+    }
+    return 'OK';
+  }
+
+  async lrange(key: string, start: number, stop: number): Promise<string[]> {
+    const entry = this.live(key);
+    if (!entry) return [];
+    const list: string[] = JSON.parse(entry.value);
+    // Negative stop counts from the tail; -1 means "through the end".
+    const end = stop < 0 ? list.length + stop : Math.min(stop, list.length - 1);
+    return list.slice(start, end + 1);
+  }
 }

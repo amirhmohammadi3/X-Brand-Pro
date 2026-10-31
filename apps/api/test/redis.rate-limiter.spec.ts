@@ -66,6 +66,15 @@ describe('RateLimiterService (B0.3)', () => {
       ttl: async () => {
         throw new Error('down');
       },
+      lpush: async () => {
+        throw new Error('down');
+      },
+      ltrim: async () => {
+        throw new Error('down');
+      },
+      lrange: async () => {
+        throw new Error('down');
+      },
     };
     limiter = new RateLimiterService(broken);
     const result = await limiter.consume('auth.login', '1.2.3.4', 3, 60, T0);

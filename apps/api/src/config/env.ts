@@ -65,16 +65,26 @@ export const ENV_KEYS = Object.keys(envSchema.shape) as Array<keyof z.infer<type
  */
 export function loadEnv(source: Record<string, string | undefined> = process.env): Env {
   const parsed = envSchema.safeParse(source);
-  if (parsed.success) return parsed.data;
-
-  const issues = parsed.error.issues.map((issue) => {
-    const key = issue.path.join('.') || '(root)';
-    return `  - ${key}: ${issue.message}`;
-  });
-  throw new Error(
-    `Invalid environment configuration — fix these and restart:\n${issues.join('\n')}\n` +
-      `See .env.example for the full list of variables and their formats.`,
-  );
+  if (!parsed.success) {
+    const issues = parsed.error.issues.map((issue) => {
+      const key = issue.path.join('.') || '(root)';
+      return `  - ${key}: ${issue.message}`;
+    });
+    throw new Error(
+      `Invalid environment configuration — fix these and restart:\n${issues.join('\n')}\n` +
+        `See .env.example for the full list of variables and their formats.`,
+    );
+  }
+  // Startup assertion (B1.5): the dev tools surface (raw outbox endpoints)
+  // can never be enabled in production, regardless of a misconfigured env.
+  if (parsed.data.DEV_TOOLS && parsed.data.NODE_ENV === 'production') {
+    throw new Error(
+      'Invalid environment configuration — fix these and restart:\n' +
+        '  - DEV_TOOLS: cannot be true when NODE_ENV is production\n' +
+        'See .env.example for the full list of variables and their formats.',
+    );
+  }
+  return parsed.data;
 }
 
 export type AppConfig = Readonly<{

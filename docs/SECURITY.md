@@ -125,3 +125,16 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 | Secret            | Location (env)   | Used by                 | Rotation procedure                                                                             | Prompt |
 | ----------------- | ---------------- | ----------------------- | ---------------------------------------------------------------------------------------------- | ------ |
 | `OTP_HMAC_SECRET` | env (≥ 32 chars) | OtpService code hashing | rotate → codes issued before rotation become unverifiable (users re-request); safe, low impact | B1.4   |
+
+## 2f. SMS policy (B1.5)
+
+| Key              | Endpoint(s)          | Limit | Window | Scope             | Prompt |
+| ---------------- | -------------------- | ----- | ------ | ----------------- | ------ |
+| `admin.sms.test` | POST /admin/sms/test | 5     | 60 s   | user (failClosed) | B1.5   |
+
+- Permissions: `@RequirePermissions('settings.manage')` — first consumer of the RBAC permission layer (ROLE_PERMISSIONS static map: admin holds `settings.manage`, super_admin holds `*`). Moderator/owner/user/guest are 403.
+- Provider credentials (`sms.melipayamak.username/password`, `sms.kavenegar.apiKey`) are registry secrets: AES-256-GCM encrypted at rest, masked in admin listings, read from SettingsService at SEND time and never logged.
+- Logs and the fake-driver console line carry only the masked target (`maskTarget`); message text is NOT logged in production (fake driver logs only outside production).
+- The dev outbox endpoint is structurally unavailable in production: the module is not registered unless `DEV_TOOLS=true` with `NODE_ENV != production`, and `loadEnv` fails boot on that combination in production.
+- OTP job hygiene: `sendOtp` jobs run with `removeOnComplete: true` and `removeOnFail: { age: 3600 }` so the code never persists in Redis after delivery; the code travels only inside the job payload.
+- Residual risk: real-provider send results are not yet verified against live accounts (sandbox has no provider credentials) — both drivers MUST be re-verified with real accounts before production (see PROGRESS Follow-ups).
