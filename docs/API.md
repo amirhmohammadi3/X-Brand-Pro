@@ -67,3 +67,13 @@ Defined in `@app/contracts/src/errors.ts`; HTTP status mapping in `ERROR_HTTP_ST
 - Page-based: `page` (default 1, min 1) + `pageSize` (default 20, min 1, max 100), both coerced from strings. Response meta: `page, pageSize, total, totalPages`.
 - Cursor-based: `cursor` (opaque string) + `limit` (default 20, max 100). Response meta: `nextCursor (nullable), hasMore`.
 - Default sort is explicit and stable, always ending with `id` as the tiebreaker.
+
+## GET /api/v1/health
+
+- Auth: public
+- Request: —
+- Response schema: `HealthPayload` (see `apps/api/src/modules/health/health.controller.ts`)
+- Success: `{ ok: true, data: { status: 'ok' | 'degraded' | 'down', uptimeSec, version, checks: { [name]: 'ok'|'degraded'|'down' } } }`
+- Errors: 503 when any critical HealthIndicator is `down` (envelope unchanged, HTTP status 503)
+- Rate limit: none (probe endpoint; protected from abuse at the reverse-proxy layer in production)
+- Extension point: modules contribute `HealthIndicator` providers on the `HEALTH_INDICATORS` token (db, redis, worker added by later prompts)

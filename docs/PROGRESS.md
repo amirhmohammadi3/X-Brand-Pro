@@ -10,7 +10,7 @@
 - [x] P0.2 🟢 قرار دادن فایل‌های پایه + فایل واحد نام/برند (2026-10-31)
 - [x] P0.3 🟡 پکیج contracts (Zod، envelope پاسخ، خطاها، pagination) (2026-10-31)
 - [x] I0.1 🟢 Docker Compose توسعه (Postgres+PostGIS، Redis، Mailpit) و اسکریپت‌های Node (2026-10-31)
-- [ ] B0.1 🟡 اسکلت NestJS (config، health، لاگ، فیلتر خطا، OpenAPI)
+- [x] B0.1 🟡 اسکلت NestJS (config، health، لاگ، فیلتر خطا، OpenAPI) (2026-10-31)
 - [ ] B0.2 🟡 Drizzle، migration، اکستنشن‌ها (postgis، pg_trgm، unaccent)، دیتابیس تست
 - [ ] B0.3 🟡 ماژول Redis، کش، rate limiter
 - [ ] B0.4 🟡 BullMQ و پروسهٔ worker

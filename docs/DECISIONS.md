@@ -96,3 +96,34 @@ Entry format:
 - Decision: The regex `/^(?:\+98|0098|0|98)?9([0-3]|9)\d{8}$/` accepts all four documented input forms plus bare `9xxxxxxxxx`, and normalizes Persian/Arabic digits and strips spaces/dashes/parentheses before validating. Output is always E.164 `+989xxxxxxxxx`.
 - Reason: The prompt requires the four forms; accepting the bare `9…` form costs nothing and matches real-world user input. Operator digit constrained to 0-3 or 9 per Iranian mobile ranges (091x, 092x, 093x, 099x).
 - Alternatives: a two-step parse with a country-code lookup table (overkill for one country).
+
+## 2026-10-31 — B0.1 NestJS skeleton versions + OpenAPI approach
+
+- Prompt: B0.1
+- Decision: Pinned versions for `@app/api`:
+  - @nestjs/common, @nestjs/core, @nestjs/platform-express, @nestjs/testing: 12.3.2
+  - @nestjs/cli: 12.0.11, @nestjs/schematics: 12.0.12
+  - @nestjs/swagger: 12.0.5
+  - nestjs-pino: 5.3.1, pino: 10.4.0, pino-http: 11.0.0, pino-pretty: 13.2.0 (dev)
+  - helmet: 8.3.0, cookie-parser: 1.4.7, compression: 1.8.2
+  - class-validator: 0.15.1, class-transformer: 0.5.1 (required by the global Nest ValidationPipe)
+  - supertest: 7.3.1, vitest: 2.1.8, unplugin-swc: 2.0.0, @swc/core: 1.16.21, @swc/cli: 0.8.2, swc-loader: 0.2.7
+  - rxjs: 7.8.2, reflect-metadata: 0.2.2, zod: 3.24.1 (same pin as contracts)
+- Reason: Nest 12 is the current stable line (Node >= 20). SWC builder keeps `nest build` fast and produces emitDecoratorMetadata for DI.
+- Alternatives: Nest 11 (older), tsc-only build (slower, no decorator metadata control), @nestjs/config (own ConfigModule is smaller and defers env parsing to DI time, which tests need).
+- Assumptions: none.
+
+## 2026-10-31 — B0.1 OpenAPI: custom Zod adapter instead of nestjs-zod
+
+- Prompt: B0.1
+- Decision: A small custom adapter (`apps/api/src/common/openapi/zod-openapi.ts`) publishes Zod schemas to OpenAPI via `getSchemaPath` refs, instead of installing nestjs-zod.
+- Reason: nestjs-zod 5.5.0 peers on `@nestjs/common ^10 || ^11` (Nest 12 not supported yet) and its zod peer range (`^3.25 || ^4`) does not match the pinned zod 3.24.1 in @app/contracts. The prompt explicitly allows "a small custom adapter".
+- Alternatives: nestjs-zod (peer-range mismatch), downgrading Nest to 11 (loses current-stable status), upgrading contracts to zod 4 (RC churn).
+- Assumptions: revisit when nestjs-zod ships Nest-12 support.
+
+## 2026-10-31 — B0.1 CORS origin must be a function
+
+- Prompt: B0.1
+- Decision: `enableCors({ origin: (origin, cb) => ... })` with an allow-list function, NOT a string.
+- Reason: the `cors` package sets `Access-Control-Allow-Origin` unconditionally when given a string origin (it echoes the configured value for EVERY request, even foreign ones). A function returns `false` for non-matching origins so the header is omitted entirely. Verified by test.
+- Alternatives: string origin (insecure header echo), `*` (breaks credentials).
