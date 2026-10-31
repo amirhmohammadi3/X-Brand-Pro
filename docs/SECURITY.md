@@ -30,7 +30,14 @@ Failure mode: the limiter FAILS OPEN when Redis is unreachable (request allowed,
 
 - Secret settings are encrypted at rest with AES-256-GCM (envelope `v1.iv.tag.ciphertext`, base64url parts); the key comes from `SETTINGS_ENCRYPTION_KEY` (>= 32 chars, scrypt-derived). Plaintext never reaches the database, the Redis cache, logs, or admin listings (fixed `••••••••` mask).
 - Decrypt failures (tampered value or rotated key) fail loudly as 500 — never silently return garbage.
-- Admin settings routes carry `@Roles('admin','super_admin')`; until B1.2/B1.3 ship real authentication, the interim RolesGuard DENIES them with 403 — the admin API is closed by default, not open.
+- Admin settings routes carry `@Roles('admin','super_admin')`; the global RBAC guard (B1.2) enforces role/status — until B1.3 attaches identity to requests they respond 401 UNAUTHENTICATED.
+
+## 1b. RBAC semantics (B1.2)
+
+- Roles: `guest` (implicit, unauthenticated), `user`, `owner`, `moderator`, `admin`, `super_admin`.
+- Route protection: `@Public()` skips auth entirely; `@Roles(...)` requires an authenticated ACTIVE user satisfying ANY listed role; `super_admin` satisfies every requirement. Routes with neither decorator must be genuinely public or ownership-checked inside the service (AGENTS.md 6/9).
+- No identity attached (pre-B1.3) → 401 `UNAUTHENTICATED`; blocked account → 403 `FORBIDDEN`; insufficient role → 403 `FORBIDDEN`.
+- Administrability invariant: the LAST active super_admin can be neither demoted nor blocked (409); only a super_admin may demote a super_admin.
 
 ## 3. Secrets inventory
 

@@ -317,3 +317,17 @@ Entry format:
 - Decision: Whether a value is encrypted/masked is decided by the REGISTRY definition, never by the stored row. Unit tests exercise secret paths via a documented `registerSettingDefinitionForTests` hook instead of polluting the production registry with fake keys.
 - Reason: A row-level flag that disagrees with the registry would either double-encrypt or leak plaintext; one owner keeps the invariant checkable. The test hook keeps production keys curated by prompts only.
 - Alternatives: trusting the DB flag (drift risk), fake keys in the production registry (registry noise visible to admins).
+
+## 2026-10-31 — B1.2 RBAC semantics: any-of roles, super_admin bypass
+
+- Prompt: B1.2
+- Decision: The global RolesGuard implements the FINAL metadata contract from B1.1: @Public() passes; @Roles('a','b') requires an authenticated ACTIVE user satisfying ANY listed role, with super_admin implicitly satisfying everything; no identity → 401 (Nest HttpStatus.UNAUTHORIZED, error code UNAUTHENTICATED), blocked → 403. Users table: pg enums user_role/user_status, password_hash nullable (OTP/Google accounts may predate a password), username normalized by the shared usernameSchema from contracts/primitives.
+- Reason: Closed-by-default admin surface with a metadata contract that B1.3 plugs identity into without touching controllers. super_admin bypass encodes the practical bootstrap need (first admin) while the SECURITY.md matrix stays the source of truth.
+- Alternatives: numeric hierarchy ranking (owner is not strictly above/below user — ranking lies), per-route guards (forgetting one is a hole).
+
+## 2026-10-31 — B1.2 administrability invariants for role/status changes
+
+- Prompt: B1.2
+- Decision: The system always keeps at least one ACTIVE super_admin: demotion and blocking that would remove the last one are rejected with 409 CONFLICT. Only a super_admin may demote a super_admin. Role/status changes emit domain events (`user.role.changed`, `user.status.changed`) for the audit log (B1.11).
+- Reason: An instance that accidentally demotes its last admin is unrecoverable without DB surgery; the invariant belongs in the service, not the UI. Username/email/phone uniqueness is enforced in the service for now (Postgres 23505 handling lands with B1.3's partial unique indexes, when all writers exist).
+- Alternatives: allowing lockout + a CLI recovery tool (operational pain), deferring events to B1.11 (audit would miss history).

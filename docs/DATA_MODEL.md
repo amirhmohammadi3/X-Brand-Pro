@@ -30,6 +30,25 @@ Block format (one per table):
 
 ## Tables
 
+### users
+
+- Module: users - Prompt: B1.2
+- Purpose: user accounts for all roles; auth prompts (B1.3/B1.7/B1.8) fill credentials
+- Columns of note:
+  - id uuid PRIMARY KEY default gen_random_uuid()
+  - username text NOT NULL — normalized (trim+lowercase) by usernameSchema; unique in practice (checked in service until a unique index lands with B1.3 seeding)
+  - email text NULL — nullable until an email login method connects it
+  - phone text NULL — E.164 +989… format (AGENTS.md 8)
+  - password_hash text NULL — argon2id (B1.3); NULL for OTP/Google-only accounts
+  - role user_role enum NOT NULL default 'user' — user|owner|moderator|admin|super_admin
+  - status user_status enum NOT NULL default 'active' — active|blocked
+  - display_name text NULL
+  - created_at / updated_at timestamptz NOT NULL
+  - last_seen_at timestamptz NULL — touched on authenticated activity (B1.3)
+- Indexes: users_username_idx, users_email_idx, users_phone_idx (btree, login lookups), users_role_idx (admin filters)
+- Constraints: unique username/email/phone enforced at service level in B1.2 (partial unique indexes arrive with B1.3 migrations when all writers exist)
+- Retention: no soft delete in B1.2; account deletion is a B1.10 deliverable
+
 ### settings
 
 - Module: settings - Prompt: B1.1

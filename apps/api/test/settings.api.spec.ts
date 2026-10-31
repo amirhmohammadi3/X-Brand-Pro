@@ -71,28 +71,21 @@ describe('Settings HTTP API (B1.1)', () => {
     expect(res.body.data['site.timezone']).toBe('Asia/Tehran');
   });
 
-  it('GET /api/v1/admin/settings is denied while authentication does not exist (B1.2/B1.3)', async () => {
-    const res = await request(app.getHttpServer()).get('/api/v1/admin/settings').expect(403);
+  it('GET /api/v1/admin/settings is unauthenticated until B1.3 attaches identity (RBAC from B1.2)', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/admin/settings').expect(401);
     expect(res.body.ok).toBe(false);
-    expect(res.body.error.code).toBe('FORBIDDEN');
+    expect(res.body.error.code).toBe('UNAUTHENTICATED');
   });
 
-  it('PUT /api/v1/admin/settings/:key is denied the same way', async () => {
+  it('PUT /api/v1/admin/settings/:key is unauthenticated the same way', async () => {
     await request(app.getHttpServer())
       .put('/api/v1/admin/settings/site.name')
       .send({ value: 'x' })
-      .expect(403);
+      .expect(401);
   });
 
-  it('DELETE /api/v1/admin/settings/:key is denied too', async () => {
-    await request(app.getHttpServer()).delete('/api/v1/admin/settings/site.name').expect(403);
-  });
-
-  it('an invalid settings key in the URL is rejected with 400 before the guard', async () => {
-    // The key schema runs in the pipe; a malformed key must not reach the
-    // service. The route is admin-only, so the response is still 403 (guard
-    // order) — but a malformed key on the PUBLIC route shape would 400.
-    await request(app.getHttpServer()).get('/api/v1/settings/public').expect(200);
+  it('DELETE /api/v1/admin/settings/:key is unauthenticated too', async () => {
+    await request(app.getHttpServer()).delete('/api/v1/admin/settings/site.name').expect(401);
   });
 
   it('the public settings route is rate-limited (429 with Retry-After after 60 reqs)', async () => {

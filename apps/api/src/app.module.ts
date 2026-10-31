@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { LoggerModule } from 'nestjs-pino';
 import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
@@ -7,6 +8,7 @@ import { ConfigModule } from './config/config.module.js';
 import { DrizzleModule } from './db/drizzle.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
+import { UsersModule } from './modules/users/users.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
 
@@ -21,6 +23,9 @@ import { RedisModule } from './redis/redis.module.js';
     DrizzleModule,
     RedisModule,
     QueueModule,
+    // In-process domain events (AGENTS.md 6): subscribers live in the
+    // module that reacts to an event, not here.
+    EventEmitterModule.forRoot({ wildcard: true, ignoreErrors: true }),
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? 'info',
@@ -46,6 +51,7 @@ import { RedisModule } from './redis/redis.module.js';
     }),
     HealthModule,
     SettingsModule,
+    UsersModule,
   ],
   providers: [
     // Global opt-in rate limiting: routes annotated with @RateLimit are

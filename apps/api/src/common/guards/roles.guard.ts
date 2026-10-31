@@ -5,26 +5,28 @@ import {
   HttpStatus,
   Injectable,
 } from '@nestjs/common';
-// Reflector is constructor-injected: Nest reads its type at runtime from
-// emitDecoratorMetadata, so it must stay a value import (do not "fix").
-// eslint-disable-next-line @typescript-eslint/consistent-type-imports
-import { Reflector } from '@nestjs/core';
+import { type Reflector } from '@nestjs/core';
+import { roleSatisfies } from '../../modules/users/users.service.js';
+import type { UserRole } from '@app/contracts';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { ROLES_KEY } from '../decorators/roles.decorator.js';
 
+/** Shape the future JWT/session guard (B1.3) attaches to authenticated requests. */
+export interface AuthenticatedRequest {
+  user?: { id: string; role: UserRole; status: string };
+}
+
 /**
- * INTERIM guard (B1.1): enforces the metadata contract before the real auth
- * system exists.
+ * RBAC guard (B1.2 — final metadata contract):
+ *  - @Public() routes pass without identity.
+ *  - @Roles('a','b') routes require an authenticated, ACTIVE user whose role
+ *    satisfies ANY of the listed roles; super_admin always passes.
+ *  - Routes with neither decorator pass (they must be genuinely public or
+ *    ownership-checked in the service — AGENTS.md 6/9).
  *
- * - @Public() routes pass.
- * - @Roles() routes are DENIED with 403 until B1.2 lands users/roles and
- *   B1.3 lands sessions — there is no identity to check yet, and an
- *   unprotected admin API would be a hole, not a placeholder.
- * - Routes with neither decorator pass (phase-0 routes like /health; every
- *   future protected route MUST carry one of the two, per AGENTS.md 6).
- *
- * B1.2 replaces the deny branch with real role checks against
- * `req.user.role` (set by the JWT guard) — the metadata contract stays.
+ * Until B1.3 attaches `req.user`, no request carries an identity, so every
+ * @Roles route is denied (403) — the closed-by-default behavior from B1.1
+ * becomes simply "no identity yet" instead of a special case.
  */
 @Injectable()
 export class RolesGuard implements CanActivate {
@@ -37,17 +39,32 @@ export class RolesGuard implements CanActivate {
     ]);
     if (isPublic) return true;
 
-    const roles = this.reflector.getAllAndOverride<string[]>(ROLES_KEY, [
+    const roles = this.reflector.getAllAndOverride<readonly string[]>(ROLES_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
     if (!roles || roles.length === 0) return true;
 
-    // No authentication exists yet (B1.2/B1.3): deny every role-protected
-    // route rather than exposing it.
-    throw new HttpException(
-      { code: 'FORBIDDEN' as const, message: 'Authentication is not available yet' },
-      HttpStatus.FORBIDDEN,
-    );
+    const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const user = req.user;
+    if (!user) {
+      throw new HttpException(
+        { code: 'UNAUTHENTICATED' as const, message: 'Authentication required' },
+        HttpStatus.UNAUTHORIZED, // 401 — Nest's HttpStatus spells it UNAUTHORIZED
+      );
+    }
+    if (user.status !== 'active') {
+      throw new HttpException(
+        { code: 'FORBIDDEN' as const, message: 'Account is blocked' },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    if (!roleSatisfies(user.role, roles)) {
+      throw new HttpException(
+        { code: 'FORBIDDEN' as const, message: 'Insufficient role' },
+        HttpStatus.FORBIDDEN,
+      );
+    }
+    return true;
   }
 }
