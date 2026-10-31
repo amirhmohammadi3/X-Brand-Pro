@@ -127,3 +127,36 @@ Entry format:
 - Decision: `enableCors({ origin: (origin, cb) => ... })` with an allow-list function, NOT a string.
 - Reason: the `cors` package sets `Access-Control-Allow-Origin` unconditionally when given a string origin (it echoes the configured value for EVERY request, even foreign ones). A function returns `false` for non-matching origins so the header is omitted entirely. Verified by test.
 - Alternatives: string origin (insecure header echo), `*` (breaks credentials).
+
+## 2026-10-31 — B0.2 Drizzle stack versions
+
+- Prompt: B0.2
+- Decision: Pinned versions for `@app/api`:
+  - drizzle-orm: 0.45.4
+  - pg: 8.23.1
+  - drizzle-kit: 0.31.11 (dev)
+  - @types/pg: 8.23.1 (dev)
+- Reason: Current stable versions confirmed against the npm registry on 2026-10-31. drizzle-kit 0.31.x is the matching kit line for drizzle-orm 0.45.x.
+- Alternatives: Drizzle with `postgres.js` driver (node-postgres chosen — pool lifecycle control and wider deployment familiarity), Kysely (no schema-as-TypeScript definitions for drizzle-kit diffing), Prisma (rejected at pack creation for PostGIS reasons, see initial decision).
+- Assumptions: none.
+
+## 2026-10-31 — B0.2 extensions are code-managed, not drizzle-kit migrations
+
+- Prompt: B0.2
+- Decision: `postgis`, `pg_trgm`, `unaccent`, `pgcrypto` are created by `ensureExtensions()` in `src/db/migrate.ts` before every migration apply (both app and test databases), plus the Docker init SQL from I0.1. The drizzle journal starts EMPTY (`drizzle/meta/_journal.json` with zero entries); the first real migration appears when the first table schema lands (B1.1).
+- Reason: drizzle-kit cannot snapshot extension DDL, so a hand-written migration would live outside the snapshot chain and break future `generate` diffs. `CREATE EXTENSION IF NOT EXISTS` is idempotent and cheap; running it on every migrate is safe. `pgcrypto` is included because every primary key defaults to `gen_random_uuid()`.
+- Alternatives: hand-written 0000_extensions migration registered in the journal (fragile — journal/snapshot bookkeeping by hand), relying only on Docker init SQL (breaks on managed Postgres or non-Docker hosts).
+
+## 2026-10-31 — B0.2 migration runner resolves the folder by probing
+
+- Prompt: B0.2
+- Decision: `resolveMigrationsFolder()` probes `__dirname`-relative candidates (compiled `dist/src/db/` needs three levels up, source/test layouts two) and cwd-relative fallbacks, then throws with the searched paths if nothing exists.
+- Reason: `node dist/src/db/migrate.js` and vitest both import the same function but from different depths; a single hard-coded depth broke the compiled path (caught by actually running the CLI in this session).
+- Alternatives: nest-cli `assets` copy of the drizzle folder into dist (extra build config), requiring cwd to always be apps/api (fragile when turbo runs from the root).
+
+## 2026-10-31 — B0.2 CLI .env loading without a dotenv dependency
+
+- Prompt: B0.2
+- Decision: A 40-line loader (`src/db/load-dotenv.ts`) walks up from cwd to the nearest `.env`, parses KEY=VALUE with quotes/comments, and never overrides existing process env. Used only by CLI entry points (migrate, seed), not the Nest app.
+- Reason: The app gets env from the deployment environment; only CLI tools run bare. Avoiding the `dotenv` dependency keeps the supply chain minimal and the behavior testable (unit tests inject a plain target object).
+- Alternatives: dotenv 16.x (fine, but one more dep for 40 lines of trivial code), requiring users to export vars manually (hostile DX on Windows).

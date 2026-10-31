@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { LoggerModule } from 'nestjs-pino';
 import { ConfigModule } from './config/config.module.js';
+import { DrizzleModule } from './db/drizzle.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 
 /**
@@ -11,6 +12,7 @@ import { HealthModule } from './modules/health/health.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot(),
+    DrizzleModule,
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? 'info',

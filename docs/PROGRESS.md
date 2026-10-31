@@ -11,7 +11,7 @@
 - [x] P0.3 🟡 پکیج contracts (Zod، envelope پاسخ، خطاها، pagination) (2026-10-31)
 - [x] I0.1 🟢 Docker Compose توسعه (Postgres+PostGIS، Redis، Mailpit) و اسکریپت‌های Node (2026-10-31)
 - [x] B0.1 🟡 اسکلت NestJS (config، health، لاگ، فیلتر خطا، OpenAPI) (2026-10-31)
-- [ ] B0.2 🟡 Drizzle، migration، اکستنشن‌ها (postgis، pg_trgm، unaccent)، دیتابیس تست
+- [x] B0.2 🟡 Drizzle، migration، اکستنشن‌ها (postgis، pg_trgm، unaccent)، دیتابیس تست (2026-10-31)
 - [ ] B0.3 🟡 ماژول Redis، کش، rate limiter
 - [ ] B0.4 🟡 BullMQ و پروسهٔ worker
 - [ ] F0.1 🟡 اسکلت Next.js (Tailwind، logical properties، فونت self-host، RTL)
@@ -222,6 +222,8 @@
 ## Follow-ups
 
 فرمت هر مورد: `- [ ] (ID پرامپت منشأ) شرح کار پیشنهادی و دلیل`
+
+- [ ] (B0.2) Run `pnpm db:migrate` and `pnpm db:migrate:test` against a live Postgres (Docker) to verify the migration runner end to end. In this sandbox Docker is unavailable; verified instead: `db:generate` (no-DB diff), clean ECONNREFUSED failure path of the CLI, and 12 unit tests.
 
 ## Known issues
 
