@@ -18,7 +18,7 @@ import {
 } from '../pagination.js';
 
 describe('errors', () => {
-  it('has exactly the 16 expected codes', () => {
+  it('has exactly the 20 expected codes', () => {
     expect([...ERROR_CODES]).toEqual([
       'VALIDATION_FAILED',
       'UNAUTHENTICATED',
@@ -32,6 +32,11 @@ describe('errors', () => {
       'TOKEN_REUSED',
       'SESSION_REVOKED',
       'ACCOUNT_LOCKED',
+      // B1.4 OTP codes:
+      'OTP_INVALID',
+      'OTP_EXPIRED',
+      'OTP_TOO_MANY_ATTEMPTS',
+      'OTP_RESEND_TOO_SOON',
       'PAYLOAD_TOO_LARGE',
       'UNSUPPORTED_MEDIA_TYPE',
       'UNPROCESSABLE',
@@ -53,6 +58,10 @@ describe('errors', () => {
       TOKEN_REUSED: 401,
       SESSION_REVOKED: 401,
       ACCOUNT_LOCKED: 429,
+      OTP_INVALID: 422,
+      OTP_EXPIRED: 422,
+      OTP_TOO_MANY_ATTEMPTS: 429,
+      OTP_RESEND_TOO_SOON: 429,
       PAYLOAD_TOO_LARGE: 413,
       UNSUPPORTED_MEDIA_TYPE: 415,
       UNPROCESSABLE: 422,

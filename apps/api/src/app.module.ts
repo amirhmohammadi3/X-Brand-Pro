@@ -10,6 +10,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { CsrfOriginGuard } from './modules/auth/csrf-origin.guard.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { OtpModule } from './modules/otp/otp.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { UsersModule } from './modules/users/users.module.js';
 import { QueueModule } from './queue/queue.module.js';
@@ -56,6 +57,7 @@ import { RedisModule } from './redis/redis.module.js';
     SettingsModule,
     UsersModule,
     AuthModule,
+    OtpModule,
   ],
   providers: [
     // Global opt-in rate limiting: routes annotated with @RateLimit are

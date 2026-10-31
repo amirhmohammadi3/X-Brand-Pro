@@ -56,6 +56,35 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     isSecret: false,
     description: 'Fallback IANA timezone for business-hours logic (AGENTS.md section 6).',
   },
+  // OTP engine (B1.4) — consumed by OtpService; changing them applies to the
+  // NEXT issued code, never to codes already in flight.
+  'otp.length': {
+    key: 'otp.length',
+    schema: z.number().int().min(4).max(8),
+    default: 6,
+    group: 'integrations',
+    public: false,
+    isSecret: false,
+    description: 'Number of digits in one-time codes (4–8).',
+  },
+  'otp.ttlSec': {
+    key: 'otp.ttlSec',
+    schema: z.number().int().min(60).max(600),
+    default: 120,
+    group: 'integrations',
+    public: false,
+    isSecret: false,
+    description: 'Seconds a one-time code stays valid (60–600).',
+  },
+  'otp.maxAttempts': {
+    key: 'otp.maxAttempts',
+    schema: z.number().int().min(1).max(10),
+    default: 5,
+    group: 'integrations',
+    public: false,
+    isSecret: false,
+    description: 'Failed verification attempts allowed before a code is dead (1–10).',
+  },
 };
 
 export function getSettingDefinition(key: string): SettingDefinition<unknown> | undefined {

@@ -1,4 +1,4 @@
-import { Worker, type Job } from 'bullmq';
+import { Queue, Worker, type Job } from 'bullmq';
 import type { ZodType } from 'zod';
 import { parseRedisUrl } from './connection.js';
 
@@ -21,6 +21,12 @@ type Registration = {
  */
 export class WorkersService {
   private readonly registrations = new Map<string, Registration>();
+  private readonly repeatables: Array<{
+    queue: string;
+    name: string;
+    data: unknown;
+    everyMs: number;
+  }> = [];
   private readonly workers: Worker[] = [];
 
   constructor(private readonly redisUrl: string) {}
@@ -47,10 +53,60 @@ export class WorkersService {
     return [...this.registrations.keys()].sort();
   }
 
+  /**
+   * Declare a REPEATABLE job (B1.4): when startAll() runs (worker process
+   * only), the schedule is upserted on the queue — BullMQ deduplicates by
+   * (queue, name, repeat config), so re-registering on every boot is safe.
+   * The processor for the queue is registered with register() as usual and
+   * switches on `job.name`.
+   */
+  registerRepeatable(queue: string, name: string, data: unknown, everyMs: number): this {
+    this.repeatables.push({ queue, name, data, everyMs });
+    return this;
+  }
+
+  private async upsertRepeatable(
+    repeatable: { queue: string; name: string; data: unknown; everyMs: number },
+    connection: ReturnType<typeof parseRedisUrl>,
+  ): Promise<void> {
+    // BullMQ 6: repeating jobs are managed via job SCHEDULERS, not `repeat`
+    // in JobsOptions. The scheduler id is the job name — upsert is idempotent.
+    const queue = new Queue(repeatable.queue, { connection });
+    try {
+      await queue.upsertJobScheduler(
+        repeatable.name,
+        { every: repeatable.everyMs },
+        {
+          name: repeatable.name,
+          data: repeatable.data as object,
+        },
+      );
+    } catch (err) {
+      console.error(
+        JSON.stringify({
+          msg: 'repeatable_upsert_failed',
+          queue: repeatable.queue,
+          jobName: repeatable.name,
+          error: err instanceof Error ? err.message : String(err),
+        }),
+      );
+    } finally {
+      await queue.close().catch(() => {});
+    }
+  }
+
   /** Starts one BullMQ Worker per registration. Idempotent within a process. */
   startAll(): Worker[] {
     if (this.workers.length > 0) return this.workers;
     const connection = parseRedisUrl(this.redisUrl);
+
+    // Upsert repeatable schedules (worker boot only). Fire-and-forget: a
+    // missed first tick is harmless (the next interval tick runs the job),
+    // and keeping startAll() synchronous preserves the B0.4 contract.
+    for (const repeatable of this.repeatables) {
+      void this.upsertRepeatable(repeatable, connection);
+    }
+
     for (const [queue, reg] of this.registrations) {
       const worker = new Worker(
         queue,

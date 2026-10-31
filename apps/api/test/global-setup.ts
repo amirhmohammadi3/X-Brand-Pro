@@ -21,6 +21,8 @@ export function setup(): void {
     process.env.JWT_ACCESS_SECRET ?? 'test-access-secret-0123456789abcdef0123456789abcdef';
   process.env.JWT_REFRESH_SECRET =
     process.env.JWT_REFRESH_SECRET ?? 'test-refresh-secret-0123456789abcdef0123456789abcdef';
+  process.env.OTP_HMAC_SECRET =
+    process.env.OTP_HMAC_SECRET ?? 'test-otp-hmac-secret-0123456789abcdef0123456789';
   process.env.ACCESS_TTL_SEC = process.env.ACCESS_TTL_SEC ?? '900';
   process.env.REFRESH_TTL_DAYS = process.env.REFRESH_TTL_DAYS ?? '30';
   process.env.COOKIE_DOMAIN = process.env.COOKIE_DOMAIN ?? '';

@@ -104,3 +104,24 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 - (B1.3) Lockout DoS: an attacker can lock a victim's IDENTIFIER for 15 min (5 failures) — accepted trade-off, standard for password login; the account is never permanently harmed and OTP/social logins (B1.7/B1.8) provide alternate paths.
 - (B1.3) Redis outage: limiter + lockout fail open (availability), session liveness and user-status caches fail closed to the DB (correctness) — no revoked session can be resurrected.
 - (B1.3) Role staleness: `role` rides the access JWT — a role change applies when the client refreshes (≤ 15 min). B1.14's admin role-change endpoint emits `user.role.changed` for audit; a forced-revocation hook is a follow-up if needed.
+
+## 2e. OTP policy (B1.4)
+
+| Key (Redis)              | Scope          | Limit | Window | Prompt |
+| ------------------------ | -------------- | ----- | ------ | ------ |
+| `otp:resend:<hash>`      | target+purpose | 1     | 60 s   | B1.4   |
+| `otp:hour-target:<hash>` | target         | 5     | 1 h    | B1.4   |
+| `otp:hour-ip:<hash>`     | ip             | 20    | 1 h    | B1.4   |
+
+- Codes: numeric, `crypto.randomInt` (uniform, no modulo bias), length `otp.length` (default 6), leading zeros allowed.
+- Storage: ONLY HMAC-SHA256(`<id>:<code>`) keyed by `OTP_HMAC_SECRET` — a database leak does not leak codes; comparison via `timingSafeEqual` on equal-length HMAC buffers.
+- Attempts: `attempts` increments ATOMICALLY (SQL `attempts + 1`) on every try; after `otp.maxAttempts` (default 5) failures the code is dead (429 `OTP_TOO_MANY_ATTEMPTS`) even for the correct code.
+- Invalidation: a new issue for the same target+purpose consumes all previous unconsumed codes.
+- OTP errors use 422 (`OTP_INVALID`, `OTP_EXPIRED`) / 429 (`OTP_TOO_MANY_ATTEMPTS`, `OTP_RESEND_TOO_SOON` with `details.retryAfterSec`).
+- The plain code is returned ONLY by `OtpService.issue()` to the calling service that sends it (B1.5/B1.6); controllers (B1.7) never see it. Logs carry only the masked target (`maskTarget`).
+
+## 3. Secrets inventory (B1.4 additions)
+
+| Secret            | Location (env)   | Used by                 | Rotation procedure                                                                             | Prompt |
+| ----------------- | ---------------- | ----------------------- | ---------------------------------------------------------------------------------------------- | ------ |
+| `OTP_HMAC_SECRET` | env (≥ 32 chars) | OtpService code hashing | rotate → codes issued before rotation become unverifiable (users re-request); safe, low impact | B1.4   |

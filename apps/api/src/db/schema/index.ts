@@ -9,4 +9,5 @@
  */
 export * from './settings.js';
 export * from './sessions.js';
+export * from './otp.js';
 export * from './users.js';

@@ -83,3 +83,20 @@ export function slugify(s: string): string {
     .replace(/^-+|-+$/g, '');
   return t.slice(0, 80).replace(/-+$/, '');
 }
+
+/**
+ * Mask a delivery target for UI display (B1.4): phones keep the country
+ * prefix and the last 4 digits (`+98912***6789`), emails keep the first
+ * character and the domain (`a***@example.com`). Unknown shapes are fully
+ * masked so nothing user-identifying leaks into logs or responses.
+ */
+export function maskTarget(target: string): string {
+  if (/^\+\d{10,15}$/.test(target)) {
+    return `${target.slice(0, 5)}***${target.slice(-4)}`;
+  }
+  const at = target.indexOf('@');
+  if (at > 0 && at < target.length - 1) {
+    return `${target[0]}***@${target.slice(at + 1)}`;
+  }
+  return '***';
+}

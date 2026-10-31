@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { normalizeDigits, normalizePersianText, slugify, toPersianDigits } from '../text.js';
+import {
+  maskTarget,
+  normalizeDigits,
+  normalizePersianText,
+  slugify,
+  toPersianDigits,
+} from '../text.js';
 
 describe('normalizeDigits', () => {
   it('converts Persian digits to ASCII', () => {
@@ -119,5 +125,23 @@ describe('slugify', () => {
 
   it('returns empty string for punctuation-only input', () => {
     expect(slugify('***')).toBe('');
+  });
+});
+
+describe('maskTarget (B1.4)', () => {
+  it('masks E.164 phones keeping prefix and last 4 digits', () => {
+    expect(maskTarget('+989123456789')).toBe('+9891***6789');
+    expect(maskTarget('+12025550123')).toBe('+1202***0123');
+  });
+
+  it('masks emails keeping first char and domain', () => {
+    expect(maskTarget('amir@example.com')).toBe('a***@example.com');
+    expect(maskTarget('z@x.ir')).toBe('z***@x.ir');
+  });
+
+  it('fully masks unknown shapes', () => {
+    expect(maskTarget('weird')).toBe('***');
+    expect(maskTarget('@bad')).toBe('***');
+    expect(maskTarget('')).toBe('***');
   });
 });

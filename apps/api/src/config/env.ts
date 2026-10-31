@@ -49,6 +49,9 @@ export const envSchema = z.object({
   SEED_SUPERADMIN_USERNAME: z.string().optional(),
   SEED_SUPERADMIN_PASSWORD: z.string().optional(),
   SEED_SUPERADMIN_EMAIL: z.string().optional(),
+
+  // --- otp (B1.4) ---
+  OTP_HMAC_SECRET: z.string().min(32, 'must be at least 32 characters'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -90,6 +93,7 @@ export type AppConfig = Readonly<{
   logLevel: Env['LOG_LEVEL'];
   jwtAccessSecret: string;
   jwtRefreshSecret: string;
+  otpHmacSecret: string;
   accessTtlSec: number;
   refreshTtlDays: number;
   /** Refresh TTL expressed in seconds for cookie maxAge and expires_at math. */
@@ -116,6 +120,7 @@ export function buildAppConfig(env: Env): AppConfig {
     logLevel: env.LOG_LEVEL,
     jwtAccessSecret: env.JWT_ACCESS_SECRET,
     jwtRefreshSecret: env.JWT_REFRESH_SECRET,
+    otpHmacSecret: env.OTP_HMAC_SECRET,
     accessTtlSec: env.ACCESS_TTL_SEC,
     refreshTtlDays: env.REFRESH_TTL_DAYS,
     refreshTtlSec: env.REFRESH_TTL_DAYS * 86_400,

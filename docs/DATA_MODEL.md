@@ -91,3 +91,22 @@ Block format (one per table):
   - banned_until timestamptz NULL — temporary ban window; login and the guard reject while it is in the future
   - last_login_at timestamptz NULL — stamped on successful password login
 - Uniqueness: username/email/phone uniqueness is still enforced in the service (same behavior as B1.2; partial unique indexes remain a follow-up)
+
+### otp_codes
+
+- Module: otp - Prompt: B1.4
+- Purpose: generic one-time-code store for SMS/email login, verification and password reset (B1.7 consumes it)
+- Columns of note:
+  - id uuid PRIMARY KEY default gen_random_uuid() — part of the HMAC input (`<id>:<code>`)
+  - purpose otp_purpose enum NOT NULL — login | verify_email | verify_phone | reset_password | change_email | change_phone
+  - channel otp_channel enum NOT NULL — sms | email
+  - target text NOT NULL — normalized E.164 phone or lowercase email
+  - code_hash text NOT NULL — HMAC-SHA256 hex of `<id>:<code>` keyed by OTP_HMAC_SECRET; the PLAIN code is never stored
+  - expires_at timestamptz NOT NULL — otp.ttlSec (default 120 s) from issue
+  - attempts integer NOT NULL default 0 — incremented atomically on every verify try
+  - max_attempts integer NOT NULL — otp.maxAttempts (default 5) snapshot at issue
+  - consumed_at timestamptz NULL — success OR invalidation by a newer issue
+  - created_at timestamptz NOT NULL, ip inet NULL, user_id uuid NULL → users.id ON DELETE SET NULL
+- Indexes: otp_target_purpose_created_idx (target, purpose, created_at DESC) btree — latest-unconsumed lookup; otp_expires_at_idx btree — maintenance cleanup
+- Constraints: FK user_id → users on delete set null
+- Retention: maintenance queue job `otp:cleanup` (every 10 min, worker process) deletes rows expired more than 1 day ago

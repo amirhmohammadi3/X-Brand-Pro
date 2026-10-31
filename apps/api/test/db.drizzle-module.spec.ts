@@ -19,6 +19,7 @@ const BASE_ENV: Record<string, string> = {
   // B1.3 auth keys (required by the env schema; values are test-only).
   JWT_ACCESS_SECRET: 'test-access-secret-0123456789abcdef0123456789abcdef',
   JWT_REFRESH_SECRET: 'test-refresh-secret-0123456789abcdef0123456789abcdef',
+  OTP_HMAC_SECRET: 'test-otp-hmac-secret-0123456789abcdef0123456789',
 };
 
 describe('DrizzleModule (B0.2)', () => {
