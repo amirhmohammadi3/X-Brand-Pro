@@ -28,6 +28,14 @@ export const users = pgTable(
     role: userRoleEnum('role').notNull().default('user'),
     status: userStatusEnum('status').notNull().default('active'),
     displayName: text('display_name'),
+    // B1.3: preferred UI locale (localeCodeShape); null = server default (fa).
+    locale: text('locale'),
+    // B1.3: email/phone stay UNVERIFIED at register; B1.7 flips the stamps.
+    emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+    phoneVerifiedAt: timestamp('phone_verified_at', { withTimezone: true }),
+    // B1.3: temporary ban window (login + guard reject while it is in the future).
+    bannedUntil: timestamp('banned_until', { withTimezone: true }),
+    lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),

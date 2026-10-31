@@ -22,11 +22,16 @@ export interface UsersRepositoryLike {
     passwordHash?: string | null;
     role?: UserRole;
     displayName?: string | null;
+    locale?: string | null;
+    emailVerified?: boolean;
+    phoneVerified?: boolean;
   }): Promise<UserRow>;
   updateRole(id: string, role: UserRole): Promise<UserRow | null>;
   updateStatus(id: string, status: UserStatus): Promise<UserRow | null>;
   countByRole(role: UserRole, status?: UserStatus): Promise<number>;
   touchLastSeen(id: string): Promise<void>;
+  setPasswordHash(id: string, passwordHash: string): Promise<void>;
+  recordLogin(id: string): Promise<void>;
 }
 
 @Injectable()
@@ -80,6 +85,9 @@ export class UsersRepository implements UsersRepositoryLike {
     passwordHash?: string | null;
     role?: UserRole;
     displayName?: string | null;
+    locale?: string | null;
+    emailVerified?: boolean;
+    phoneVerified?: boolean;
   }): Promise<UserRow> {
     const rows = await this.client.db
       .insert(users)
@@ -90,6 +98,9 @@ export class UsersRepository implements UsersRepositoryLike {
         passwordHash: params.passwordHash ?? null,
         role: params.role ?? 'user',
         displayName: params.displayName ?? null,
+        locale: params.locale ?? null,
+        emailVerifiedAt: params.emailVerified ? new Date() : null,
+        phoneVerifiedAt: params.phoneVerified ? new Date() : null,
       })
       .returning();
     const row = rows[0];
@@ -125,5 +136,20 @@ export class UsersRepository implements UsersRepositoryLike {
 
   async touchLastSeen(id: string): Promise<void> {
     await this.client.db.update(users).set({ lastSeenAt: new Date() }).where(eq(users.id, id));
+  }
+
+  async setPasswordHash(id: string, passwordHash: string): Promise<void> {
+    await this.client.db
+      .update(users)
+      .set({ passwordHash, updatedAt: new Date() })
+      .where(eq(users.id, id));
+  }
+
+  async recordLogin(id: string): Promise<void> {
+    const now = new Date();
+    await this.client.db
+      .update(users)
+      .set({ lastLoginAt: now, lastSeenAt: now })
+      .where(eq(users.id, id));
   }
 }

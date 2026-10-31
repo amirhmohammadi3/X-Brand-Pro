@@ -1,38 +1,16 @@
 #!/usr/bin/env node
 // CLI: run idempotent seeders.
 // Usage: node dist/src/db/seed/run.js [--test]
-// Seeders register themselves via registerSeeder() from their domain module
-// seed files (added by later prompts, e.g. B2.10). Every seeder must be
+// Seeder files register themselves via registerSeeder() from
+// registry.ts (e.g. super-admin.ts, later B2.10). Every seeder must be
 // idempotent: running it twice must not duplicate rows.
 
 import { loadEnv } from '../../config/env.js';
 import { loadDotenvIntoProcessEnv } from '../load-dotenv.js';
+import { listSeeders, runSeeders } from './registry.js';
 
-export type Seeder = {
-  /** Stable machine name, e.g. "cities-1". Used for logs and future bookkeeping. */
-  name: string;
-  /** Must be idempotent (upsert / ON CONFLICT DO NOTHING, never blind INSERT). */
-  run: (db: unknown) => Promise<void>;
-};
-
-const registered: Seeder[] = [];
-
-export function registerSeeder(seeder: Seeder): void {
-  registered.push(seeder);
-}
-
-export function listSeeders(): readonly Seeder[] {
-  return registered;
-}
-
-export async function runSeeders(): Promise<string[]> {
-  const ran: string[] = [];
-  for (const seeder of registered) {
-    await seeder.run(undefined);
-    ran.push(seeder.name);
-  }
-  return ran;
-}
+// Importing registers the seeders (side-effect modules).
+import './super-admin.js';
 
 async function main(): Promise<void> {
   loadDotenvIntoProcessEnv();

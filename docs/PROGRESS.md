@@ -24,7 +24,7 @@
 
 - [x] B1.1 🟡 ذخیرهٔ تنظیمات (secretها رمزنگاری‌شده، کش، فقط ادمین) (2026-10-31)
 - [x] B1.2 🟡 کاربران و نقش‌ها (user, owner, moderator, admin, super_admin) + RBAC (2026-10-31)
-- [ ] B1.3 🔴 هستهٔ احراز هویت: ثبت‌نام/ورود با یوزر و پسورد (argon2)، JWT، refresh چرخشی، نشست‌ها
+- [x] B1.3 🔴 هستهٔ احراز هویت: ثبت‌نام/ورود با یوزر و پسورد (argon2)، JWT، refresh چرخشی، نشست‌ها (2026-11-01)
 - [ ] B1.4 🟡 موتور OTP (هش، انقضا، تلاش، rate limit)
 - [ ] B1.5 🟡 درایور پیامک: interface + فیک + ملی‌پیامک + کاوه‌نگار (تنظیم از پنل)
 - [ ] B1.6 🟡 درایور ایمیل: interface + SMTP + قالب‌ها + صف
@@ -224,6 +224,10 @@
 فرمت هر مورد: `- [ ] (ID پرامپت منشأ) شرح کار پیشنهادی و دلیل`
 
 - [ ] (B0.2) Run `pnpm db:migrate` and `pnpm db:migrate:test` against a live Postgres (Docker) to verify the migration runner end to end. In this sandbox Docker is unavailable; verified instead: `db:generate` (no-DB diff), clean ECONNREFUSED failure path of the CLI, and 12 unit tests.
+- [ ] (B1.3) Apply migration `0002_plain_jack_flag` and run `pnpm db:seed` (super-admin seeder) against a live Postgres on a machine with Docker; the seeder CLI was verified up to the DB boundary (env validation passes, first query fails with ECONNREFUSED here).
+- [ ] (B1.3) Run the live-DB variant of the auth integration suite (`test/auth.api.spec.ts` uses in-memory repositories + FakeRedis today) and re-do the curl "Done when" walk-through (register → login → me → refresh → replay → me fails) against a running API on a Docker machine.
+- [ ] (B1.3) Add partial unique indexes on users(username) / users(email) / users(phone) when all writers exist (B1.7/B1.8) — uniqueness is service-enforced for now, as decided in B1.2.
+- [ ] (B1.3) Force-revoke a user's sessions synchronously on admin role change (B1.14) — today the role claim refreshes within ≤ ACCESS_TTL_SEC via refresh.
 - [ ] (B0.3) Cache stampede protection: single-flight lock for `CacheService.wrap` (only one producer per key) — deferred, acceptable at current scale.
 - [ ] (B0.3) Add a Redis probe to the health endpoint (ping + latency) once a liveness/readiness split exists; the limiter and cache fail open until then.
 - [ ] (B0.4) Verify the worker end to end against live Redis (enqueue → consume → retry on failure) on a machine with Docker; unit tests use a BullMQ mock, and the SIGTERM drain path was verified only with an empty registry.

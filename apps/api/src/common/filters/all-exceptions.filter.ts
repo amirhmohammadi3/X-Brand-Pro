@@ -16,6 +16,8 @@ interface HttpExceptionBody {
   statusCode?: number;
   code?: ErrorCode;
   details?: unknown;
+  /** Explicit i18n key override (e.g. errors.csrf) — wins over the code mapping. */
+  messageKey?: string;
 }
 
 /**
@@ -43,6 +45,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
     let code: ErrorCode;
     let message: string;
     let details: unknown;
+    let messageKeyOverride: string | undefined;
 
     if (exception instanceof HttpException) {
       status = exception.getStatus();
@@ -62,6 +65,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
           message = body.message ?? exception.message;
           if (body.details !== undefined) details = body.details;
           if (body.code) code = body.code;
+          if (body.messageKey) messageKeyOverride = body.messageKey;
         }
       }
     } else {
@@ -93,7 +97,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       ok: false as const,
       error: {
         code,
-        messageKey: errorMessageKey(code),
+        messageKey: messageKeyOverride ?? errorMessageKey(code),
         message,
         ...(details !== undefined ? { details } : {}),
         requestId,

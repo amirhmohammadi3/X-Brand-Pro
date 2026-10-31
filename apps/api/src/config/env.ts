@@ -30,6 +30,25 @@ export const envSchema = z.object({
     .string()
     .default('false')
     .transform((v) => v === 'true'),
+
+  // --- auth (B1.3) ---
+  JWT_ACCESS_SECRET: z.string().min(32, 'must be at least 32 characters'),
+  JWT_REFRESH_SECRET: z.string().min(32, 'must be at least 32 characters'),
+  ACCESS_TTL_SEC: z.coerce.number().int().min(60).max(3600).default(900),
+  REFRESH_TTL_DAYS: z.coerce.number().int().min(1).max(90).default(30),
+  COOKIE_DOMAIN: z
+    .string()
+    .default('')
+    .transform((v) => (v.trim() === '' ? undefined : v.trim())),
+  COOKIE_SECURE: z
+    .string()
+    .default('')
+    .transform((v) => (v === '' ? undefined : v === 'true')),
+
+  // --- seed superadmin (B1.3 seeder; read only by the CLI seeder) ---
+  SEED_SUPERADMIN_USERNAME: z.string().optional(),
+  SEED_SUPERADMIN_PASSWORD: z.string().optional(),
+  SEED_SUPERADMIN_EMAIL: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -69,6 +88,15 @@ export type AppConfig = Readonly<{
   testRedisUrl: string;
   trustProxy: boolean | number | string | string[] | undefined;
   logLevel: Env['LOG_LEVEL'];
+  jwtAccessSecret: string;
+  jwtRefreshSecret: string;
+  accessTtlSec: number;
+  refreshTtlDays: number;
+  /** Refresh TTL expressed in seconds for cookie maxAge and expires_at math. */
+  refreshTtlSec: number;
+  cookieDomain: string | undefined;
+  /** Defaults to true in production, false otherwise (overridable by env). */
+  cookieSecure: boolean;
 }>;
 
 export function buildAppConfig(env: Env): AppConfig {
@@ -86,5 +114,12 @@ export function buildAppConfig(env: Env): AppConfig {
     testRedisUrl: env.TEST_REDIS_URL,
     trustProxy: env.TRUST_PROXY,
     logLevel: env.LOG_LEVEL,
+    jwtAccessSecret: env.JWT_ACCESS_SECRET,
+    jwtRefreshSecret: env.JWT_REFRESH_SECRET,
+    accessTtlSec: env.ACCESS_TTL_SEC,
+    refreshTtlDays: env.REFRESH_TTL_DAYS,
+    refreshTtlSec: env.REFRESH_TTL_DAYS * 86_400,
+    cookieDomain: env.COOKIE_DOMAIN,
+    cookieSecure: env.COOKIE_SECURE ?? env.NODE_ENV === 'production',
   });
 }

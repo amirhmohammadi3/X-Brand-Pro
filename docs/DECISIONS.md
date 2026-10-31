@@ -331,3 +331,39 @@ Entry format:
 - Decision: The system always keeps at least one ACTIVE super_admin: demotion and blocking that would remove the last one are rejected with 409 CONFLICT. Only a super_admin may demote a super_admin. Role/status changes emit domain events (`user.role.changed`, `user.status.changed`) for the audit log (B1.11).
 - Reason: An instance that accidentally demotes its last admin is unrecoverable without DB surgery; the invariant belongs in the service, not the UI. Username/email/phone uniqueness is enforced in the service for now (Postgres 23505 handling lands with B1.3's partial unique indexes, when all writers exist).
 - Alternatives: allowing lockout + a CLI recovery tool (operational pain), deferring events to B1.11 (audit would miss history).
+
+## 2026-11-01 — B1.3 argon2id parameters and jose for JWT
+
+- Prompt: B1.3
+- Decision: Passwords use argon2id with the OWASP Password Storage Cheat Sheet interactive parameters m=19456 KiB (19 MiB), t=2, p=1 (node binding `argon2` 0.45.1, already pinned in B1.2). Access tokens are JWT HS256 signed via `jose` 6.2.14 (exact-pinned). Legacy hashes are upgraded opportunistically on login via `needsRehash`.
+- Reason: OWASP-recommended interactive parameters balance brute-force resistance against server load on a single Iranian host. `jose` is actively maintained, dependency-free (WebCrypto), and its HS256 path is audited; `@nestjs/jwt` wraps the aging `jsonwebtoken` with open CVEs and slower maintenance.
+- Alternatives: bcrypt (no memory hardness), scrypt directly (no self-describing hashes / needsRehash), @nestjs/jwt 12 (jsonwebtoken core is in maintenance mode).
+- Assumptions: jose 6.2.14 is the current stable major (checked against the npm registry on 2026-11-01); argon2 parameters re-verified against OWASP guidance from memory of the 2024 cheat sheet — re-check on the next review.
+
+## 2026-11-01 — B1.3 opaque rotating refresh tokens with family revocation
+
+- Prompt: B1.3
+- Decision: Refresh tokens are 32 random bytes (base64url), stored ONLY as SHA-256 hex in `sessions.refresh_hash` (unique). Each rotation creates a new session row in the same `family_id` and marks the old row `replaced_by`. Presenting a revoked or already-replaced token burns the whole family with reason `reuse_detected` (401 TOKEN_REUSED). Session liveness is cached in Redis (`session:active:<sid>`, 60 s TTL, DB fallback that fails CLOSED).
+- Reason: Opaque tokens carry no claims to leak and are useless without the DB; the family-burn pattern detects theft (both attacker and legitimate client eventually fail) instead of silently serving both. Redis caching keeps the per-request guard check off the DB while DB fallback guarantees revocation correctness during a Redis outage.
+- Alternatives: JWT refresh tokens (cannot revoke server-side without a denylist), single-row refresh update (no reuse detection), delete-and-insert rotation (loses the family link).
+
+## 2026-11-01 — B1.3 CSRF: Origin check tied to cookie presence; messageKey passthrough
+
+- Prompt: B1.3
+- Decision: A global `CsrfOriginGuard` requires an Origin/Referer matching PUBLIC_WEB_URL for unsafe methods (POST/PUT/PATCH/DELETE) that arrive with ANY cookie — including public auth routes; requests without cookies (pure Bearer clients) pass. The error carries messageKey `errors.csrf`; the AllExceptionsFilter now honors an explicit `messageKey` in exception bodies (small, general extension of B0.1's filter).
+- Reason: Presence of cookies is what creates CSRF risk, so the cookie is the trigger — this covers the prompt's "Bearer not exempt when cookies ride along" and "login/register accept matching Origin or no cookies" in one rule. SameSite=Lax remains the first line of defense; the Origin check covers degenerate clients.
+- Alternatives: double-submit tokens (state, another secret), Nest's built-in csurf (deprecated upstream).
+
+## 2026-11-01 — B1.3 lockout and login throttle parameters
+
+- Prompt: B1.3
+- Decision: Login rate limit 10 / 10 min per ip+normalized-identifier (key `auth.login`, fail-closed on Redis outage). Brute-force lockout: 5 consecutive failures per normalized identifier within 15 min → 429 ACCOUNT_LOCKED for 15 min (Redis `auth:fail:<sha256(id)>`, reset on success, checked BEFORE password verification). Unknown identifiers count and get identical responses + a dummy argon2 verify.
+- Reason: Per-identifier lockout with per-ip+identifier rate limiting raises the cost of both spraying (ip+identifier pairs) and targeted brute force (lockout) without letting one ip lock out every account. Fail-open on the lockout layer preserves availability during a Redis outage; the failClosed limiter still gates abuse on auth.register.
+- Alternatives: per-ip-only lockout (breaks behind shared NATs in Iran), CAPTCHA (external service, banned by AGENTS.md), permanent lockout (support burden).
+
+## 2026-11-01 — B1.3 users-table extension and non-browser refresh
+
+- Prompt: B1.3
+- Decision: The users table gains `locale`, `email_verified_at`, `phone_verified_at`, `banned_until`, `last_login_at` (migration 0002_plain_jack_flag) because B1.3's register/login behaviors need them. Non-browser clients may POST /auth/refresh with `{ refreshToken }` in the body; that response includes the new `refreshToken` (cookie clients never receive tokens in the body). POST /auth/logout-all revokes ALL sessions including the current one. Login/refresh return 200 (register keeps 201).
+- Reason: The columns implement exactly the prompt's UNVERIFIED-storage, ban-window and last-login requirements (B1.7 will flip the verified stamps). The body-refresh escape hatch keeps the API usable for server-to-server clients that have no cookie jar, without weakening the browser path (Set-Cookie only).
+- Alternatives: a separate devices table (deferred until push targets need it), refresh-token-in-body for browsers (XSS exfiltration risk — rejected).

@@ -115,3 +115,86 @@ Defined in `@app/contracts/src/errors.ts`; HTTP status mapping in `ERROR_HTTP_ST
 - Errors: 503 when any critical HealthIndicator is `down` (envelope unchanged, HTTP status 503)
 - Rate limit: none (probe endpoint; protected from abuse at the reverse-proxy layer in production)
 - Extension point: modules contribute `HealthIndicator` providers on the `HEALTH_INDICATORS` token (db, redis, worker added by later prompts)
+
+## Auth endpoints (B1.3)
+
+All under `/api/v1/auth`. Tokens travel in httpOnly cookies (`at` access JWT, `rt` opaque refresh token — both `SameSite=Lax`, `Secure` per `COOKIE_SECURE`, `Domain` per `COOKIE_DOMAIN`, `Path=/`). Global guard chain order: RateLimit → JwtAuth → CsrfOrigin → Roles. Cookie-bearing unsafe requests require an `Origin` (or `Referer`) matching `PUBLIC_WEB_URL` (messageKey `errors.csrf`) — see `CsrfOriginGuard`.
+
+### POST /api/v1/auth/register
+
+- Module: auth - Prompt: B1.3
+- Auth: public
+- Request: RegisterBody (body; strict) — username, password (passwordSchema), optional fullName/email/phone/locale; email+phone stored UNVERIFIED
+- Response: AuthResult (status 201) — `{ user: CurrentUser, accessExpiresAt }`; sets `at`+`rt` cookies
+- Errors: 400 VALIDATION_FAILED (weak password, unknown keys), 409 CONFLICT with `details: { field: 'username'|'email'|'phone' }`, 429 RATE_LIMITED, 503 SERVICE_UNAVAILABLE (limiter down — failClosed)
+- Rate limit: 5 req / 1 h per ip (key `auth.register`, failClosed)
+- Notes: emits `auth.registered`; the response NEVER contains tokens (cookies only)
+
+### POST /api/v1/auth/login
+
+- Module: auth - Prompt: B1.3
+- Auth: public
+- Request: LoginBody (body; strict) — identifier (username OR email OR phone; Persian digits + phone variants normalized), password
+- Response: AuthResult (status 200); sets `at`+`rt` cookies
+- Errors: 401 INVALID_CREDENTIALS (identical for unknown identifier and wrong password), 403 ACCOUNT_BANNED (only for the verified owner), 429 ACCOUNT_LOCKED (brute-force lockout, `details.retryAfterSec`), 429 RATE_LIMITED
+- Rate limit: 10 req / 10 min per ip+normalized-identifier (key `auth.login`, via LoginThrottleService) — checked BEFORE password verification
+- Notes: emits `auth.login.succeeded` / `auth.login.failed`; resets the failure counter on success; rehashes legacy argon2 hashes when parameters were upgraded; stamps `last_login_at`
+
+### POST /api/v1/auth/refresh
+
+- Module: auth - Prompt: B1.3
+- Auth: public (refresh token itself is the credential)
+- Request: none (reads `rt` cookie) or RefreshBody `{ refreshToken }` for non-browser clients
+- Response: AuthResult (status 200) — includes `refreshToken` ONLY when the request presented it in the body; sets rotated `at`+`rt` cookies
+- Errors: 401 SESSION_REVOKED (unknown/expired token), 401 TOKEN_REUSED (reuse of a replaced/revoked token — burns the whole family), 403 ACCOUNT_BANNED, 429 RATE_LIMITED, 403 FORBIDDEN (cookie + missing/mismatching Origin)
+- Rate limit: 60 req / 60 s per ip (key `auth.refresh`)
+- Notes: rotation marks the old session row `replaced_by` and mints a new row in the SAME family; reuse revokes the entire family with reason `reuse_detected` and emits `auth.token.reuse_detected`
+
+### POST /api/v1/auth/logout
+
+- Module: auth - Prompt: B1.3
+- Auth: any authenticated (bearer or cookie)
+- Request: none
+- Response: empty (status 204); clears both cookies
+- Errors: 401 UNAUTHENTICATED
+- Rate limit: none
+- Notes: revokes ONLY the current session (`revoked_reason=logout`); the access token stops working immediately (guard checks session liveness); emits `auth.logout`
+
+### POST /api/v1/auth/logout-all
+
+- Module: auth - Prompt: B1.3
+- Auth: any authenticated
+- Request: none
+- Response: empty (status 204); clears cookies
+- Errors: 401 UNAUTHENTICATED
+- Rate limit: none
+- Notes: revokes ALL of the user's sessions including the current one (reason `logout_all`); emits `auth.session.revoked` per session
+
+### GET /api/v1/auth/me
+
+- Module: auth - Prompt: B1.3
+- Auth: any authenticated
+- Request: none
+- Response: CurrentUser (status 200) — fresh DB read, no password hash
+- Errors: 401 UNAUTHENTICATED / SESSION_REVOKED, 403 ACCOUNT_BANNED
+- Rate limit: none
+
+### GET /api/v1/auth/sessions
+
+- Module: auth - Prompt: B1.3
+- Auth: any authenticated
+- Request: none
+- Response: SessionView[] (status 200) — id, userAgent, ip (masked `a.b.c.xxx`), createdAt, lastUsedAt, current
+- Errors: 401 UNAUTHENTICATED
+- Rate limit: none
+- Notes: lists only the caller's ACTIVE sessions; `current: true` marks the session the access token belongs to
+
+### DELETE /api/v1/auth/sessions/:id
+
+- Module: auth - Prompt: B1.3
+- Auth: any authenticated (owner of the session)
+- Request: id uuid (param)
+- Response: empty (status 204)
+- Errors: 401 UNAUTHENTICATED, 404 NOT_FOUND (unknown id OR another user's session — no existence leak)
+- Rate limit: none
+- Notes: revokes with reason `revoked_by_user`

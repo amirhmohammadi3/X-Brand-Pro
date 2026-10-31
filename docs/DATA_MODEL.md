@@ -63,3 +63,31 @@ Block format (one per table):
 - Indexes: settings_group_idx: (group), btree — admin listing filter
 - Constraints: primary key on key; no foreign keys
 - Retention: rows live until an admin resets the key (DELETE removes the override)
+
+### sessions
+
+- Module: auth - Prompt: B1.3
+- Purpose: server-side sessions; one row per issued refresh token. Rotation chains share `family_id`; reuse detection burns the family
+- Columns of note:
+  - id uuid PRIMARY KEY default gen_random_uuid()
+  - user_id uuid NOT NULL → users.id ON DELETE CASCADE
+  - family_id uuid NOT NULL — rotation family (set on create, kept across rotations)
+  - refresh_hash text NOT NULL UNIQUE — SHA-256 hex of the opaque refresh token; the raw token is NEVER stored or logged
+  - user_agent text NULL, ip inet NULL
+  - created_at / last_used_at timestamptz NOT NULL
+  - expires_at timestamptz NOT NULL — refresh TTL (REFRESH_TTL_DAYS, default 30d)
+  - revoked_at timestamptz NULL, revoked_reason text NULL — logout | logout_all | reuse_detected | rotated(by replaced_by) | banned_user | revoked_by_user
+  - replaced_by uuid NULL — id of the successor row; a NON-NULL value means the token was already consumed (presenting it again = reuse)
+- Indexes: sessions_user_revoked_idx (user_id, revoked_at) btree — session listing + revoke-all; sessions_family_idx (family_id) btree — family burn
+- Constraints: unique refresh_hash; FK user_id → users on delete cascade
+- Retention: revoked rows kept for audit (purge policy is a later prompt)
+
+### users (B1.3 additions)
+
+- Module: auth - Prompt: B1.3
+- New columns (migration `0002_plain_jack_flag`):
+  - locale text NULL — preferred UI locale (localeCodeSchema shape); null = server default
+  - email_verified_at / phone_verified_at timestamptz NULL — register stores email/phone UNVERIFIED; B1.7 flips the stamps
+  - banned_until timestamptz NULL — temporary ban window; login and the guard reject while it is in the future
+  - last_login_at timestamptz NULL — stamped on successful password login
+- Uniqueness: username/email/phone uniqueness is still enforced in the service (same behavior as B1.2; partial unique indexes remain a follow-up)

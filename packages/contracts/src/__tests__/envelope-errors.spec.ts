@@ -18,7 +18,7 @@ import {
 } from '../pagination.js';
 
 describe('errors', () => {
-  it('has exactly the 11 expected codes', () => {
+  it('has exactly the 16 expected codes', () => {
     expect([...ERROR_CODES]).toEqual([
       'VALIDATION_FAILED',
       'UNAUTHENTICATED',
@@ -26,6 +26,12 @@ describe('errors', () => {
       'NOT_FOUND',
       'CONFLICT',
       'RATE_LIMITED',
+      // B1.3 auth codes:
+      'INVALID_CREDENTIALS',
+      'ACCOUNT_BANNED',
+      'TOKEN_REUSED',
+      'SESSION_REVOKED',
+      'ACCOUNT_LOCKED',
       'PAYLOAD_TOO_LARGE',
       'UNSUPPORTED_MEDIA_TYPE',
       'UNPROCESSABLE',
@@ -42,6 +48,11 @@ describe('errors', () => {
       NOT_FOUND: 404,
       CONFLICT: 409,
       RATE_LIMITED: 429,
+      INVALID_CREDENTIALS: 401,
+      ACCOUNT_BANNED: 403,
+      TOKEN_REUSED: 401,
+      SESSION_REVOKED: 401,
+      ACCOUNT_LOCKED: 429,
       PAYLOAD_TOO_LARGE: 413,
       UNSUPPORTED_MEDIA_TYPE: 415,
       UNPROCESSABLE: 422,

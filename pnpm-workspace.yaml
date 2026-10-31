@@ -3,9 +3,12 @@ packages:
   - 'packages/*'
 
 allowBuilds:
+  '@parcel/watcher': true
   '@scarf/scarf': true
   '@swc/core': true
+  argon2: true
   esbuild: true
+  msgpackr-extract: true
 
 minimumReleaseAgeExclude:
   - '@swc/core-darwin-arm64@1.16.21'

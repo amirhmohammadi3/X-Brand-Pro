@@ -19,6 +19,11 @@ function row(overrides: Partial<UserRow> = {}): UserRow {
     role: overrides.role ?? 'user',
     status: overrides.status ?? 'active',
     displayName: overrides.displayName ?? null,
+    locale: overrides.locale ?? null,
+    emailVerifiedAt: overrides.emailVerifiedAt ?? null,
+    phoneVerifiedAt: overrides.phoneVerifiedAt ?? null,
+    bannedUntil: overrides.bannedUntil ?? null,
+    lastLoginAt: overrides.lastLoginAt ?? null,
     createdAt: overrides.createdAt ?? new Date('2026-01-01T00:00:00Z'),
     updatedAt: overrides.updatedAt ?? new Date('2026-01-01T00:00:00Z'),
     lastSeenAt: overrides.lastSeenAt ?? null,
@@ -57,6 +62,9 @@ function makeRepo(initial: UserRow[] = []): UsersRepositoryLike & { rows: Map<st
         passwordHash: params.passwordHash ?? null,
         role: params.role ?? 'user',
         displayName: params.displayName ?? null,
+        locale: params.locale ?? null,
+        emailVerifiedAt: params.emailVerified ? new Date() : null,
+        phoneVerifiedAt: params.phoneVerified ? new Date() : null,
       });
       rows.set(created.id, created);
       return created;
@@ -82,6 +90,14 @@ function makeRepo(initial: UserRow[] = []): UsersRepositoryLike & { rows: Map<st
     },
     async touchLastSeen() {
       return undefined;
+    },
+    async setPasswordHash(id, passwordHash) {
+      const r = rows.get(id);
+      if (r) rows.set(id, { ...r, passwordHash, updatedAt: new Date() });
+    },
+    async recordLogin(id) {
+      const r = rows.get(id);
+      if (r) rows.set(id, { ...r, lastLoginAt: new Date(), lastSeenAt: new Date() });
     },
   };
 }

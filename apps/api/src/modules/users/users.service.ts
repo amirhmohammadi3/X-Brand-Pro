@@ -1,5 +1,8 @@
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
-import { type EventEmitter2 } from '@nestjs/event-emitter';
+// Value import (not type-only): Nest reads the constructor parameter type at
+// runtime via emitDecoratorMetadata — type-only would break DI (B1.3).
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { AdminUserView, UserRole, UserStatus } from '@app/contracts';
 import type { UserRow } from '../../db/schema/users.js';
 import type { UsersRepositoryLike } from './users.repository.js';
@@ -58,6 +61,21 @@ export class UsersService {
     return this.repo.findByIdentifier(identifier);
   }
 
+  /** True while a temporary ban window (B1.3 `banned_until`) is in the future. */
+  isCurrentlyBanned(row: Pick<UserRow, 'bannedUntil'>): boolean {
+    return row.bannedUntil !== null && row.bannedUntil.getTime() > Date.now();
+  }
+
+  /** B1.3: store a (re)hashed password — register, rehash-on-login, B1.7 reset. */
+  async setPasswordHash(id: string, passwordHash: string): Promise<void> {
+    await this.repo.setPasswordHash(id, passwordHash);
+  }
+
+  /** B1.3: stamp last_login_at (and last_seen_at) on successful login. */
+  async recordLogin(id: string): Promise<void> {
+    await this.repo.recordLogin(id);
+  }
+
   async create(params: {
     username: string;
     email?: string | null;
@@ -65,6 +83,9 @@ export class UsersService {
     passwordHash?: string | null;
     role?: UserRole;
     displayName?: string | null;
+    locale?: string | null;
+    emailVerified?: boolean;
+    phoneVerified?: boolean;
   }): Promise<UserRow> {
     const existingUsername = await this.repo.findByUsername(params.username);
     if (existingUsername) {

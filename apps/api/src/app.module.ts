@@ -6,6 +6,9 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { RolesGuard } from './common/guards/roles.guard.js';
 import { ConfigModule } from './config/config.module.js';
 import { DrizzleModule } from './db/drizzle.module.js';
+import { AuthModule } from './modules/auth/auth.module.js';
+import { CsrfOriginGuard } from './modules/auth/csrf-origin.guard.js';
+import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { UsersModule } from './modules/users/users.module.js';
@@ -52,13 +55,18 @@ import { RedisModule } from './redis/redis.module.js';
     HealthModule,
     SettingsModule,
     UsersModule,
+    AuthModule,
   ],
   providers: [
     // Global opt-in rate limiting: routes annotated with @RateLimit are
     // enforced with the Redis limiter; everything else passes through.
     { provide: APP_GUARD, useClass: RateLimitGuard },
-    // Interim auth-metadata guard: @Public passes, @Roles denies until
-    // B1.2/B1.3 bring real identity (see RolesGuard docblock).
+    // Identity (B1.3): verifies the access token (bearer or cookie), the
+    // session's liveness and the user's status; sets request.user.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    // CSRF origin check for cookie-bearing unsafe requests (B1.3).
+    { provide: APP_GUARD, useClass: CsrfOriginGuard },
+    // RBAC metadata enforcement (B1.2) — depends on request.user from above.
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })

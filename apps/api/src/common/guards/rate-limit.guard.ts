@@ -46,6 +46,18 @@ export class RateLimitGuard implements CanActivate {
     const result = await this.limiter.consume(spec.name, identity, spec.limit, spec.windowSec);
     if (result.allowed) return true;
 
+    if (result.degraded && spec.failClosed) {
+      // Auth endpoints opt into failing closed: an outage must not become an
+      // open door. 503 SERVICE_UNAVAILABLE (not 429 — nothing was "too many").
+      throw new HttpException(
+        {
+          code: 'SERVICE_UNAVAILABLE' as const,
+          message: 'Rate limiter unavailable',
+        },
+        503,
+      );
+    }
+
     if (result.retryAfterSec > 0) {
       res.setHeader('Retry-After', String(result.retryAfterSec));
     }

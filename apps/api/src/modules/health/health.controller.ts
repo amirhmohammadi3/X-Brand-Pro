@@ -1,6 +1,7 @@
 import { Controller, Get, Inject, Res } from '@nestjs/common';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { Public } from '../../common/decorators/public.decorator.js';
 import { VERSION } from './version.js';
 import { HEALTH_INDICATORS, type HealthIndicator } from './health-indicator.js';
 
@@ -16,6 +17,7 @@ export interface HealthPayload {
 export class HealthController {
   constructor(@Inject(HEALTH_INDICATORS) private readonly indicators: HealthIndicator[]) {}
 
+  @Public() // liveness probes must never require auth (global JwtAuthGuard, B1.3)
   @Get()
   @ApiOperation({ summary: 'Liveness/readiness probe. 503 when a critical indicator is down.' })
   @ApiOkResponse({ description: 'Aggregated health of the API and its dependencies.' })

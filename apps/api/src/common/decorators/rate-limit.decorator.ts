@@ -14,6 +14,12 @@ export type RateLimitSpec = Readonly<{
    * fall back to ip while the request is unauthenticated.
    */
   scope?: 'ip' | 'user';
+  /**
+   * When true, a DEGRADED limiter (Redis unreachable) rejects with 503
+   * instead of failing open — used on auth endpoints where abuse must not
+   * slip through an outage (B1.3).
+   */
+  failClosed?: boolean;
 }>;
 
 /**

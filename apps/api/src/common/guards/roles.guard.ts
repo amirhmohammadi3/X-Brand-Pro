@@ -5,11 +5,15 @@ import {
   HttpStatus,
   Injectable,
 } from '@nestjs/common';
-import { type Reflector } from '@nestjs/core';
 import { roleSatisfies } from '../../modules/users/users.service.js';
 import type { UserRole } from '@app/contracts';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
 import { ROLES_KEY } from '../decorators/roles.decorator.js';
+// Reflector is constructor-injected: Nest reads its type at runtime via
+// emitDecoratorMetadata — type-only would break DI (found when B1.3 added
+// guards ahead of this one). Same pattern as rate-limit.guard.ts.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { Reflector } from '@nestjs/core';
 
 /** Shape the future JWT/session guard (B1.3) attaches to authenticated requests. */
 export interface AuthenticatedRequest {
