@@ -48,3 +48,11 @@ Entry format:
 - Decision: Husky hooks are plain Node scripts (`#!/usr/bin/env node`) under `.husky/`, calling `pnpm exec lint-staged` and `pnpm exec commitlint` via `execSync`. No bash-only syntax.
 - Reason: Must work on Windows Git Bash, macOS and Linux identically. Node scripts avoid shell quoting pitfalls.
 - Alternatives: Bash hooks (break on Windows Git Bash when complex quoting is needed), `husky add` (removed in v9).
+
+## 2026-10-31 — P0.2 brand.ts + check scripts
+
+- Prompt: P0.2
+- Decision: Single brand source of truth at `packages/config/src/brand.ts` exporting `BRAND`, `DEFAULT_LOCALE`, `FALLBACK_LOCALE`. Re-exported from `packages/config/src/index.ts`. Two guard scripts (`scripts/check-foundation.mjs`, `scripts/check-brand.mjs`) with pure helpers in `scripts/lib/*.mjs` and unit tests under `scripts/lib/__tests__` run with the Node built-in test runner.
+- Reason: AGENTS.md mandates the brand name appear in exactly one place; the guard scripts make that enforceable in CI and `pnpm verify`. Pure helpers are extracted so they can be tested without spawning subprocesses.
+- Alternatives: reading brand.ts via `require()` (would need a build step before the check; regex extraction is build-free and robust). Putting `lint-staged` config in package.json (breaks on the huge pnpm-lock.yaml — prettier OOMs when passed the file explicitly, and .prettierignore is bypassed for CLI-passed files); a separate `lint-staged.config.mjs` filters the lockfile out.
+- Assumptions: Node test runner pattern `scripts/lib/__tests__/*.test.mjs` matches `*.test.mjs` files (Node 22+ supports `.mjs` in the default test glob when given an explicit path/glob).

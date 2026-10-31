@@ -7,7 +7,7 @@
 ## فاز ۰ — اسکلت و زیرساخت
 
 - [x] P0.1 🟢 ساخت مونورپو (pnpm، Turborepo، TS مشترک، ESLint، Prettier، hooks) (2026-10-31)
-- [ ] P0.2 🟢 قرار دادن فایل‌های پایه + فایل واحد نام/برند
+- [x] P0.2 🟢 قرار دادن فایل‌های پایه + فایل واحد نام/برند (2026-10-31)
 - [ ] P0.3 🟡 پکیج contracts (Zod، envelope پاسخ، خطاها، pagination)
 - [ ] I0.1 🟢 Docker Compose توسعه (Postgres+PostGIS، Redis، Mailpit) و اسکریپت‌های Node
 - [ ] B0.1 🟡 اسکلت NestJS (config، health، لاگ، فیلتر خطا، OpenAPI)

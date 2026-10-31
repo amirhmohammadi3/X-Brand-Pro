@@ -1,3 +1,4 @@
-// @app/config shared entry. Re-exports are added by later prompts (P0.2 adds brand.ts).
-// Placeholder export so the package builds a non-empty module.
+// @app/config shared entry. Re-exports the brand constants and locale defaults.
+// P0.2 adds brand.ts; later prompts add theme tokens and more.
+export { BRAND, DEFAULT_LOCALE, FALLBACK_LOCALE } from './brand.js';
 export const CONFIG_PACKAGE_NAME = '@app/config';
