@@ -56,3 +56,22 @@ Entry format:
 - Reason: AGENTS.md mandates the brand name appear in exactly one place; the guard scripts make that enforceable in CI and `pnpm verify`. Pure helpers are extracted so they can be tested without spawning subprocesses.
 - Alternatives: reading brand.ts via `require()` (would need a build step before the check; regex extraction is build-free and robust). Putting `lint-staged` config in package.json (breaks on the huge pnpm-lock.yaml — prettier OOMs when passed the file explicitly, and .prettierignore is bypassed for CLI-passed files); a separate `lint-staged.config.mjs` filters the lockfile out.
 - Assumptions: Node test runner pattern `scripts/lib/__tests__/*.test.mjs` matches `*.test.mjs` files (Node 22+ supports `.mjs` in the default test glob when given an explicit path/glob).
+
+## 2026-10-31 — I0.1 dev Docker Compose images
+
+- Prompt: I0.1
+- Decision: Pinned dev image tags:
+  - postgis/postgis:16-3.4-alpine (Postgres 16 + PostGIS 3.4)
+  - redis:7.4-alpine
+  - axllent/mailpit:1.20
+  - All services bind to 127.0.0.1 only (not 0.0.0.0).
+  - Init SQL creates extensions (postgis, pg_trgm, unaccent, pgcrypto) in both `app` and `app_test` databases.
+- Reason: PostGIS 3.4 is the current stable matching Postgres 16; alpine variants keep the dev image small; pinning to 127.0.0.1 prevents accidental exposure of dev services on the LAN.
+- Alternatives: postgis/postgis:17-3.5 (Postgres 17 not yet LTS-equivalent everywhere), redis:8 (still very new as of 2026-10), `latest` tags (forbidden by AGENTS.md).
+- Assumptions: The user runs Docker Desktop locally; in this sandbox docker is not available, so `pnpm services:up` will print a clean error (verified). The compose file itself is valid and will work on any machine with Docker.
+
+## 2026-10-31 — I0.1 services.mjs cross-platform
+
+- Prompt: I0.1
+- Decision: `scripts/services.mjs` is a pure Node script using `spawnSync('docker', [...])` (no shell, no bash). Subcommands: up, down, reset (asks for confirmation unless `--yes`), logs [service], status. Checks `docker --version` and `docker info` and prints a clean error if docker is missing.
+- Reason: AGENTS.md mandates cross-platform Node (.mjs) scripts only — no bash/powershell.
