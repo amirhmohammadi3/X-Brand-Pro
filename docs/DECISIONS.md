@@ -75,3 +75,24 @@ Entry format:
 - Prompt: I0.1
 - Decision: `scripts/services.mjs` is a pure Node script using `spawnSync('docker', [...])` (no shell, no bash). Subcommands: up, down, reset (asks for confirmation unless `--yes`), logs [service], status. Checks `docker --version` and `docker info` and prints a clean error if docker is missing.
 - Reason: AGENTS.md mandates cross-platform Node (.mjs) scripts only — no bash/powershell.
+
+## 2026-10-31 — P0.3 contracts package versions
+
+- Prompt: P0.3
+- Decision: Pinned versions for `@app/contracts`:
+  - zod: 3.24.1 (runtime dependency — the only one)
+  - tsup: 8.3.5 (dev, bundler)
+  - typescript: 5.6.3 (dev)
+  - vitest: 2.1.8 (dev, test runner — this package only, per prompt)
+  - @types/node: 22.10.2 (dev)
+  - Build: two tsup configs in one file — main entry (index) and subpath entries (text/index, theme/index), each ESM+CJS+DTS.
+- Reason: Zod 3.24 is the current stable 3.x line (4.x is still in RC and changes the `.strict()`/error-map API the later prompts rely on). tsup handles the dual-format build + dts without a separate tsc pass.
+- Alternatives: zod 4 (RC — API churn risk), valibot (smaller but different API shape), tsup single-config with entry arrays (cannot give per-entry clean+formats cleanly).
+- Assumptions: `z.record` keeps unknown-key flexibility for localizedText (validated by refine instead of strict keys) — acceptable because locale codes are admin-managed at runtime.
+
+## 2026-10-31 — P0.3 iranMobileSchema accepted prefixes
+
+- Prompt: P0.3
+- Decision: The regex `/^(?:\+98|0098|0|98)?9([0-3]|9)\d{8}$/` accepts all four documented input forms plus bare `9xxxxxxxxx`, and normalizes Persian/Arabic digits and strips spaces/dashes/parentheses before validating. Output is always E.164 `+989xxxxxxxxx`.
+- Reason: The prompt requires the four forms; accepting the bare `9…` form costs nothing and matches real-world user input. Operator digit constrained to 0-3 or 9 per Iranian mobile ranges (091x, 092x, 093x, 099x).
+- Alternatives: a two-step parse with a country-code lookup table (overkill for one country).
