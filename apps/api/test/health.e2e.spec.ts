@@ -3,17 +3,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createTestApp } from './create-test-app.js';
 import { ProbeModule } from './probe.module.js';
-
-// Env must exist before ConfigModule.forRoot() validates process.env.
-process.env.NODE_ENV = 'test';
-process.env.API_PORT = '4100';
-process.env.PUBLIC_WEB_URL = 'http://localhost:3100';
-process.env.DATABASE_URL = 'postgres://app:app_dev_password@localhost:5432/app_test';
-process.env.TEST_DATABASE_URL = 'postgres://app:app_dev_password@localhost:5432/app_test';
-process.env.REDIS_URL = 'redis://localhost:6379/15';
-process.env.TEST_REDIS_URL = 'redis://localhost:6379/15';
-process.env.LOG_LEVEL = 'warn';
-process.env.DEV_TOOLS = 'true';
+import './global-setup.js'; // env defaults for every spec (Q0.1)
 
 describe('Health e2e (B0.1)', () => {
   let app: INestApplication;

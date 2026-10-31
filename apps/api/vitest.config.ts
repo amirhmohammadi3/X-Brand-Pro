@@ -9,6 +9,7 @@ export default defineConfig({
     restoreMocks: true,
     testTimeout: 30000,
     include: ['test/**/*.spec.ts'],
+    globalSetup: ['test/global-setup.ts'],
   },
   plugins: [
     // NestJS decorators need emitDecoratorMetadata — the SWC plugin provides it.

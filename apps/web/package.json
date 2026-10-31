@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@app/config": "workspace:*",
@@ -23,11 +25,14 @@
     "zod": "3.24.1"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1",
     "@swc/core": "1.16.21",
     "@tailwindcss/postcss": "4.3.3",
     "@types/node": "22.10.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@vitest/coverage-v8": "2.1.8",
     "tailwindcss": "4.3.3",
     "typescript": "5.6.3",
     "unplugin-swc": "2.0.0",

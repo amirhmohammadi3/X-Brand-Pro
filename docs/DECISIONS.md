@@ -259,3 +259,25 @@ Entry format:
 - Decision: `apiFetchServer` wraps apiFetch for Server Components, joining the cookie jar into a Cookie header. Client components use apiFetch inside TanStack Query hooks.
 - Reason: Session-aware rendering needs credentials on the server side too; the auth session contract arrives in B1.3 and plugs in here without changing call sites.
 - Alternatives: token in localStorage (XSS-exposed), a separate fetch stack (duplicate envelope logic).
+
+## 2026-10-31 — Q0.1 test infrastructure versions and layout
+
+- Prompt: Q0.1
+- Decision: Pinned @playwright/test: 1.64.1, @axe-core/playwright: 4.14.0 (both in @app/web), @vitest/coverage-v8: 2.1.8 (api + web, runnable via `vitest run --coverage`). Playwright config: WEB_PORT-driven baseURL (default 3100), dev-server webServer with reuseExistingServer, chromium project, trace retain-on-failure, retries only on CI. e2e smoke spec covers locale negotiation, dir/lang attributes and an axe WCAG 2.2 AA scan per locale.
+- Reason: Current stable versions per the npm registry. `describe.skipIf(await databaseAvailable())` (test/db.ts) keeps integration suites green on machines without Docker while running fully where services exist; `prepareTestDatabase()` applies extensions + migrations to TEST_DATABASE_URL.
+- Alternatives: jest (repo standardized on vitest in P0.3), cypress (Playwright's trace/axe ecosystem fits the a11y matrix requirement).
+- Assumptions: Playwright chromium headless-shell runs without extra system packages in this sandbox (verified 5/5); `--with-deps` needs sudo and belongs to a normal dev machine or CI image (follow-up recorded).
+
+## 2026-10-31 — Q0.1 env moved to vitest globalSetup
+
+- Prompt: Q0.1
+- Decision: `apps/api/test/global-setup.ts` sets the canonical test env defaults once per vitest process (registered in vitest.config.ts); specs import it only for direct `node`-style runs. The inline env block in health.e2e.spec.ts (B0.1) was replaced by an import as B0.1's TODO planned.
+- Reason: One place for test env; new suites cannot forget a variable and scenario overrides stay possible (set before imports).
+- Alternatives: dotenv-based .env.test (another file format to keep in sync), per-spec duplication (drift).
+
+## 2026-10-31 — Q0.1 turbo test task drops the coverage output claim
+
+- Prompt: Q0.1
+- Decision: Removed `outputs: ["coverage/**"]` from turbo.json's test task (dependsOn kept); coverage stays opt-in via `pnpm --filter <pkg> exec vitest run --coverage`.
+- Reason: Coverage is not run by default, so turbo warned about missing outputs on every `pnpm test` (P0.1 follow-up). Adding coverage to every run would double CI time for a metric no prompt consumes yet.
+- Alternatives: enabling coverage everywhere (slower CI), leaving the warning (noise in every run).
