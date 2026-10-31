@@ -160,3 +160,25 @@ Entry format:
 - Decision: A 40-line loader (`src/db/load-dotenv.ts`) walks up from cwd to the nearest `.env`, parses KEY=VALUE with quotes/comments, and never overrides existing process env. Used only by CLI entry points (migrate, seed), not the Nest app.
 - Reason: The app gets env from the deployment environment; only CLI tools run bare. Avoiding the `dotenv` dependency keeps the supply chain minimal and the behavior testable (unit tests inject a plain target object).
 - Alternatives: dotenv 16.x (fine, but one more dep for 40 lines of trivial code), requiring users to export vars manually (hostile DX on Windows).
+
+## 2026-10-31 — B0.3 Redis client: ioredis 6.0.0, lazy, prefixed
+
+- Prompt: B0.3
+- Decision: Pinned ioredis: 6.0.0 (dependency of @app/api). All services depend on a narrow `RedisLike` interface (get/set/del/incr/expire/ttl), not on ioredis types. `RedisService` wraps ioredis with `lazyConnect: true`, `maxRetriesPerRequest: 1`, a capped `retryStrategy`, a global `keyPrefix: "xbrand:"`, and a noop `error` listener; `onApplicationShutdown` calls `disconnect()`. Lives in `src/redis/` (parallel to `src/db/`).
+- Reason: ioredis 6.0.0 is the current stable major per the npm registry. Lazy connect keeps boot (and every test) working with no Redis running; the prefix lets the app share a Redis instance safely. The narrow interface makes the whole layer fake-able — 18 of the new unit tests run without Redis.
+- Alternatives: node-redis v4/v5 client (promise API less ergonomic for multi-arg commands), keydb/valkey compat (same client works anyway).
+
+## 2026-10-31 — B0.3 rate limiter: fixed window with EXPIRE NX, fail-open
+
+- Prompt: B0.3
+- Decision: Fixed-window limiter: key `rl:<name>:<identity>:<epoch bucket>`, `INCR` then `EXPIRE key windowSec NX` on every check (atomic "set TTL only if absent", Redis 7+ — dev image is redis 7.4 per I0.1). Retry-After computed from `TTL` only on rejection (fallback to a full window on -1/-2). Enforced by a GLOBAL `RateLimitGuard` (APP_GUARD) that passes through any route without a `@RateLimit` spec. Limiter failure = fail open + warn log.
+- Reason: Two commands and no Lua keep the fake-Redis implementation honest; the NX expiry closes the classic "counter lives forever after a crash" hole. Global guard + opt-in decorator means endpoint prompts only annotate routes. Fail-open favors availability; limits exist to protect Redis-backed paths, and a Redis outage already degrades those.
+- Alternatives: sliding window (more Redis calls, needs Lua/sorted sets), fail-closed (outage amplification), per-controller guard registration (easy to forget on new routes).
+- Assumptions: single Redis node (no cluster hash-tag concerns yet); revisit if deployment topology changes.
+
+## 2026-10-31 — B0.3 cache: TTL-mandatory JSON cache, fail-through
+
+- Prompt: B0.3
+- Decision: `CacheService` (get/set/del/wrap) stores JSON under `cache:<key>`; every write requires a TTL. All backend failures degrade (reads miss, writes ignored, wrap still produces) with a warn log. No stampede protection yet.
+- Reason: A speed-only layer must never turn a Redis outage into app errors, and TTL-mandatory guarantees stale data ages out even if invalidation is buggy. Stampede single-flight is recorded as a follow-up (acceptable at current scale).
+- Alternatives: cache-manager npm package (extra abstraction for 60 lines of code), filesystem LRU (no shared state across replicas).

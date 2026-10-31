@@ -12,7 +12,7 @@
 - [x] I0.1 🟢 Docker Compose توسعه (Postgres+PostGIS، Redis، Mailpit) و اسکریپت‌های Node (2026-10-31)
 - [x] B0.1 🟡 اسکلت NestJS (config، health، لاگ، فیلتر خطا، OpenAPI) (2026-10-31)
 - [x] B0.2 🟡 Drizzle، migration، اکستنشن‌ها (postgis، pg_trgm، unaccent)، دیتابیس تست (2026-10-31)
-- [ ] B0.3 🟡 ماژول Redis، کش، rate limiter
+- [x] B0.3 🟡 ماژول Redis، کش، rate limiter (2026-10-31)
 - [ ] B0.4 🟡 BullMQ و پروسهٔ worker
 - [ ] F0.1 🟡 اسکلت Next.js (Tailwind، logical properties، فونت self-host، RTL)
 - [ ] F0.2 🟡 کلاینت API تایپ‌دار + TanStack Query
@@ -224,6 +224,9 @@
 فرمت هر مورد: `- [ ] (ID پرامپت منشأ) شرح کار پیشنهادی و دلیل`
 
 - [ ] (B0.2) Run `pnpm db:migrate` and `pnpm db:migrate:test` against a live Postgres (Docker) to verify the migration runner end to end. In this sandbox Docker is unavailable; verified instead: `db:generate` (no-DB diff), clean ECONNREFUSED failure path of the CLI, and 12 unit tests.
+- [ ] (B0.3) Cache stampede protection: single-flight lock for `CacheService.wrap` (only one producer per key) — deferred, acceptable at current scale.
+- [ ] (B0.3) Add a Redis probe to the health endpoint (ping + latency) once a liveness/readiness split exists; the limiter and cache fail open until then.
+- [ ] (P0.1) turbo.json declares `coverage/**` as the output of the `test` task but vitest has no coverage configured for `@app/api` — enable coverage or drop the output key.
 
 ## Known issues
 

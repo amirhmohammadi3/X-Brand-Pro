@@ -14,9 +14,13 @@ Format: one row per permission string, one column per role (`user`, `owner`, `mo
 
 Format: one row per limited endpoint group.
 
-| Key                               | Endpoint(s) | Limit | Window | Scope (ip, user, ip+identifier) | Prompt |
-| --------------------------------- | ----------- | ----- | ------ | ------------------------------- | ------ |
-| (filled by prompt B0.3 and later) |             |       |        |                                 |        |
+| Key                                                                   | Endpoint(s) | Limit | Window | Scope (ip, user, ip+identifier) | Prompt |
+| --------------------------------------------------------------------- | ----------- | ----- | ------ | ------------------------------- | ------ |
+| (per-endpoint rows are added by the prompts that own those endpoints) |             |       |        |                                 |        |
+
+Mechanism (B0.3): fixed-window counter in Redis (`INCR` + `EXPIRE NX`, key `rl:<name>:<identity>:<epoch bucket>`), enforced by the global `RateLimitGuard` on routes annotated with `@RateLimit({ name, limit, windowSec, scope })`. Rejections are HTTP 429 with the `RATE_LIMITED` error envelope and a `Retry-After` header. Scope `ip` until the auth module lands; `user` falls back to ip for unauthenticated requests.
+
+Failure mode: the limiter FAILS OPEN when Redis is unreachable (request allowed, warning logged, result marked `degraded`) so a cache-layer outage cannot take the API down. Acceptable risk: temporarily unlimited traffic during a Redis outage; mitigations (queueing, health alerting) are in the observability prompt Q12.10.
 
 ## 3. Secrets inventory
 
