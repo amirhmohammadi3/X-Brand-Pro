@@ -14,7 +14,7 @@
 - [x] B0.2 🟡 Drizzle، migration، اکستنشن‌ها (postgis، pg_trgm، unaccent)، دیتابیس تست (2026-10-31)
 - [x] B0.3 🟡 ماژول Redis، کش، rate limiter (2026-10-31)
 - [x] B0.4 🟡 BullMQ و پروسهٔ worker (2026-10-31)
-- [ ] F0.1 🟡 اسکلت Next.js (Tailwind، logical properties، فونت self-host، RTL)
+- [x] F0.1 🟡 اسکلت Next.js (Tailwind، logical properties، فونت self-host، RTL) (2026-10-31)
 - [ ] F0.2 🟡 کلاینت API تایپ‌دار + TanStack Query
 - [ ] Q0.1 🟡 زیرساخت تست (Vitest، Supertest، Playwright)
 - [ ] I0.2 🟢 CI گیت‌هاب (lint، typecheck، test، build)

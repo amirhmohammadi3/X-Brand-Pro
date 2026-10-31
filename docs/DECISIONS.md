@@ -203,3 +203,38 @@ Entry format:
 - Decision: Root `pnpm dev` now runs `scripts/dev.mjs` (pure Node): spawns api watch, worker watch (`apps/api/scripts/dev-worker.mjs` = nest build --watch + node --watch dist/src/worker.js) and web watch once `apps/web` exists (F0.1). Any child exiting non-zero stops the others with the same code.
 - Reason: AGENTS.md section 4 promises `pnpm dev` runs api, worker AND web in watch mode; turbo `dev` alone only started the API. Node-only implementation satisfies the no-bash rule and works on Windows Git Bash.
 - Alternatives: concurrently npm package (one more dep for 40 lines), turbo watch mode (watches build outputs, not processes).
+
+## 2026-10-31 — F0.1 web stack versions
+
+- Prompt: F0.1
+- Decision: Pinned versions for `@app/web`:
+  - next: 16.4.3, react/react-dom: 19.3.1 (Turbopack build, Next 16 `proxy.ts` convention)
+  - next-intl: 4.14.9 (plugin + middleware + request config)
+  - tailwindcss: 4.3.3 + @tailwindcss/postcss: 4.3.3 (CSS-first `@theme` config)
+  - @fontsource-variable/vazirmatn: 5.3.0, @fontsource-variable/inter: 5.3.0 (self-hosted variable fonts)
+  - lucide-react: 1.66.0 (icon set, unused in skeleton but pinned for phase 1 UI Kit)
+  - @types/react: 19.3.0, @types/react-dom: 19.3.0, typescript: 5.6.3
+- Reason: Current stable versions confirmed against the npm registry on 2026-10-31. Tailwind 4's `@theme` maps the semantic DESIGN.md tokens to CSS variables without a JS config; fontsource variable packages cover the 300-800 weight range DESIGN.md requires with two small self-hosted files.
+- Alternatives: Tailwind 3 (config-in-JS, no per-pack CSS variable swapping), Google Fonts (forbidden — no external requests), next-intl v3 (older routing API).
+- Assumptions: next-intl 4.x's `localePrefix: as-needed` gives fa no prefix and /en prefixed, matching AGENTS.md section 7.
+
+## 2026-10-31 — F0.1 frontend imports are extension-less
+
+- Prompt: F0.1
+- Decision: Frontend (Turbopack) imports use NO extension (`from '../../i18n/routing'`); the `.js`-extension convention stays backend-only (tsc/SWC CJS output).
+- Reason: Turbopack does not map `.js` specifiers to `.ts` sources; the build fails with Module not found (caught by actually building in this session).
+- Alternatives: allowJs/ts mappings (non-standard), re-exports index files everywhere (more indirection than needed).
+
+## 2026-10-31 — F0.1 guard scripts for RTL and external requests
+
+- Prompt: F0.1
+- Decision: `scripts/check-rtl.mjs` bans physical-direction Tailwind classes and CSS (`ml/mr/pl/pr/left/right/text-left/text-right/border-l/border-r/rounded-l*/scroll-*`) in apps/web source; `scripts/check-no-external.mjs` bans third-party http(s) URLs. Both are git-ls-files-driven, pure logic lives in `scripts/lib/{rtl,external}.mjs` with node:test unit tests (26 script tests total). Exemptions: line contains `rtl-ok` / `external-ok`. Both wired into `pnpm verify`.
+- Reason: AGENTS.md section 7/8 mandates both rules and names both scripts; making them `verify` blockers keeps the discipline automatic instead of review-based.
+- Alternatives: eslint plugin (heavier, less precise for class-string scanning), CI-only checks (repo rule: same checks locally).
+
+## 2026-10-31 — F0.1 shared ESLint preset allows framework default exports
+
+- Prompt: F0.1
+- Decision: `packages/config/src/eslint.mjs` now exempts `**/proxy.ts`, `**/middleware.ts` and `**/i18n/request.ts` from the no-default-export rule (both allow-block and ignore-list).
+- Reason: Next 16's proxy convention and next-intl's request config REQUIRE a default export; the previous allow-list only covered app/pages and config files.
+- Alternatives: per-file eslint-disable comments (scatters framework knowledge across the app).

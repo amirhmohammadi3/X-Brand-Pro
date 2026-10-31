@@ -32,7 +32,15 @@ const preset = [
   },
   {
     // Allow default exports only in Next.js pages/layouts/config files.
-    files: ['**/{app,pages}/**/*.{ts,tsx}', '**/*.config.{ts,mts,mjs,js,cjs}', '**/next.config.*'],
+    files: [
+      '**/{app,pages}/**/*.{ts,tsx}',
+      '**/*.config.{ts,mts,mjs,js,cjs}',
+      '**/next.config.*',
+      // Framework conventions that require a default export:
+      '**/proxy.ts', // Next.js 16 proxy (formerly middleware)
+      '**/middleware.ts', // Next.js <= 15 middleware
+      '**/i18n/request.ts', // next-intl request config
+    ],
     rules: {
       'no-restricted-syntax': 'off',
     },
@@ -44,6 +52,9 @@ const preset = [
       '**/{app,pages}/**/*.{ts,tsx}',
       '**/*.config.{ts,mts,mjs,js,cjs}',
       '**/next.config.*',
+      '**/proxy.ts',
+      '**/middleware.ts',
+      '**/i18n/request.ts',
     ],
     rules: {
       'no-restricted-syntax': [

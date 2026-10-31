@@ -1,0 +1,109 @@
+@import 'tailwindcss';
+
+/*
+ * Design tokens (F0.1 seed) — the semantic token model from docs/DESIGN.md
+ * section 1, seeded with the "modern" pack values (section 2). Components use
+ * ONLY the semantic classes below (bg-bg, text-text, ring-ring, ...); the
+ * full 3-pack engine with cookie-driven data-theme/data-mode arrives in F1.2
+ * and B1.13. Structure: @theme maps semantic Tailwind colors to --tok-*
+ * runtime variables; [data-mode='dark'] swaps the --tok-* values with no
+ * re-render (server-rendered attributes, no flash).
+ */
+@theme {
+  --font-sans: 'Vazirmatn Variable', 'Inter Variable', system-ui, sans-serif;
+
+  --color-bg: var(--tok-bg);
+  --color-surface: var(--tok-surface);
+  --color-surface-alt: var(--tok-surface-alt);
+  --color-text: var(--tok-text);
+  --color-muted: var(--tok-muted);
+  --color-border: var(--tok-border);
+  --color-border-subtle: var(--tok-border-subtle);
+  --color-primary: var(--tok-primary);
+  --color-on-primary: var(--tok-on-primary);
+  --color-accent: var(--tok-accent);
+  --color-success: var(--tok-success);
+  --color-warning: var(--tok-warning);
+  --color-danger: var(--tok-danger);
+  --color-ring: var(--tok-ring);
+  --color-overlay: var(--tok-overlay);
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+
+  --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --shadow-md: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.12);
+}
+
+:root,
+[data-mode='light'] {
+  --tok-bg: #f6f7fb;
+  --tok-surface: #ffffff;
+  --tok-surface-alt: #edf0f7;
+  --tok-text: #0f172a;
+  --tok-muted: #475569;
+  --tok-border: #7c879c;
+  --tok-border-subtle: #e2e8f0;
+  --tok-primary: #4338ca;
+  --tok-on-primary: #ffffff;
+  --tok-accent: #0e7490;
+  --tok-success: #166534;
+  --tok-warning: #92400e;
+  --tok-danger: #b91c1c;
+  --tok-ring: #4338ca;
+  --tok-overlay: rgba(15, 23, 42, 0.5);
+}
+
+[data-mode='dark'] {
+  --tok-bg: #0b1020;
+  --tok-surface: #141b30;
+  --tok-surface-alt: #1b2440;
+  --tok-text: #e8ecf8;
+  --tok-muted: #a6b0cc;
+  --tok-border: #6b7596;
+  --tok-border-subtle: #2a3452;
+  --tok-primary: #9aa3ff;
+  --tok-on-primary: #0b1020;
+  --tok-accent: #5eead4;
+  --tok-success: #4ade80;
+  --tok-warning: #fbbf24;
+  --tok-danger: #fca5a5;
+  --tok-ring: #9aa3ff;
+  --tok-overlay: rgba(0, 0, 0, 0.65);
+}
+
+/*
+ * Base layer: Persian body metrics from DESIGN.md section 6 (line-height
+ * 1.85 for fa), focus ring on every interactive element, never removed.
+ */
+@layer base {
+  html {
+    line-height: 1.85;
+  }
+  html[dir='ltr'] {
+    line-height: 1.6;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    line-height: 1.4;
+    font-weight: 600; /* modern pack: heading-weight=600 */
+  }
+  :focus-visible {
+    outline: 2px solid var(--tok-ring);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
