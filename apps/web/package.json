@@ -14,17 +14,23 @@
     "@app/contracts": "workspace:*",
     "@fontsource-variable/inter": "5.3.0",
     "@fontsource-variable/vazirmatn": "5.3.0",
+    "@tanstack/react-query": "5.105.0",
     "lucide-react": "1.66.0",
     "next": "16.4.3",
     "next-intl": "4.14.9",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "zod": "3.24.1"
   },
   "devDependencies": {
+    "@swc/core": "1.16.21",
     "@tailwindcss/postcss": "4.3.3",
+    "@types/node": "22.10.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "tailwindcss": "4.3.3",
-    "typescript": "5.6.3"
+    "typescript": "5.6.3",
+    "unplugin-swc": "2.0.0",
+    "vitest": "2.1.8"
   }
 }

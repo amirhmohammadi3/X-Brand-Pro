@@ -4,6 +4,7 @@ import { hasLocale, NextIntlClientProvider } from 'next-intl';
 import '@fontsource-variable/vazirmatn';
 import '@fontsource-variable/inter';
 import '../globals.css';
+import { Providers } from '../providers';
 import { LOCALE_META, routing } from '../../i18n/routing';
 
 export const metadata: Metadata = {
@@ -42,7 +43,9 @@ export default async function LocaleLayout({
   return (
     <html lang={locale} dir={dir} data-theme="modern" data-mode="light">
       <body className="min-h-dvh bg-bg font-sans text-text">
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <Providers>
+          <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        </Providers>
       </body>
     </html>
   );

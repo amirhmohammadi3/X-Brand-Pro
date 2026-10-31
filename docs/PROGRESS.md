@@ -15,7 +15,7 @@
 - [x] B0.3 🟡 ماژول Redis، کش، rate limiter (2026-10-31)
 - [x] B0.4 🟡 BullMQ و پروسهٔ worker (2026-10-31)
 - [x] F0.1 🟡 اسکلت Next.js (Tailwind، logical properties، فونت self-host، RTL) (2026-10-31)
-- [ ] F0.2 🟡 کلاینت API تایپ‌دار + TanStack Query
+- [x] F0.2 🟡 کلاینت API تایپ‌دار + TanStack Query (2026-10-31)
 - [ ] Q0.1 🟡 زیرساخت تست (Vitest، Supertest، Playwright)
 - [ ] I0.2 🟢 CI گیت‌هاب (lint، typecheck، test، build)
 - [ ] Q0.2 🟢 جمع‌بندی فاز ۰

@@ -238,3 +238,24 @@ Entry format:
 - Decision: `packages/config/src/eslint.mjs` now exempts `**/proxy.ts`, `**/middleware.ts` and `**/i18n/request.ts` from the no-default-export rule (both allow-block and ignore-list).
 - Reason: Next 16's proxy convention and next-intl's request config REQUIRE a default export; the previous allow-list only covered app/pages and config files.
 - Alternatives: per-file eslint-disable comments (scatters framework knowledge across the app).
+
+## 2026-10-31 — F0.2 typed API client + TanStack Query versions
+
+- Prompt: F0.2
+- Decision: Pinned @tanstack/react-query: 5.105.0 (client), vitest 2.1.8 + unplugin-swc 2.0.0 + @swc/core 1.16.21 (web unit tests, same runner as api), zod 3.24.1 (same pin as contracts), @types/node 22.10.2. NEXT_PUBLIC_API_URL (default http://localhost:4000/api/v1) validated by src/lib/env.ts at import time and added to .env.example.
+- Reason: react-query 5.105 is current stable per the npm registry. Matching zod pins across contracts/api/web avoids dual-zod runtime instances. The full test infrastructure (Testing Library, jsdom, Playwright) belongs to Q0.1; F0.2 only adds the runner its own tests need.
+- Alternatives: axios (fetch is enough and keeps zero deps), SWR (TanStack Query's invalidation model fits the qk factory pattern better).
+
+## 2026-10-31 — F0.2 client validates every response with the contract schema
+
+- Prompt: F0.2
+- Decision: `apiFetch(path, dataSchema, options)` — callers MUST pass the zod schema for the payload (contract-first, AGENTS.md 6). Failures become one error type, `ApiRequestError`, carrying {status, code, messageKey, details?, requestId}; synthetic codes NETWORK_ERROR (status 0) and INVALID_ENVELOPE cover transport and shape drift. AbortSignals propagate untouched (not wrapped). The client never retries and never caches at the HTTP layer (cache: no-store) — retry/cache policy lives in the QueryClient defaults (30s staleTime, no retry on 4xx).
+- Reason: A shape drift between api and web fails loudly at the boundary instead of rendering undefined; one error type lets every view implement the same 4-state rule (DESIGN.md 12) and lets TanStack Query branch retries on status.
+- Alternatives: openapi-typescript codegen (no runtime validation), skipping response validation (defeats contract-first).
+
+## 2026-10-31 — F0.2 server client forwards cookies
+
+- Prompt: F0.2
+- Decision: `apiFetchServer` wraps apiFetch for Server Components, joining the cookie jar into a Cookie header. Client components use apiFetch inside TanStack Query hooks.
+- Reason: Session-aware rendering needs credentials on the server side too; the auth session contract arrives in B1.3 and plugs in here without changing call sites.
+- Alternatives: token in localStorage (XSS-exposed), a separate fetch stack (duplicate envelope logic).
