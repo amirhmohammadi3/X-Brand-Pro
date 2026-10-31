@@ -289,3 +289,10 @@ Entry format:
 - Reason: CI must mirror the local verify chain 1:1 so "green locally, red in CI" can only mean environment drift. Service containers now mean phase-1+ integration tests (Supertest + real DB/Redis) run in CI without workflow changes; phase-0 suites stay safe either way thanks to the skip-if-no-db probe.
 - Alternatives: matrix over node versions (the repo pins ONE LTS in .nvmrc — a matrix would test configurations we do not ship), separate workflow files (one file keeps the chain visible in a single place).
 - Assumptions: the workflow's first real run must be observed on GitHub (sandbox cannot execute Actions) — recorded as a follow-up.
+
+## 2026-10-31 — Q0.2 phase 0 gate
+
+- Prompt: Q0.2
+- Decision: Phase 0 declared complete. Final gate re-run from a clean state: all four guards (foundation, brand, rtl, no-external) OK, turbo verify chain green (15/15 tasks), 192 unit/integration tests green (106 contracts + 50 api + 11 web + 26 scripts), 5 Playwright e2e tests green (locale negotiation, dir/lang attributes, axe WCAG 2.2 AA clean on / and /en). README status table, layout and command list synchronized with the actual repository.
+- Reason: The gate is the phase contract — everything the 13 prompts promised must be verifiable with repo commands alone, without memory of how they were built.
+- Assumptions: The Docker-dependent verifications (live migrations, live worker, first CI run) remain in PROGRESS.md Follow-ups for a machine with Docker; they are enhancements to already-tested code paths, not gaps in the skeleton.

@@ -12,23 +12,23 @@ The product name is defined in exactly one place — `packages/config/src/brand.
 
 This repository is **work in progress**, built phase-by-phase from the [prompt pack](https://github.com/amirhmohammadi3/X-Brand-Pro) (176 small prompts across 13 phases, 0→12). Progress is tracked in [`docs/PROGRESS.md`](./docs/PROGRESS.md) and the phase state machine in `scripts/orchestrator.mjs`.
 
-**Current phase:** 0 — skeleton & infrastructure. See [`docs/PROGRESS.md`](./docs/PROGRESS.md) for the prompt-by-prompt tracker.
+**Current phase:** 0 — skeleton & infrastructure ✅ **completed** (13/13 prompts). Next: phase 1 (settings, auth, i18n, theme engine, UI Kit). See [`docs/PROGRESS.md`](./docs/PROGRESS.md) for the prompt-by-prompt tracker.
 
 | Area                                                                                                                                            | State          |
 | ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
 | Monorepo (pnpm workspaces + Turborepo, shared TS/ESLint/Prettier, Husky hooks)                                                                  | ✅ done (P0.1) |
 | Foundation files + brand.ts + guard scripts (`check:foundation`, `check:brand`)                                                                 | ✅ done (P0.2) |
+| `packages/contracts` (Zod, response envelope, error codes, pagination, Persian text utils)                                                      | ✅ done (P0.3) |
 | Dev Docker Compose (Postgres+PostGIS, Redis, Mailpit) + cross-platform `services.mjs`                                                           | ✅ done (I0.1) |
-| `packages/contracts` (Zod, response envelope, error codes, Persian text utils)                                                                  | ⏳ P0.3        |
-| NestJS skeleton (config, health, logging, error filter, OpenAPI)                                                                                | ⏳ B0.1        |
-| Drizzle ORM + migrations + PostGIS extensions                                                                                                   | ⏳ B0.2        |
-| Redis module, cache, rate limiter                                                                                                               | ⏳ B0.3        |
-| BullMQ + worker process                                                                                                                         | ⏳ B0.4        |
-| Next.js skeleton (Tailwind, RTL, self-host fonts)                                                                                               | ⏳ F0.1        |
-| Typed API client + TanStack Query                                                                                                               | ⏳ F0.2        |
-| Test infrastructure (Vitest, Supertest, Playwright + axe)                                                                                       | ⏳ Q0.1        |
-| GitHub Actions CI                                                                                                                               | ⏳ I0.2        |
-| Phase 0 gate                                                                                                                                    | ⏳ Q0.2        |
+| NestJS skeleton (config, health, logging, error filter, OpenAPI)                                                                                | ✅ done (B0.1) |
+| Drizzle ORM + migration runner + PostGIS extensions + test database                                                                             | ✅ done (B0.2) |
+| Redis module (ioredis), JSON cache, Redis-backed rate limiter + global guard                                                                    | ✅ done (B0.3) |
+| BullMQ queues + dedicated worker process + graceful shutdown                                                                                    | ✅ done (B0.4) |
+| Next.js 16 skeleton (Tailwind 4 tokens, RTL, locale routing, self-hosted variable fonts)                                                        | ✅ done (F0.1) |
+| Typed API client (contract-validated) + TanStack Query provider                                                                                 | ✅ done (F0.2) |
+| Test infrastructure (Vitest, Supertest, Playwright + axe — 198 tests green)                                                                     | ✅ done (Q0.1) |
+| GitHub Actions CI (verify chain + e2e job)                                                                                                      | ✅ done (I0.2) |
+| Phase 0 gate                                                                                                                                    | ✅ done (Q0.2) |
 | Phases 1–12 (auth, geography, search/map, reviews, messaging, reservations, owner dashboard, payments, AI, admin panel, video, security/deploy) | ⏳ queued      |
 
 ---
@@ -91,6 +91,7 @@ External services (SMS, email, payment, storage, AI, geocoding) are always behin
 .
 ├── AGENTS.md                  # project rules — READ FIRST in every session
 ├── README.md                  # this file
+├── .github/workflows/ci.yml   # CI: verify chain + playwright e2e (I0.2)
 ├── docs/                      # living documentation (single source of truth)
 │   ├── PROGRESS.md            # prompt-by-prompt progress tracker
 │   ├── DECISIONS.md           # append-only log of every non-obvious choice
@@ -100,24 +101,37 @@ External services (SMS, email, payment, storage, AI, geocoding) are always behin
 │   ├── SECURITY.md            # permissions matrix, rate limits, secrets inventory, threat notes
 │   └── DEPLOYMENT.md          # env vars, deploy, runbook
 ├── packages/
-│   └── config/                # @app/config — shared tsconfig, ESLint preset, brand.ts
-│       ├── src/
-│       │   ├── brand.ts       # single source of truth for product name
-│       │   ├── eslint.mjs     # shared typescript-eslint preset
-│       │   └── index.ts       # re-exports BRAND, DEFAULT_LOCALE, FALLBACK_LOCALE
-│       ├── tsconfig.base.json # strict TS config (noUncheckedIndexedAccess, isolatedModules, ES2022)
-│       ├── tsconfig.node.json # for NestJS (CommonJS, decorators)
-│       ├── tsconfig.next.json # for Next.js
-│       └── tsup.config.json
+│   ├── config/                # @app/config — shared tsconfig, ESLint preset, brand.ts
+│   └── contracts/             # @app/contracts — zod schemas, envelope, errors, pagination, text utils
+├── apps/
+│   ├── api/                   # @app/api — NestJS HTTP app + worker entry (src/worker.ts)
+│   │   ├── src/config/        # env schema (zod), config module
+│   │   ├── src/db/            # drizzle client, migrate.ts (extensions + migrations), seed/
+│   │   ├── src/redis/         # RedisService, CacheService, RateLimiterService
+│   │   ├── src/queue/         # BullMQ QueuesService + WorkersService
+│   │   ├── src/common/        # filters, guards (@RateLimit), decorators, pipes
+│   │   ├── src/modules/health/    # health endpoint
+│   │   ├── drizzle/           # migration journal + generated SQL (committed)
+│   │   └── test/              # vitest suites, global-setup, db helpers, probe module
+│   └── web/                   # @app/web — Next.js 16 (App Router, Turbopack)
+│       ├── src/app/[locale]/  # locale-scoped root layout + pages
+│       ├── src/i18n/          # routing (fa default unprefixed, /en) + request config
+│       ├── src/lib/api/       # typed client (apiFetch/apiFetchServer), qk factory
+│       ├── messages/          # fa/en seed messages (API-driven from F1.1)
+│       ├── e2e/               # Playwright + axe specs
+│       └── playwright.config.ts
 ├── infra/
 │   ├── docker-compose.dev.yml # db (PostGIS 16-3.4-alpine), redis (7.4-alpine), mailpit (1.20)
 │   └── db/init/               # 01-extensions.sql, 02-test-db.sql (auto-run on first boot)
 ├── scripts/                   # cross-platform Node (.mjs) scripts only — no bash/powershell
 │   ├── orchestrator.mjs       # phase state machine + overlap guard (cron-driven)
 │   ├── services.mjs           # up/down/reset/logs/status for dev Docker services
+│   ├── dev.mjs                # pnpm dev → api watch + worker watch (+ web when present)
 │   ├── check-foundation.mjs   # verifies AGENTS.md + 7 docs/ files are present, no duplicate prompt IDs
 │   ├── check-brand.mjs        # fails if brand name appears outside the allow-list
-│   └── lib/                   # pure helpers + tests (Node test runner)
+│   ├── check-rtl.mjs          # bans physical-direction Tailwind classes (`rtl-ok` exempts)
+│   ├── check-no-external.mjs  # bans third-party URLs in web source (`external-ok` exempts)
+│   └── lib/                   # pure helpers + unit tests (Node test runner)
 ├── .env.example               # every env var with a fake example + comment
 ├── .nvmrc                     # Node LTS version
 ├── pnpm-workspace.yaml        # apps/*, packages/* + onlyBuiltDependencies (esbuild)
@@ -126,25 +140,6 @@ External services (SMS, email, payment, storage, AI, geocoding) are always behin
 ├── .prettierrc.json
 ├── commitlint.config.mjs      # conventional commits, scopes free
 └── .husky/                    # pre-commit (lint-staged), commit-msg (commitlint)
-```
-
-Apps and remaining packages are created by later prompts:
-
-```text
-apps/api/          NestJS app (HTTP) and worker entry (src/worker.ts)
-  src/config/      env schema (zod), config module
-  src/db/          drizzle client, schema/*.ts (one file per domain), migrate.ts, seed/
-  src/common/      filters, interceptors, guards, decorators, pipes, utils
-  src/modules/<name>/   one folder per domain module
-  drizzle/         generated SQL migrations (committed)
-  test/            test helpers, factories, global setup
-apps/web/          Next.js app
-  src/app/[locale]/(public)|(auth)|(account)|(dashboard)|(admin)/   route groups
-  src/components/ui/      design-system components
-  src/components/<area>/  feature components
-  src/lib/                api client, hooks, utils, i18n helpers
-  e2e/                    Playwright specs
-packages/contracts/       zod schemas + inferred types + error codes shared by api and web
 ```
 
 Package names: `@app/api`, `@app/web`, `@app/contracts`, `@app/config`.
@@ -215,7 +210,9 @@ All dev services bind to `127.0.0.1` only — they are not reachable from the LA
 | `pnpm build`                   | production build of every package (via turbo)                                                    |
 | `pnpm check:foundation`        | verify AGENTS.md + 7 docs/ files present, no duplicate prompt IDs                                |
 | `pnpm check:brand`             | verify the brand name appears only in the allow-list                                             |
-| `pnpm verify`                  | `check:foundation` + `check:brand` + `lint` + `typecheck` + `test` + `build` (same as CI)        |
+| `pnpm check:rtl`               | verify apps/web uses only logical-direction Tailwind utilities (`rtl-ok` exempts a line)         |
+| `pnpm check:no-external`       | verify apps/web has no third-party URLs (`external-ok` exempts a line)                           |
+| `pnpm verify`                  | all four guards + `lint` + `typecheck` + `test` + `build` (exactly what CI runs)                 |
 
 ---
 
@@ -272,12 +269,12 @@ pnpm test:e2e
 ## Conventions (highlights — full rules in [`AGENTS.md`](./AGENTS.md))
 
 - **Contract-first** — every request body, query, param and response shape is a Zod schema in `packages/contracts/src/<domain>.ts`. API and web share the same types; no duplication.
-- **RTL & logical properties** — Tailwind classes use only logical properties (`ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`, `text-start`, `text-end`, `border-s`, `border-e`, `rounded-s`, `rounded-e`). Never `ml/mr/pl/pr/left/right`. `scripts/check-rtl.mjs` (added later) enforces this.
+- **RTL & logical properties** — Tailwind classes use only logical properties (`ms-*`, `me-*`, `ps-*`, `pe-*`, `start-*`, `end-*`, `text-start`, `text-end`, `border-s`, `border-e`, `rounded-s`, `rounded-e`). Never `ml/mr/pl/pr/left/right`. `pnpm check:rtl` enforces this.
 - **Digits** — store and transport ASCII. Persian/Arabic-Indic digits are normalized at the API edge. The UI shows Persian digits in `fa` locale via `formatNumber`.
 - **Dates** — stored UTC (`timestamptz`). In `fa` show Jalali (`date-fns-jalali`); other locales Gregorian. Week starts Saturday in `fa`.
 - **Persian text normalization** — Arabic `ي`→`ی`, `ك`→`ک`, remove tatweel and diacritics, unify ZWNJ. One shared implementation in `packages/contracts/src/text.ts`.
 - **Money** — integer Rials (`bigint`, column suffix `_irr`). Never floating point. UI may display Toman (÷10) via `formatMoney`.
-- **No external requests** from the browser — fonts, scripts, analytics, tiles, avatars all self-hosted. `scripts/check-no-external.mjs` (added later) enforces this.
+- **No external requests** from the browser — fonts, scripts, analytics, tiles, avatars all self-hosted. `pnpm check:no-external` enforces this.
 - **No secrets in the repo** — only fake values in `.env.example`. Real secrets only in `.env` (gitignored) or encrypted settings.
 - **Conventional commits** — `type(scope): summary` + footer `Prompt: <ID>`. `commitlint` enforces the type enum (`feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`). One prompt = one or a few commits.
 - **One prompt = one session** — start a fresh session for each prompt; the model reads `AGENTS.md` and `docs/PROGRESS.md` to get context, never relies on memory.
