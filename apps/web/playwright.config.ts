@@ -25,7 +25,12 @@ export default defineConfig({
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
   webServer: {
-    command: 'pnpm exec next dev --port 3100',
+    // CI runs the production build (E2E_SERVER=prod); local runs use dev for
+    // a fast feedback loop. Both listen on the same port.
+    command:
+      process.env.E2E_SERVER === 'prod'
+        ? 'pnpm exec next start --port 3100'
+        : 'pnpm exec next dev --port 3100',
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

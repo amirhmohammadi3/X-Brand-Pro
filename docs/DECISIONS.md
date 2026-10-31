@@ -281,3 +281,11 @@ Entry format:
 - Decision: Removed `outputs: ["coverage/**"]` from turbo.json's test task (dependsOn kept); coverage stays opt-in via `pnpm --filter <pkg> exec vitest run --coverage`.
 - Reason: Coverage is not run by default, so turbo warned about missing outputs on every `pnpm test` (P0.1 follow-up). Adding coverage to every run would double CI time for a metric no prompt consumes yet.
 - Alternatives: enabling coverage everywhere (slower CI), leaving the warning (noise in every run).
+
+## 2026-10-31 — I0.2 CI pipeline layout
+
+- Prompt: I0.2
+- Decision: `.github/workflows/ci.yml` with two jobs on push/PR to main. `verify`: pnpm/action-setup@v4 (reads the `packageManager` field — no hardcoded version), setup-node@v4 with `node-version-file: .nvmrc` + pnpm cache, `pnpm install --frozen-lockfile`, then the exact `pnpm verify` chain (foundation/brand/rtl/no-external guards, lint, typecheck, test, build) with Postgres 16-3.4 + PostGIS and Redis 7.4 service containers pinned to the same images as infra/docker-compose.dev.yml. `e2e`: playwright install --with-deps chromium, production web build, `pnpm test:e2e` with E2E_SERVER=prod (playwright webServer starts `next start` in that mode), traces uploaded on failure.
+- Reason: CI must mirror the local verify chain 1:1 so "green locally, red in CI" can only mean environment drift. Service containers now mean phase-1+ integration tests (Supertest + real DB/Redis) run in CI without workflow changes; phase-0 suites stay safe either way thanks to the skip-if-no-db probe.
+- Alternatives: matrix over node versions (the repo pins ONE LTS in .nvmrc — a matrix would test configurations we do not ship), separate workflow files (one file keeps the chain visible in a single place).
+- Assumptions: the workflow's first real run must be observed on GitHub (sandbox cannot execute Actions) — recorded as a follow-up.

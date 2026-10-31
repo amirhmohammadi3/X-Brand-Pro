@@ -17,7 +17,7 @@
 - [x] F0.1 🟡 اسکلت Next.js (Tailwind، logical properties، فونت self-host، RTL) (2026-10-31)
 - [x] F0.2 🟡 کلاینت API تایپ‌دار + TanStack Query (2026-10-31)
 - [x] Q0.1 🟡 زیرساخت تست (Vitest، Supertest، Playwright) (2026-10-31)
-- [ ] I0.2 🟢 CI گیت‌هاب (lint، typecheck، test، build)
+- [x] I0.2 🟢 CI گیت‌هاب (lint، typecheck، test، build) (2026-10-31)
 - [ ] Q0.2 🟢 جمع‌بندی فاز ۰
 
 ## فاز ۱ — پایه: تنظیمات، احراز هویت، چندزبانه، تم، UI Kit
@@ -227,7 +227,7 @@
 - [ ] (B0.3) Cache stampede protection: single-flight lock for `CacheService.wrap` (only one producer per key) — deferred, acceptable at current scale.
 - [ ] (B0.3) Add a Redis probe to the health endpoint (ping + latency) once a liveness/readiness split exists; the limiter and cache fail open until then.
 - [ ] (B0.4) Verify the worker end to end against live Redis (enqueue → consume → retry on failure) on a machine with Docker; unit tests use a BullMQ mock, and the SIGTERM drain path was verified only with an empty registry.
-- [ ] (P0.1) turbo.json declares `coverage/**` as the output of the `test` task but vitest has no coverage configured for `@app/api` — enable coverage or drop the output key.
+- [ ] (I0.2) Observe the first real CI run on GitHub (push-triggered) and fix any Actions-environment quirks; the workflow was validated locally (YAML parse + every step reproduced: pnpm verify green, prod-mode e2e 5/5) but the sandbox cannot execute GitHub Actions.
 
 ## Known issues
 

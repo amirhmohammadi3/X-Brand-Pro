@@ -1,0 +1,120 @@
+# CI for the X-Brand-Pro monorepo (prompt I0.2).
+# Mirrors `pnpm verify` exactly: foundation guards + lint + typecheck + test +
+# build. Service containers match infra/docker-compose.dev.yml so integration
+# tests (added from phase 1 on) run against real Postgres/Redis.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: lint · typecheck · test · build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4-alpine
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app_dev_password
+          POSTGRES_DB: app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7.4-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://app:app_dev_password@localhost:5432/app
+      TEST_DATABASE_URL: postgres://app:app_dev_password@localhost:5432/app
+      REDIS_URL: redis://localhost:6379/0
+      TEST_REDIS_URL: redis://localhost:6379/0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm (version from packageManager)
+        uses: pnpm/action-setup@v4
+
+      - name: Install Node (version from .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Foundation and brand guards
+        run: |
+          pnpm check:foundation
+          pnpm check:brand
+          pnpm check:rtl
+          pnpm check:no-external
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
+
+  e2e:
+    name: e2e (playwright + axe)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      E2E_SERVER: prod
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install pnpm (version from packageManager)
+        uses: pnpm/action-setup@v4
+
+      - name: Install Node (version from .nvmrc)
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers (with system deps)
+        run: pnpm --filter @app/web exec playwright install --with-deps chromium
+
+      - name: Build web (production build for a stable e2e server)
+        run: pnpm --filter @app/contracts build && pnpm --filter @app/web build
+
+      - name: Run e2e
+        run: pnpm test:e2e
+
+      - name: Upload Playwright traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: apps/web/test-results/
+          retention-days: 7
