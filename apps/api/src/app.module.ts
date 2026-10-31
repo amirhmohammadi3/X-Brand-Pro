@@ -5,6 +5,7 @@ import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
 import { ConfigModule } from './config/config.module.js';
 import { DrizzleModule } from './db/drizzle.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
 
 /**
@@ -17,6 +18,7 @@ import { RedisModule } from './redis/redis.module.js';
     ConfigModule.forRoot(),
     DrizzleModule,
     RedisModule,
+    QueueModule,
     LoggerModule.forRoot({
       pinoHttp: {
         level: process.env.LOG_LEVEL ?? 'info',

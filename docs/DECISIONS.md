@@ -182,3 +182,24 @@ Entry format:
 - Decision: `CacheService` (get/set/del/wrap) stores JSON under `cache:<key>`; every write requires a TTL. All backend failures degrade (reads miss, writes ignored, wrap still produces) with a warn log. No stampede protection yet.
 - Reason: A speed-only layer must never turn a Redis outage into app errors, and TTL-mandatory guarantees stale data ages out even if invalidation is buggy. Stampede single-flight is recorded as a follow-up (acceptable at current scale).
 - Alternatives: cache-manager npm package (extra abstraction for 60 lines of code), filesystem LRU (no shared state across replicas).
+
+## 2026-10-31 — B0.4 BullMQ 6.5.3 with shared ioredis 6
+
+- Prompt: B0.4
+- Decision: Pinned bullmq: 6.5.3. It declares `peerDependencies: { ioredis: ">=5.0.0" }`, satisfied by the app's ioredis 6.0.0 — one driver instance serves cache, limiter and queues. Enqueue side (`QueuesService`) and consume side (`WorkersService`) are separate providers on the global `QueueModule`; the API process only enqueues, `src/worker.ts` only consumes.
+- Reason: bullmq 6.5.3 is current stable per the npm registry. Keeping BullMQ's connections as plain option objects (`parseRedisUrl`) avoids passing ioredis instances across package majors and lets BullMQ own their lifecycle. Workers require `maxRetriesPerRequest: null` (blocking connections) — encoded in `BLOCKING_CONNECTION_DEFAULTS`.
+- Alternatives: pinning ioredis 5 (would fork the app's driver), a separate queue Redis DB (unnecessary — BullMQ namespaces its own `bull:` keys).
+
+## 2026-10-31 — B0.4 job defaults, payload validation, idle worker
+
+- Prompt: B0.4
+- Decision: Every job gets safe defaults: 3 attempts with exponential backoff from 1s, removeOnComplete {age 24h, count 1000}, removeOnFail {age 7d}. Processors are registered per queue with an optional Zod schema — the worker validates the payload BEFORE the domain processor runs (schema violations reject like any other failure and consume an attempt). The worker entry idles with a 1h keep-alive interval when no processors are registered (a container that exits gets restart-looped by platforms) and drains on SIGTERM/SIGINT: close workers (finish running jobs), close app, exit 0.
+- Reason: Bounded retries + retention keep Redis from growing without a cleanup job; consume-side Zod keeps the "validate all input" rule true for payloads too. Idle-alive matches how deployment platforms expect a worker container to behave.
+- Alternatives: per-queue hand-tuned retries now (deferred — features decide their SLAs), processor-side-only validation (bad payloads would loop through all attempts before failing visibly).
+
+## 2026-10-31 — B0.4 cross-platform dev script
+
+- Prompt: B0.4
+- Decision: Root `pnpm dev` now runs `scripts/dev.mjs` (pure Node): spawns api watch, worker watch (`apps/api/scripts/dev-worker.mjs` = nest build --watch + node --watch dist/src/worker.js) and web watch once `apps/web` exists (F0.1). Any child exiting non-zero stops the others with the same code.
+- Reason: AGENTS.md section 4 promises `pnpm dev` runs api, worker AND web in watch mode; turbo `dev` alone only started the API. Node-only implementation satisfies the no-bash rule and works on Windows Git Bash.
+- Alternatives: concurrently npm package (one more dep for 40 lines), turbo watch mode (watches build outputs, not processes).

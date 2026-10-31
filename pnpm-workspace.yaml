@@ -21,3 +21,4 @@ minimumReleaseAgeExclude:
   - '@swc/core-win32-ia32-msvc@1.16.21'
   - '@swc/core-win32-x64-msvc@1.16.21'
   - '@swc/core@1.16.21'
+  - bullmq@6.5.3
