@@ -226,3 +226,18 @@
 ## Known issues
 
 فرمت هر مورد: `- (ID پرامپت منشأ) شرح مشکل، اثر، راه‌حل موقت`
+
+## Phase orchestration
+
+This repo is built phase-by-phase by an hourly cron. The state machine lives in
+`scripts/orchestrator.mjs` and keeps its state in `.phase-state.json` (gitignored).
+
+- `node scripts/orchestrator.mjs status` — current phase, lock, overlap guard
+- `node scripts/orchestrator.mjs acquire` — take the lock, mark phase running, print the brief
+- `node scripts/orchestrator.mjs log "P0.1 done"` — record a prompt as done
+- `node scripts/orchestrator.mjs release --ok` — release the lock, mark phase completed, advance
+- `node scripts/orchestrator.mjs release --fail` — release the lock, mark phase failed (will retry next cron)
+
+Overlap guard: `acquire` refuses to take the lock if a fresh lock exists
+(< 2h old). A stale lock (> 2h, or pid no longer alive) is overridden. This
+prevents two cron-fired agents from working on the same phase simultaneously.
