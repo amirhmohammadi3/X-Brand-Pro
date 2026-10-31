@@ -1,0 +1,47 @@
+{
+  "name": "x-brand-pro",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Local-business discovery and review platform for Iran (Persian, RTL-first, multi-language, multi-city).",
+  "packageManager": "pnpm@12.16.1",
+  "engines": {
+    "node": ">=22.11.0 <23.0.0",
+    "pnpm": ">=12.16.0"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "typecheck": "turbo typecheck",
+    "test": "turbo test",
+    "test:e2e": "turbo test:e2e",
+    "test:scripts": "node --test scripts/lib/__tests__/",
+    "verify": "pnpm check:foundation && pnpm check:brand && pnpm check:env && pnpm check:secrets && turbo lint typecheck test build",
+    "check:foundation": "node scripts/check-foundation.mjs",
+    "check:brand": "node scripts/check-brand.mjs",
+    "check:env": "node scripts/check-env.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "env:init": "node scripts/gen-secrets.mjs",
+    "services:up": "node scripts/services.mjs up",
+    "services:down": "node scripts/services.mjs down",
+    "services:reset": "node scripts/services.mjs reset",
+    "services:logs": "node scripts/services.mjs logs",
+    "services:status": "node scripts/services.mjs status",
+    "db:generate": "turbo db:generate",
+    "db:migrate": "turbo db:migrate",
+    "db:seed": "turbo db:seed",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@app/config": "workspace:*",
+    "@types/node": "22.10.2",
+    "eslint": "9.16.0",
+    "typescript-eslint": "8.18.0",
+    "husky": "9.1.7",
+    "lint-staged": "15.2.10",
+    "@commitlint/cli": "19.5.0",
+    "@commitlint/config-conventional": "19.5.0",
+    "prettier": "3.3.3",
+    "turbo": "2.3.3"
+  }
+}

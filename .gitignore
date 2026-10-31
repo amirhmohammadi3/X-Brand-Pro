@@ -1,0 +1,43 @@
+# dependencies
+node_modules
+.pnpm-store
+
+# build outputs
+dist
+.next
+.turbo
+out
+build
+coverage
+*.tsbuildinfo
+
+# env
+.env
+.env.local
+.env.*.local
+
+# data volumes
+data/
+
+# test artifacts
+playwright-report
+test-results
+playwright/.cache
+
+# editor / os
+.DS_Store
+Thumbs.db
+.idea
+.vscode/*
+!.vscode/extensions.json
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# phase orchestration (local only)
+.phase-state.json
+.phase-lock
+.phase-orchestrator.log

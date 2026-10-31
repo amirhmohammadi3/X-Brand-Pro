@@ -1,0 +1,4 @@
+#!/usr/bin/env sh
+# Husky pre-commit hook (husky v9 sources this with sh).
+# Cross-platform: uses pnpm exec to resolve lint-staged on any OS.
+pnpm exec lint-staged
