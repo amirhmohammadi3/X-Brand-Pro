@@ -296,3 +296,24 @@ Entry format:
 - Decision: Phase 0 declared complete. Final gate re-run from a clean state: all four guards (foundation, brand, rtl, no-external) OK, turbo verify chain green (15/15 tasks), 192 unit/integration tests green (106 contracts + 50 api + 11 web + 26 scripts), 5 Playwright e2e tests green (locale negotiation, dir/lang attributes, axe WCAG 2.2 AA clean on / and /en). README status table, layout and command list synchronized with the actual repository.
 - Reason: The gate is the phase contract — everything the 13 prompts promised must be verifiable with repo commands alone, without memory of how they were built.
 - Assumptions: The Docker-dependent verifications (live migrations, live worker, first CI run) remain in PROGRESS.md Follow-ups for a machine with Docker; they are enhancements to already-tested code paths, not gaps in the skeleton.
+
+## 2026-10-31 — B1.1 settings: registry-first key/value store with encrypted secrets
+
+- Prompt: B1.1
+- Decision: The `settings` table stores OVERRIDES only — defaults live in `settings.registry.ts`, so a fresh database is a fully configured system. Every read/write goes through the registry (Zod schema + default + group + `public` + `isSecret`); unknown keys are rejected with 422. Secrets are AES-256-GCM envelopes (`v1.iv.tag.ct`, scrypt-derived key from SETTINGS_ENCRYPTION_KEY); plaintext never touches the DB, the Redis cache (cached value stays the encrypted envelope), logs or admin listings (fixed mask). Reads are cached per key (60 s) plus one public blob; writes invalidate both.
+- Reason: Registry-first means a typo'd key fails at write time and every consumer gets typed values; defaults-in-code keeps seeds idempotent and makes the DB purely stateful overrides. Encrypting before the repository boundary keeps the invariant checkable in one place.
+- Alternatives: storing defaults in the DB via seeds (drift between environments), caching decrypted secrets (plaintext in a second store), key-specific service methods (unbounded surface).
+
+## 2026-10-31 — B1.1 auth metadata now, identity later (interim deny guard)
+
+- Prompt: B1.1
+- Decision: `@Public()` and `@Roles()` decorators plus a global `RolesGuard` ship NOW with the metadata contract, but the guard DENIES every `@Roles()` route with 403 until B1.2 (users/RBAC) and B1.3 (sessions) exist. Routes without either decorator pass (phase-0 routes).
+- Reason: The admin settings API would otherwise be world-readable; a closed-by-default route that opens when real identity lands is strictly safer than shipping it open. The metadata contract means B1.2 swaps the guard's deny branch without touching controllers.
+- Alternatives: an internal static token (invents auth), shipping routes unprotected (hole), delaying the controller to B1.2 (B1.1's "admin-only" deliverable would be untestable).
+
+## 2026-10-31 — B1.1 isSecret is registry-owned, not row-owned
+
+- Prompt: B1.1
+- Decision: Whether a value is encrypted/masked is decided by the REGISTRY definition, never by the stored row. Unit tests exercise secret paths via a documented `registerSettingDefinitionForTests` hook instead of polluting the production registry with fake keys.
+- Reason: A row-level flag that disagrees with the registry would either double-encrypt or leak plaintext; one owner keeps the invariant checkable. The test hook keeps production keys curated by prompts only.
+- Alternatives: trusting the DB flag (drift risk), fake keys in the production registry (registry noise visible to admins).

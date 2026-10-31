@@ -30,4 +30,17 @@ Block format (one per table):
 
 ## Tables
 
-(none yet; the first entries are added by prompt B1.1)
+### settings
+
+- Module: settings - Prompt: B1.1
+- Purpose: runtime configuration an admin may change without a deploy; one row per registry key (overrides only — defaults live in settings.registry.ts)
+- Columns of note:
+  - key text PRIMARY KEY — dotted lowercase key (e.g. site.name, sms.driver)
+  - value jsonb NOT NULL — plain JSON for normal settings; AES-256-GCM envelope string (v1.iv.tag.ct) for secrets
+  - is_secret boolean NOT NULL default false — mirrors the registry definition
+  - group text NOT NULL — settings group (general, localization, integrations, theme, flags)
+  - description text NULL
+  - updated_at timestamptz NOT NULL default now()
+- Indexes: settings_group_idx: (group), btree — admin listing filter
+- Constraints: primary key on key; no foreign keys
+- Retention: rows live until an admin resets the key (DELETE removes the override)

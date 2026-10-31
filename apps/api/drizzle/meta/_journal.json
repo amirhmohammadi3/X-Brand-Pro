@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1793457714235,
+      "tag": "0000_flaky_metal_master",
+      "breakpoints": true
+    }
+  ]
 }

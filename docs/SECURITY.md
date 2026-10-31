@@ -20,7 +20,17 @@ Format: one row per limited endpoint group.
 
 Mechanism (B0.3): fixed-window counter in Redis (`INCR` + `EXPIRE NX`, key `rl:<name>:<identity>:<epoch bucket>`), enforced by the global `RateLimitGuard` on routes annotated with `@RateLimit({ name, limit, windowSec, scope })`. Rejections are HTTP 429 with the `RATE_LIMITED` error envelope and a `Retry-After` header. Scope `ip` until the auth module lands; `user` falls back to ip for unauthenticated requests.
 
+| Key               | Endpoint(s)          | Limit | Window | Scope | Prompt |
+| ----------------- | -------------------- | ----- | ------ | ----- | ------ |
+| `settings.public` | GET /settings/public | 60    | 60s    | ip    | B1.1   |
+
 Failure mode: the limiter FAILS OPEN when Redis is unreachable (request allowed, warning logged, result marked `degraded`) so a cache-layer outage cannot take the API down. Acceptable risk: temporarily unlimited traffic during a Redis outage; mitigations (queueing, health alerting) are in the observability prompt Q12.10.
+
+### Settings secrets (B1.1)
+
+- Secret settings are encrypted at rest with AES-256-GCM (envelope `v1.iv.tag.ciphertext`, base64url parts); the key comes from `SETTINGS_ENCRYPTION_KEY` (>= 32 chars, scrypt-derived). Plaintext never reaches the database, the Redis cache, logs, or admin listings (fixed `••••••••` mask).
+- Decrypt failures (tampered value or rotated key) fail loudly as 500 — never silently return garbage.
+- Admin settings routes carry `@Roles('admin','super_admin')`; until B1.2/B1.3 ship real authentication, the interim RolesGuard DENIES them with 403 — the admin API is closed by default, not open.
 
 ## 3. Secrets inventory
 

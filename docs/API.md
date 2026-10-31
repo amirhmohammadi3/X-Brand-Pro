@@ -17,7 +17,45 @@ Block format (copy for each endpoint):
 
 ## Endpoints
 
-(none yet; the first entries are added by prompt B0.1)
+### GET /api/v1/settings/public
+
+- Module: settings - Prompt: B1.1
+- Auth: public
+- Request: none
+- Response: PublicSettings (@app/contracts, status 200) — only registry keys flagged `public` and never secrets
+- Errors: 500 INTERNAL_ERROR, 429 RATE_LIMITED
+- Rate limit: 60 req / 60 s per ip (key `settings.public`)
+- Notes: served from the Redis cache (60 s TTL); cache invalidates on every admin write
+
+### GET /api/v1/admin/settings
+
+- Module: settings - Prompt: B1.1
+- Auth: role admin | super_admin (denied with 403 until B1.2/B1.3 provide authentication)
+- Request: none
+- Response: AdminSetting[] (status 200) — secret values are masked as `••••••••`
+- Errors: 403 FORBIDDEN
+- Rate limit: none
+- Notes: lists every registered key with `isDefault` flag; unregistered keys cannot appear
+
+### PUT /api/v1/admin/settings/:key
+
+- Module: settings - Prompt: B1.1
+- Auth: role admin | super_admin (denied until B1.2/B1.3)
+- Request: UpdateSettingBody (body) + SettingKey (param)
+- Response: AdminSetting (status 200)
+- Errors: 400 VALIDATION_FAILED (body or per-key schema), 403 FORBIDDEN, 422 UNPROCESSABLE (unknown key)
+- Rate limit: none
+- Notes: secrets are encrypted (AES-256-GCM) before storage; safe to retry
+
+### DELETE /api/v1/admin/settings/:key
+
+- Module: settings - Prompt: B1.1
+- Auth: role admin | super_admin (denied until B1.2/B1.3)
+- Request: SettingKey (param)
+- Response: AdminSetting (status 200, isDefault true)
+- Errors: 403 FORBIDDEN, 422 UNPROCESSABLE (unknown key)
+- Rate limit: none
+- Notes: removes the override; the registry default becomes effective again
 
 ## Response envelope (all endpoints)
 

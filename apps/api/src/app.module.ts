@@ -2,9 +2,11 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { LoggerModule } from 'nestjs-pino';
 import { RateLimitGuard } from './common/guards/rate-limit.guard.js';
+import { RolesGuard } from './common/guards/roles.guard.js';
 import { ConfigModule } from './config/config.module.js';
 import { DrizzleModule } from './db/drizzle.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { SettingsModule } from './modules/settings/settings.module.js';
 import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
 
@@ -43,11 +45,15 @@ import { RedisModule } from './redis/redis.module.js';
       },
     }),
     HealthModule,
+    SettingsModule,
   ],
   providers: [
     // Global opt-in rate limiting: routes annotated with @RateLimit are
     // enforced with the Redis limiter; everything else passes through.
     { provide: APP_GUARD, useClass: RateLimitGuard },
+    // Interim auth-metadata guard: @Public passes, @Roles denies until
+    // B1.2/B1.3 bring real identity (see RolesGuard docblock).
+    { provide: APP_GUARD, useClass: RolesGuard },
   ],
 })
 export class AppModule {}

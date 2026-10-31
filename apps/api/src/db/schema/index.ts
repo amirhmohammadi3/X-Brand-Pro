@@ -7,4 +7,4 @@
  * barrel (or from `src/db/schema` when declaring a foreign key, as AGENTS.md
  * allows).
  */
-export {};
+export * from './settings.js';
