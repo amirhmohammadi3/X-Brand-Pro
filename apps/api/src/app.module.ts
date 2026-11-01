@@ -12,6 +12,7 @@ import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
 import { EmailModule } from './modules/email/email.module.js';
 import { SmtpHealthIndicator } from './modules/email/smtp.health.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { AuditModule } from './modules/audit/audit.module.js';
 import { PostgresHealthIndicator } from './modules/health/postgres.health.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { OtpModule } from './modules/otp/otp.module.js';
@@ -33,6 +34,7 @@ import { RedisModule } from './redis/redis.module.js';
     DrizzleModule,
     RedisModule,
     QueueModule,
+    AuditModule,
     // In-process domain events (AGENTS.md 6): subscribers live in the
     // module that reacts to an event, not here.
     EventEmitterModule.forRoot({ wildcard: true, ignoreErrors: true }),

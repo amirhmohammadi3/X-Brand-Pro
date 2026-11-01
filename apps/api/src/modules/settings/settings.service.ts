@@ -1,4 +1,6 @@
 import { HttpException, HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports -- DI metadata
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { AdminSetting } from '@app/contracts';
 // CacheService is constructor-injected: Nest reads its type at runtime from
 // emitDecoratorMetadata, so it must stay a value import (do not "fix").
@@ -9,6 +11,19 @@ import { listAllSettingDefinitions, lookupSettingDefinition } from './settings.r
 import type { SettingsRepositoryLike } from './settings.repository.js';
 
 export const SETTINGS_REPOSITORY = Symbol('SETTINGS_REPOSITORY');
+
+/** Domain events emitted by the settings service (audit subscribes in B1.11). */
+export const SETTINGS_EVENTS = {
+  updated: 'settings.updated',
+} as const;
+
+/** Who made the change — captured by the admin controller, never guessed. */
+export interface SettingsActor {
+  id?: string | null;
+  role?: string | null;
+  /** B1.11: an empty secret value with clear=true removes the override. */
+  clear?: boolean;
+}
 
 /**
  * Runtime settings (B1.1). Reads go through the Redis cache (60s TTL);
@@ -24,6 +39,8 @@ export class SettingsService {
   constructor(
     @Inject(SETTINGS_REPOSITORY) private readonly repo: SettingsRepositoryLike,
     private readonly cache: CacheService,
+
+    private readonly events: EventEmitter2,
   ) {}
 
   /**
@@ -87,8 +104,25 @@ export class SettingsService {
    * rejected (422 / 400); secrets are encrypted before they reach the
    * repository. Returns the admin view of the written key.
    */
-  async set(key: string, value: unknown): Promise<AdminSetting> {
+  async set(key: string, value: unknown, actor?: SettingsActor): Promise<AdminSetting> {
     const definition = this.mustGetDefinition(key);
+
+    // B1.11 secret write rules: '' means "keep unchanged" (rejected) unless
+    // { clear: true } removes the override and the registry default applies.
+    if (definition.isSecret && typeof value === 'string' && value.length === 0) {
+      if (actor?.clear === true) {
+        return this.reset(key, actor);
+      }
+      throw new HttpException(
+        {
+          code: 'UNPROCESSABLE' as const,
+          message: 'Empty value on a secret keeps the current one; send clear:true to remove it',
+        },
+        HttpStatus.UNPROCESSABLE_ENTITY,
+      );
+    }
+
+    const before = await this.maskedCurrent(key);
     const parsed = definition.schema.safeParse(value);
     if (!parsed.success) {
       throw new HttpException(
@@ -114,7 +148,7 @@ export class SettingsService {
       description: definition.description,
     });
     await this.invalidate(key);
-    return {
+    const view: AdminSetting = {
       key,
       value: definition.isSecret ? SECRET_MASK : row.value,
       group: definition.group,
@@ -122,14 +156,25 @@ export class SettingsService {
       isDefault: false,
       updatedAt: row.updatedAt.toISOString(),
     };
+    this.events.emit(SETTINGS_EVENTS.updated, {
+      key,
+      actorId: actor?.id ?? null,
+      actorRole: actor?.role ?? null,
+      before,
+      after: definition.isSecret ? { redacted: SECRET_MASK, changed: true } : view.value,
+      changed: true,
+      action: 'settings.update',
+    });
+    return view;
   }
 
   /** Removes an override; the registry default becomes effective again. */
-  async reset(key: string): Promise<AdminSetting> {
+  async reset(key: string, actor?: SettingsActor): Promise<AdminSetting> {
     const definition = this.mustGetDefinition(key);
+    const before = await this.maskedCurrent(key);
     await this.repo.deleteByKey(key);
     await this.invalidate(key);
-    return {
+    const view: AdminSetting = {
       key,
       value: definition.isSecret ? SECRET_MASK : definition.default,
       group: definition.group,
@@ -137,6 +182,30 @@ export class SettingsService {
       isDefault: true,
       updatedAt: null,
     };
+    this.events.emit(SETTINGS_EVENTS.updated, {
+      key,
+      actorId: actor?.id ?? null,
+      actorRole: actor?.role ?? null,
+      before,
+      after: definition.isSecret
+        ? { redacted: SECRET_MASK, changed: true, cleared: true }
+        : view.value,
+      changed: true,
+      action: 'settings.reset',
+    });
+    return view;
+  }
+
+  /**
+   * Masked snapshot of the CURRENT value for audit before/after: secrets
+   * contribute the mask (or null when unset) — never plaintext.
+   */
+  private async maskedCurrent(key: string): Promise<unknown> {
+    const definition = lookupSettingDefinition(key);
+    if (!definition) return null;
+    const row = await this.repo.findByKey?.(key);
+    if (!row) return null;
+    return definition.isSecret ? { redacted: SECRET_MASK, changed: true } : row.value;
   }
 
   private decode(isSecret: boolean, raw: unknown): unknown {

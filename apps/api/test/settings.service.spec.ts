@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import type { EventEmitter2 } from '@nestjs/event-emitter';
 import { z } from 'zod';
 import { CacheService } from '../src/redis/cache.service.js';
 import { SettingsService } from '../src/modules/settings/settings.service.js';
@@ -53,8 +54,9 @@ function makeRepo(): SettingsRepositoryLike & { store: Map<string, SettingRow> }
 function makeService() {
   const repo = makeRepo();
   const cache = new CacheService(new FakeRedis());
-  const service = new SettingsService(repo, cache);
-  return { repo, cache, service };
+  const events = { emit: () => undefined } as unknown as EventEmitter2;
+  const service = new SettingsService(repo, cache, events);
+  return { repo, cache, service, events };
 }
 
 afterEach(() => {
@@ -87,7 +89,7 @@ describe('SettingsService (B1.1)', () => {
     expect(raw).not.toContain('p@ss'); // plaintext never reaches the DB layer
 
     // A fresh service instance (cold cache) decrypts the stored envelope.
-    const cold = new SettingsService(repo, new CacheService(new FakeRedis()));
+    const cold = new SettingsService(repo, new CacheService(new FakeRedis()), makeService().events);
     const decoded = await cold.get('test.api_token');
     expect(decoded).toEqual({ token: 'p@ss-توکن' });
   });
@@ -150,7 +152,7 @@ describe('SettingsService (B1.1)', () => {
     const previous = process.env.SETTINGS_ENCRYPTION_KEY;
     delete process.env.SETTINGS_ENCRYPTION_KEY;
     // Cold service so the cached decrypted value is not served.
-    const cold = new SettingsService(repo, new CacheService(new FakeRedis()));
+    const cold = new SettingsService(repo, new CacheService(new FakeRedis()), makeService().events);
     await expect(cold.get('test.api_token')).rejects.toMatchObject({ status: 503 });
     process.env.SETTINGS_ENCRYPTION_KEY = previous;
   });

@@ -148,3 +148,17 @@ Block format (one per table):
 
 - Columns of note:
   - avatar_media_id uuid NULL → media_files.id ON DELETE SET NULL — deferred FK added in migration 0005 (alongside media_files) so B1.10 can wire the profile avatar without another migration; null until a profile sets it
+
+### audit_logs
+
+- Module: audit (B1.11)
+- Purpose: append-only security trail — auth events, settings changes; later prompts log their own sensitive actions via `AuditService.log`.
+- Columns of note:
+  - `actor_user_id uuid null fk users on delete set null` — null for anonymous/session-scoped events
+  - `actor_role text null` — snapshot of the actor role at write time
+  - `action text not null` — dotted lowercase, e.g. `auth.login`, `settings.update`
+  - `entity_type/entity_id text null` — what the action touched
+  - `before/after jsonb null` — REDACTED payloads (sensitive keys, depth ≤ 6, strings ≤ 2000 chars)
+  - `ip text null`, `user_agent text null`, `request_id text null`
+- Indexes: `(created_at desc, id desc)` keyset paging; `(actor_user_id, created_at desc)`; `(action, created_at desc)`; `(entity_type, entity_id)`
+- Retention: keep 2 years, then purge (purge job lands with the retention prompts)

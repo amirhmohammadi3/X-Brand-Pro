@@ -205,3 +205,10 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 
 - Password change wrong-current-password answers count toward the login lockout (`LoginThrottleService.recordFailure`), same 5/15min policy as login.
 - Account deletion requires the password when one is set; passwordless (OTP/Google) accounts require a session younger than 10 minutes (fresh-login proof) — no rate limit beyond the shared guard chain.
+
+## 1c. Permission additions (B1.11)
+
+- `audit.read` — admins and super_admins: read the audit trail (GET /admin/audit-logs).
+- Audit writes are redacted before insert: keys matching `/pass(word)?|secret|token|api[-_]?key|authorization|cookie|otp|code$/i` → `[redacted]`, depth ≤ 6, strings truncated at 2000 chars; settings secrets additionally contribute only the project mask plus a `changed` boolean. The plaintext can never reach `audit_logs` (covered by a table-scan test).
+- Failed-login events are SAMPLED: at most one row per identifier hash per minute (brute-force bursts cannot flood the trail).
+- Retention: audit rows are kept 2 years (DATA_MODEL).

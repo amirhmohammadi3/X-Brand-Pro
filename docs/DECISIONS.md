@@ -478,3 +478,17 @@ Entry format:
 - Decision: one `toCurrentUser(row, avatarUrl?)` mapper in users module consumed by AuthService, AuthOtpService and ProfileService; `currentUserSchema` gains bio/avatarUrl/hasPassword/updatedAt.
 - Reason: three builders had already drifted; the schema `.parse()` at the boundary guarantees the wire shape stays contract-true.
 - Alternatives: keeping per-service builders (drift), resolving avatarUrl inside the mapper (would need a DB call in a pure function).
+
+## 2026-11-01 — B1.11 settingKeySchema admits mixed case; settings audit uses SECRET_MASK
+
+- Prompt: B1.11
+- Decision: `settingKeySchema` now accepts `[A-Za-z0-9]` segments (the B1.1 registry already contains `sms.kavenegar.apiKey`, which the old lowercase-only regex rejected — such keys could never be updated through the API). Settings audit rows record secrets with the project SECRET_MASK + `changed: true` instead of the audit-redactor's `[redacted]` marker.
+- Reason: the wire contract must admit every registered key; the mask keeps the admin UI vocabulary consistent while never exposing plaintext (enforced by a table-scan test).
+- Alternatives: renaming the registry key (touches B1.1-owned data and stored rows), leaving the mismatch (broken endpoint for a registered key).
+
+## 2026-11-01 — B1.11 audit event ownership and login-failure sampling
+
+- Prompt: B1.11
+- Decision: audit rows for auth/settings actions are written ONLY by AuthAuditSubscriber (@OnEvent listeners); services emit, audit persists. `settings.set/reset` gained an optional actor parameter fed by the controller (never guessed). Failed logins are sampled at most 1 per identifier-hash per minute, keyed by userId when known else ip+reason (the B1.3 event payload carries no raw identifier — by design).
+- Reason: single write path per action (no doubles), and the request path never waits on audit IO. `auth.session.revoked` carries no userId in its payload (session-scoped), so those rows have a null actor and the sessionId as entityId.
+- Alternatives: writing audit inline in each service (duplicated, couples modules to audit), passing raw identifiers into events (PII in event payloads).

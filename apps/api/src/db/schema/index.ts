@@ -11,6 +11,7 @@
  * holds the avatar_media_id FK back to media_files; importing media first
  * keeps the circular reference out of the TDZ.
  */
+export * from './audit.js';
 export * from './settings.js';
 export * from './sessions.js';
 export * from './otp.js';

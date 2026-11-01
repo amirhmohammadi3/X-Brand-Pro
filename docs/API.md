@@ -409,3 +409,19 @@ All routes require authentication (JWT access cookie or bearer). Responses use t
 - Request: `deleteAccountBodySchema` ({ password?, confirm: 'DELETE' })
 - Notes: soft delete; anonymizes email/phone/password/fullName/bio/avatar, username becomes `deleted_<id[:8]>`; removes OAuth links; revokes all sessions; emits `user.deleted`. User content is kept (rendered anonymous later). Passwordless accounts require a session created within the last 10 minutes.
 - Errors: 401, 422 (missing password / stale session)
+
+## /api/v1/admin/audit-logs (B1.11)
+
+- Auth: `audit.read` permission (admin, super_admin) — Rate limit `admin.audit.read` 60/min per user
+- Query: `auditListQuerySchema` — `cursor`/`limit` (max 100) + filters `actorId` (uuid), `action` (exact or prefix with trailing `*`), `entityType`, `entityId`, `from`/`to` (ISO datetimes)
+- Response: `auditListResponseSchema` — `{ items: AuditLog[], meta: { nextCursor, hasMore } }`, ordered by (created_at desc, id desc) keyset pagination
+- Errors: 400 (malformed cursor), 401, 403
+- Notes: `before`/`after` payloads are redacted server-side (sensitive keys, depth, length); secrets additionally appear only as the project mask with a `changed` flag
+
+## /api/v1/admin/settings (B1.11 upgrade)
+
+- All three admin routes now require `settings.manage` (was bare @Roles) and are rate limited 60/min per user (`admin.settings.read` / `admin.settings.write`)
+- GET returns a GROUPED view: `{ groups: Record<string, AdminSetting[]> }`
+- PUT body: `updateSettingBodySchema` — `{ value, clear? }`. Unknown key → 404/422 via registry lookup; secrets are write-only; an EMPTY string on a secret is rejected 422 (keep-unchanged) unless `clear: true`, which removes the override (registry default reapplies)
+- DELETE resets to the registry default
+- Both mutations emit `settings.updated` (actor + masked before/after) which the audit subscriber records as `settings.update` / `settings.reset`

@@ -13,7 +13,10 @@ export const settingKeySchema = z
   .string()
   .min(3)
   .max(100)
-  .regex(/^[a-z0-9]+(?:[._-][a-z0-9]+)*$/, 'settings.key_format');
+  // Mixed-case segments are allowed: the B1.1 registry already contains
+  // `sms.kavenegar.apiKey`, and the wire format must admit every registered
+  // key (B1.11).
+  .regex(/^[A-Za-z0-9]+(?:[._-][A-Za-z0-9]+)*$/, 'settings.key_format');
 export type SettingKey = z.infer<typeof settingKeySchema>;
 
 /** Admin-managed groups (the registry may add more; the wire type stays open). */
@@ -35,10 +38,16 @@ export type AdminSetting = z.infer<typeof adminSettingSchema>;
 export const publicSettingsSchema = z.record(z.unknown());
 export type PublicSettings = z.infer<typeof publicSettingsSchema>;
 
-/** PUT /admin/settings/:key body — the value itself is registry-validated. */
+/**
+ * PUT /admin/settings/:key body (B1.11). Secrets are write-only: `value` is
+ * required but never echoed back. An EMPTY string on a secret means "keep
+ * unchanged" and is rejected with 422 unless `clear: true` removes the
+ * override (the registry default becomes effective).
+ */
 export const updateSettingBodySchema = z
   .object({
     value: z.unknown(),
+    clear: z.boolean().optional(),
   })
   .strict();
 export type UpdateSettingBody = z.infer<typeof updateSettingBodySchema>;
