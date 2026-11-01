@@ -179,6 +179,66 @@ All under `/api/v1/auth`. Tokens travel in httpOnly cookies (`at` access JWT, `r
 - Errors: 401 UNAUTHENTICATED / SESSION_REVOKED, 403 ACCOUNT_BANNED
 - Rate limit: none
 
+### POST /api/v1/auth/otp/request
+
+- Module: auth (B1.7) - Prompt: B1.7
+- Auth: public
+- Request: OtpRequestBody (body; strict) — `channel: 'sms'|'email'`, `target` (iranMobileSchema / emailSchema per channel)
+- Response: OtpRequestResult (status 201) — `{ resendAfterSec, expiresInSec, channel, targetMasked }` — IDENTICAL for known and unknown targets
+- Errors: 400 VALIDATION_FAILED, 422 OTP_RESEND_TOO_SOON (1/60 s per target+purpose; 5/h per target, 20/h per ip caps), 429 RATE_LIMITED, 503 SERVICE_UNAVAILABLE (failClosed limiter)
+- Rate limit: 10 req / 1 h per ip (key `auth.otp.request`, failClosed)
+- Notes: issues and SENDS the code (SMS via `SmsService.sendOtp`, email via the `otp` template); the response never reveals whether an account exists
+
+### POST /api/v1/auth/otp/verify
+
+- Module: auth (B1.7) - Prompt: B1.7
+- Auth: public
+- Request: OtpVerifyBody (body; strict) — `channel`, `target`, `code`
+- Response: AuthResult (status 200) — same shape as password login; httpOnly cookies set
+- Errors: 400 VALIDATION_FAILED, 403 ACCOUNT_BANNED, 422 OTP_INVALID / OTP_EXPIRED / OTP_TOO_MANY_ATTEMPTS, 429 RATE_LIMITED
+- Rate limit: 20 req / 1 h per ip (key `auth.otp.verify`, failClosed)
+- Notes: unknown target → creates a user (throwaway username `u` + 8 base36 chars, no password, target verified, locale from Accept-Language else site default) and logs in; unverified registered target → logs into THAT user and flips the verified stamp (ownership proven by the code); emits `auth.login.succeeded` with `method: 'otp_sms'|'otp_email'` (and `auth.registered` for new users)
+
+### POST /api/v1/auth/verify/request
+
+- Module: auth (B1.7) - Prompt: B1.7
+- Auth: any authenticated
+- Request: VerifyRequestBody (body; strict) — `channel`, `target` (current pending identifier or a NEW one)
+- Response: OtpRequestResult (status 201)
+- Errors: 400 VALIDATION_FAILED, 409 CONFLICT (new identifier already belongs to a VERIFIED account), 422 OTP_RESEND_TOO_SOON, 429 RATE_LIMITED
+- Rate limit: 5 req / 1 h per user (key `auth.verify.request`, failClosed)
+- Notes: purpose `verify_email` / `verify_phone`; email uses the `verify-email` template, phone the `otp` template
+
+### POST /api/v1/auth/verify/confirm
+
+- Module: auth (B1.7) - Prompt: B1.7
+- Auth: any authenticated
+- Request: VerifyConfirmBody (body; strict) — `channel`, `target`, `code`
+- Response: CurrentUser (status 200) with the verified stamp set
+- Errors: 400 VALIDATION_FAILED, 409 CONFLICT (re-checked inside the attach transaction), 422 OTP_INVALID / OTP_EXPIRED / OTP_TOO_MANY_ATTEMPTS, 429 RATE_LIMITED
+- Rate limit: 20 req / 1 h per user (key `auth.verify.confirm`, failClosed)
+- Notes: attaches the identifier and marks it verified atomically; an UNVERIFIED other holder loses the identifier (takeover rule), a VERIFIED other holder → 409
+
+### POST /api/v1/auth/password/forgot
+
+- Module: auth (B1.7) - Prompt: B1.7
+- Auth: public
+- Request: ForgotPasswordBody (body; strict) — `identifier` (username, email or phone)
+- Response: `{ ok: true }` (status 200) — ALWAYS, regardless of account existence
+- Errors: 400 VALIDATION_FAILED, 422 OTP_RESEND_TOO_SOON (per-identifier 3/h cap), 429 RATE_LIMITED
+- Rate limit: 5 req / 1 h per ip (key `auth.password.forgot`, failClosed)
+- Notes: when the identifier matches a VERIFIED email (preferred) or VERIFIED phone, a `reset_password` code is sent (email template `reset-password`, SMS plain code); otherwise nothing is delivered with the same response
+
+### POST /api/v1/auth/password/reset
+
+- Module: auth (B1.7) - Prompt: B1.7
+- Auth: public
+- Request: ResetPasswordBody (body; strict) — `identifier`, `code`, `newPassword` (passwordSchema)
+- Response: empty (status 204)
+- Errors: 400 VALIDATION_FAILED, 422 OTP_INVALID / OTP_EXPIRED / OTP_TOO_MANY_ATTEMPTS, 429 RATE_LIMITED
+- Rate limit: 10 req / 1 h per ip (key `auth.password.reset`, failClosed)
+- Notes: verifies the `reset_password` code against the SAME preferred verified channel it was sent to (a login-purpose code fails), sets the argon2id hash and revokes ALL of the user's sessions
+
 ### GET /api/v1/auth/sessions
 
 - Module: auth - Prompt: B1.3

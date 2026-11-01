@@ -97,6 +97,18 @@ export class UsersService {
     await this.repo.recordLogin(id);
   }
 
+  /**
+   * B1.7: attach an OTP-proven identifier and stamp it verified. 'conflict'
+   * means a VERIFIED other holder exists — the caller maps it to 409.
+   */
+  async attachIdentifier(params: {
+    userId: string;
+    channel: 'email' | 'phone';
+    target: string;
+  }): Promise<'attached' | 'conflict'> {
+    return this.repo.attachIdentifier(params);
+  }
+
   async create(params: {
     username: string;
     email?: string | null;

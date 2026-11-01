@@ -32,6 +32,17 @@ export interface UsersRepositoryLike {
   touchLastSeen(id: string): Promise<void>;
   setPasswordHash(id: string, passwordHash: string): Promise<void>;
   recordLogin(id: string): Promise<void>;
+  /**
+   * B1.7: attach an OTP-proven identifier to a user and stamp it verified,
+   * atomically. A VERIFIED holder other than `userId` → 'conflict' (409);
+   * an UNVERIFIED other holder loses the identifier (ownership proven by
+   * OTP — takeover rule). Returns 'attached' | 'conflict'.
+   */
+  attachIdentifier(params: {
+    userId: string;
+    channel: 'email' | 'phone';
+    target: string;
+  }): Promise<'attached' | 'conflict'>;
 }
 
 @Injectable()
@@ -151,5 +162,47 @@ export class UsersRepository implements UsersRepositoryLike {
       .update(users)
       .set({ lastLoginAt: now, lastSeenAt: now })
       .where(eq(users.id, id));
+  }
+
+  /** B1.7 attach/verify with the conflict + takeover rules inside one transaction. */
+  async attachIdentifier(params: {
+    userId: string;
+    channel: 'email' | 'phone';
+    target: string;
+  }): Promise<'attached' | 'conflict'> {
+    return this.client.db.transaction(async (tx) => {
+      const holders =
+        params.channel === 'email'
+          ? await tx.select().from(users).where(eq(users.email, params.target))
+          : await tx.select().from(users).where(eq(users.phone, params.target));
+
+      for (const holder of holders) {
+        if (holder.id === params.userId) continue;
+        const verified =
+          params.channel === 'email'
+            ? holder.emailVerifiedAt !== null
+            : holder.phoneVerifiedAt !== null;
+        if (verified) return 'conflict';
+        // Unverified holder loses the identifier — OTP proved real ownership.
+        await tx
+          .update(users)
+          .set(
+            params.channel === 'email'
+              ? { email: null, updatedAt: new Date() }
+              : { phone: null, updatedAt: new Date() },
+          )
+          .where(eq(users.id, holder.id));
+      }
+
+      await tx
+        .update(users)
+        .set(
+          params.channel === 'email'
+            ? { email: params.target, emailVerifiedAt: new Date(), updatedAt: new Date() }
+            : { phone: params.target, phoneVerifiedAt: new Date(), updatedAt: new Date() },
+        )
+        .where(eq(users.id, params.userId));
+      return 'attached';
+    });
   }
 }

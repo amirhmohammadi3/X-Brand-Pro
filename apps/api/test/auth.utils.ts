@@ -99,6 +99,33 @@ export function makeMemoryUserRepo(
           updatedAt: new Date(),
         });
     },
+    async attachIdentifier(params) {
+      for (const [id, r] of rows) {
+        if (id === params.userId) continue;
+        const holderValue = params.channel === 'email' ? r.email : r.phone;
+        if (holderValue !== params.target) continue;
+        const verified =
+          params.channel === 'email' ? r.emailVerifiedAt !== null : r.phoneVerifiedAt !== null;
+        if (verified) return 'conflict' as const;
+        // Unverified holder loses the identifier (OTP-proven ownership).
+        rows.set(id, {
+          ...r,
+          ...(params.channel === 'email' ? { email: null } : { phone: null }),
+          updatedAt: new Date(),
+        });
+      }
+      const me = rows.get(params.userId);
+      if (me) {
+        rows.set(params.userId, {
+          ...me,
+          ...(params.channel === 'email'
+            ? { email: params.target, emailVerifiedAt: new Date() }
+            : { phone: params.target, phoneVerifiedAt: new Date() }),
+          updatedAt: new Date(),
+        });
+      }
+      return 'attached' as const;
+    },
   };
 }
 

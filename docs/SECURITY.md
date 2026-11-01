@@ -128,10 +128,16 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 
 ## 2f. SMS policy (B1.5)
 
-| Key                | Endpoint(s)            | Limit | Window | Scope             | Prompt |
-| ------------------ | ---------------------- | ----- | ------ | ----------------- | ------ |
-| `admin.sms.test`   | POST /admin/sms/test   | 5     | 60 s   | user (failClosed) | B1.5   |
-| `admin.email.test` | POST /admin/email/test | 5     | 60 s   | user (failClosed) | B1.6   |
+| Key                    | Endpoint(s)                | Limit | Window | Scope             | Prompt |
+| ---------------------- | -------------------------- | ----- | ------ | ----------------- | ------ |
+| `admin.sms.test`       | POST /admin/sms/test       | 5     | 60 s   | user (failClosed) | B1.5   |
+| `admin.email.test`     | POST /admin/email/test     | 5     | 60 s   | user (failClosed) | B1.6   |
+| `auth.otp.request`     | POST /auth/otp/request     | 10    | 1 h    | ip (failClosed)   | B1.7   |
+| `auth.otp.verify`      | POST /auth/otp/verify      | 20    | 1 h    | ip (failClosed)   | B1.7   |
+| `auth.verify.request`  | POST /auth/verify/request  | 5     | 1 h    | user (failClosed) | B1.7   |
+| `auth.verify.confirm`  | POST /auth/verify/confirm  | 20    | 1 h    | user (failClosed) | B1.7   |
+| `auth.password.forgot` | POST /auth/password/forgot | 5     | 1 h    | ip (failClosed)   | B1.7   |
+| `auth.password.reset`  | POST /auth/password/reset  | 10    | 1 h    | ip (failClosed)   | B1.7   |
 
 - Permissions: `@RequirePermissions('settings.manage')` — first consumer of the RBAC permission layer (ROLE_PERMISSIONS static map: admin holds `settings.manage`, super_admin holds `*`). Moderator/owner/user/guest are 403.
 - Provider credentials (`sms.melipayamak.username/password`, `sms.kavenegar.apiKey`) are registry secrets: AES-256-GCM encrypted at rest, masked in admin listings, read from SettingsService at SEND time and never logged.
@@ -140,3 +146,11 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 - The dev outbox endpoint is structurally unavailable in production: the module is not registered unless `DEV_TOOLS=true` with `NODE_ENV != production`, and `loadEnv` fails boot on that combination in production.
 - OTP job hygiene: `sendOtp` jobs run with `removeOnComplete: true` and `removeOnFail: { age: 3600 }` so the code never persists in Redis after delivery; the code travels only inside the job payload.
 - Residual risk: real-provider send results are not yet verified against live accounts (sandbox has no provider credentials) — both drivers MUST be re-verified with real accounts before production (see PROGRESS Follow-ups).
+
+## Anti-enumeration (B1.7)
+
+- `POST /auth/otp/request` and `POST /auth/password/forgot` always issue/deliver (or silently skip) and always answer with the same status + body shape, so responses never reveal whether an account exists.
+- Account existence becomes visible only at `otp/verify` — the CODE is the ownership gate, and codes are 6 random digits (crypto.randomInt) with HMAC-at-rest, 5 attempts, 120 s TTL and 1/60 s resend cooldown.
+- Takeover rule: proving ownership of an identifier by OTP detaches it from any UNVERIFIED holder and verifies it on the prover; VERIFIED holders are never displaced (409 instead).
+- Residual risk: timing differences between the "issue+send" and "skip send" branches (an SMTP/SMS submission takes time) are measurable in principle. Reducing them (dummy sends) would burn provider quota on every enumeration attempt; accepted for now and re-evaluated in Q12.1.
+- A successful password reset (via code) revokes ALL sessions of the user immediately.

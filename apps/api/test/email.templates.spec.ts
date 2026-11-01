@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { BRAND } from '@app/config';
 import { renderEmail } from '../src/modules/email/templates/index.js';
 import { escapeHtml } from '../src/modules/email/templates/escape-html.js';
 
@@ -31,7 +32,7 @@ describe('email templates (B1.6, offline unit)', () => {
       // table-based 600px layout, inline CSS, brand present
       expect(mail.html).toContain('max-width:600px');
       expect(mail.html).toContain('<table');
-      expect(mail.html).toContain('جاباز');
+      expect(mail.html).toContain(BRAND.nameFa);
     }
   });
 
@@ -47,7 +48,7 @@ describe('email templates (B1.6, offline unit)', () => {
       const mail = renderEmail(id, 'en', { ...vars });
       expect(mail.html).toContain('dir="ltr"');
       expect(mail.html).toContain('lang="en"');
-      expect(mail.html).toContain('Jabaz');
+      expect(mail.html).toContain(BRAND.nameEn);
       expect(mail.subject.length).toBeGreaterThan(0);
     }
   });

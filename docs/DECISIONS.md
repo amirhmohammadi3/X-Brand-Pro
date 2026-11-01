@@ -416,3 +416,17 @@ Entry format:
 - Decision: Five templates (otp, verify-email, reset-password, welcome, generic) live as code with inline fa/en text; `renderEmail(id, locale, vars, fallbackLocale)` resolves fa/en or falls back to the site locale then `en`. Variables are escaped exactly once in the template builders via the shared `escapeHtml`; the shared layout receives pre-escaped strings and escapes only its own brand constants.
 - Reason: The i18n module (B1.12) and translatable notification templates (B5.3) do not exist yet — the prompt explicitly scopes inline templates. Double-escaping was caught by tests (title passed through layout twice) and fixed by the single-escape-point contract.
 - Alternatives: translation keys now (i18n seed files are for UI chrome, not rich mail bodies), a mail-merge library (unnecessary for five templates).
+
+## 2026-11-01 — B1.7 OTP auth flows: contracts reuse, takeover rule, reset channel resolution
+
+- Prompt: B1.7
+- Decision: The six request bodies live in contracts/auth.ts; `otpChannelSchema`, `otpRequestResultSchema` and `OtpPurpose` are REUSED from contracts/otp.ts (B1.4 already anticipated these flows) instead of being re-defined. New repository primitive `UsersRepositoryLike.attachIdentifier` performs attach + verify-stamp + conflict/takeover in ONE transaction. Login-OTP for an existing unverified target logs into THAT user and flips the stamp; password-reset codes are always verified against the row's PREFERRED verified channel (email first, then phone), which is also where forgot delivered them. Registration usernames are `u` + 8 lowercase base36 chars from crypto.randomInt with collision retry (5×).
+- Reason: Keeps a single source of truth for shared wire shapes (TS2308 duplicate-export errors caught the first attempt). The transactional attach makes the takeover rule race-free; verifying the reset code against the delivery channel makes purpose/target mismatch impossible to exploit. crypto.randomInt over Math.random: usernames are low-value but consistency with the OTP generator avoids review noise in Q12.1.
+- Alternatives: separate `verify_code` purpose per channel (more states, no benefit), letting any held identifier be verified at login (would allow hijacking a verified address another account already proved — rejected).
+
+## 2026-11-01 — B1.7 HTTP-level queue simulation in tests (InlineQueuesService)
+
+- Prompt: B1.7
+- Decision: auth.otp.spec.ts overrides `QUEUES_SERVICE` with an inline double whose `enqueue()` immediately runs the REAL module processor (`SmsService.deliver` / `EmailService.deliver`), giving the HTTP tests the full enqueue → deliver → fake-driver path with no Redis. Each test builds its own app (fresh FakeRedis) because the OtpService per-IP hourly cap (20) is shared state that a 16-test suite would exhaust.
+- Reason: The real QueuesService opens a BullMQ ioredis connection on first enqueue — in this sandbox that means an endless retry loop against 127.0.0.1:6379 (the suite hung until this override). Inline delivery preserves the code path the worker runs; retry/backoff semantics stay covered by the unit specs and the Docker follow-up.
+- Alternatives: mocking SmsService/EmailService entirely (would bypass deliver + templates), running a real Redis (unavailable), one shared app with raised caps (product constants must not change for tests).

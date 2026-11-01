@@ -6,6 +6,7 @@ import {
   passwordSchema,
   usernameSchema,
 } from './primitives.js';
+import { otpChannelSchema, type OtpChannel } from './otp.js';
 import { userRoleSchema, userStatusSchema } from './users.js';
 
 /**
@@ -86,3 +87,102 @@ export const authResultSchema = z.object({
   refreshToken: z.string().optional(),
 });
 export type AuthResult = z.infer<typeof authResultSchema>;
+
+// ---------------------------------------------------------------------------
+// OTP-based auth flows (B1.7)
+// ---------------------------------------------------------------------------
+// otpChannelSchema / OtpChannel / otpRequestResultSchema / OtpPurpose live in
+// ./otp.js (B1.4 anticipated these flows) and are re-exported via index.ts.
+
+/** `target` must be a valid Iranian mobile for sms and an email for email. */
+const channelTargetRefinement = (
+  v: { channel: OtpChannel; target: string },
+  ctx: z.RefinementCtx,
+) => {
+  if (v.channel === 'sms' && !iranMobileSchema.safeParse(v.target).success) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['target'],
+      message: 'must be an Iranian mobile number',
+    });
+  }
+  if (v.channel === 'email' && !emailSchema.safeParse(v.target).success) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['target'],
+      message: 'must be a valid email address',
+    });
+  }
+};
+
+/** Body of POST /auth/otp/request — passwordless login code. */
+export const otpRequestBodySchema = z
+  .object({
+    channel: otpChannelSchema,
+    target: z.string().min(3).max(254),
+  })
+  .strict()
+  .superRefine(channelTargetRefinement);
+export type OtpRequestBody = z.infer<typeof otpRequestBodySchema>;
+
+/** Body of POST /auth/otp/verify — proves ownership and logs in / registers. */
+export const otpVerifyBodySchema = z
+  .object({
+    channel: otpChannelSchema,
+    target: z.string().min(3).max(254),
+    code: z.string().min(4).max(10),
+  })
+  .strict()
+  .superRefine(channelTargetRefinement);
+export type OtpVerifyBody = z.infer<typeof otpVerifyBodySchema>;
+
+/** Body of POST /auth/verify/request (authenticated) — new or pending identifier. */
+export const verifyRequestBodySchema = z
+  .object({
+    channel: otpChannelSchema,
+    target: z.string().min(3).max(254),
+  })
+  .strict()
+  .superRefine(channelTargetRefinement);
+export type VerifyRequestBody = z.infer<typeof verifyRequestBodySchema>;
+
+/** Body of POST /auth/verify/confirm (authenticated). */
+export const verifyConfirmBodySchema = z
+  .object({
+    channel: otpChannelSchema,
+    target: z.string().min(3).max(254),
+    code: z.string().min(4).max(10),
+  })
+  .strict()
+  .superRefine(channelTargetRefinement);
+export type VerifyConfirmBody = z.infer<typeof verifyConfirmBodySchema>;
+
+/** Body of POST /auth/password/forgot — username, email or phone. */
+export const forgotPasswordBodySchema = z
+  .object({
+    identifier: z
+      .string()
+      .transform((s) => s.trim())
+      .pipe(z.string().min(3).max(254)),
+  })
+  .strict();
+export type ForgotPasswordBody = z.infer<typeof forgotPasswordBodySchema>;
+
+/** Body of POST /auth/password/reset. */
+export const resetPasswordBodySchema = z
+  .object({
+    identifier: z
+      .string()
+      .transform((s) => s.trim())
+      .pipe(z.string().min(3).max(254)),
+    code: z.string().min(4).max(10),
+    newPassword: passwordSchema,
+  })
+  .strict();
+export type ResetPasswordBody = z.infer<typeof resetPasswordBodySchema>;
+
+/**
+ * Response of every code request (otp/request, verify/request): identical
+ * whether or not the target belongs to an account (anti-enumeration, B1.7).
+ * The shape itself is `otpRequestResultSchema` from ./otp.js (B1.4).
+ */
