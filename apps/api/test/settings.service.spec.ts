@@ -55,8 +55,11 @@ function makeService() {
   const repo = makeRepo();
   const cache = new CacheService(new FakeRedis());
   const events = { emit: () => undefined } as unknown as EventEmitter2;
-  const service = new SettingsService(repo, cache, events);
-  return { repo, cache, service, events };
+  // I1.1: SettingsService reads the encryption key from AppConfig now —
+  // the spec pins the same KEY_MATERIAL the process.env path used before.
+  const appConfig = { settingsEncryptionKey: KEY_MATERIAL };
+  const service = new SettingsService(repo, cache, events, appConfig as never);
+  return { repo, cache, service, events, appConfig };
 }
 
 afterEach(() => {
@@ -89,7 +92,14 @@ describe('SettingsService (B1.1)', () => {
     expect(raw).not.toContain('p@ss'); // plaintext never reaches the DB layer
 
     // A fresh service instance (cold cache) decrypts the stored envelope.
-    const cold = new SettingsService(repo, new CacheService(new FakeRedis()), makeService().events);
+    const cold = new SettingsService(
+      repo,
+      new CacheService(new FakeRedis()),
+      makeService().events,
+      {
+        settingsEncryptionKey: KEY_MATERIAL,
+      } as never,
+    );
     const decoded = await cold.get('test.api_token');
     expect(decoded).toEqual({ token: 'p@ss-توکن' });
   });
@@ -149,11 +159,15 @@ describe('SettingsService (B1.1)', () => {
   it('fails loudly (503) when the encryption key is missing for a secret read', async () => {
     const { service, repo } = makeService();
     await service.set('test.api_token', { token: 'x' });
-    const previous = process.env.SETTINGS_ENCRYPTION_KEY;
-    delete process.env.SETTINGS_ENCRYPTION_KEY;
-    // Cold service so the cached decrypted value is not served.
-    const cold = new SettingsService(repo, new CacheService(new FakeRedis()), makeService().events);
+    // Cold service with an EMPTY key in config (I1.1: key comes from AppConfig).
+    const cold = new SettingsService(
+      repo,
+      new CacheService(new FakeRedis()),
+      makeService().events,
+      {
+        settingsEncryptionKey: '',
+      } as never,
+    );
     await expect(cold.get('test.api_token')).rejects.toMatchObject({ status: 503 });
-    process.env.SETTINGS_ENCRYPTION_KEY = previous;
   });
 });

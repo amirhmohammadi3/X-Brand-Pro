@@ -66,6 +66,8 @@ jobs:
         run: |
           pnpm check:foundation
           pnpm check:brand
+          pnpm check:env
+          pnpm check:secrets
           pnpm check:rtl
           pnpm check:no-external
 

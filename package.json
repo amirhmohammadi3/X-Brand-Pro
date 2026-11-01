@@ -16,7 +16,7 @@
     "test": "turbo test",
     "test:e2e": "turbo test:e2e",
     "test:scripts": "node --test --test-name-pattern '.*' 'scripts/lib/__tests__/*.test.mjs'",
-    "verify": "pnpm check:foundation && pnpm check:brand && pnpm check:rtl && pnpm check:no-external && turbo lint typecheck test build",
+    "verify": "pnpm check:foundation && pnpm check:brand && pnpm check:env && pnpm check:secrets && pnpm check:rtl && pnpm check:no-external && turbo lint typecheck test build",
     "check:foundation": "node scripts/check-foundation.mjs",
     "check:brand": "node scripts/check-brand.mjs",
     "check:rtl": "node scripts/check-rtl.mjs",

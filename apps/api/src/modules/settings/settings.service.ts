@@ -2,6 +2,8 @@ import { HttpException, HttpStatus, Inject, Injectable, Logger } from '@nestjs/c
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- DI metadata
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type { AdminSetting } from '@app/contracts';
+import { APP_CONFIG } from '../../config/config.module.js';
+import type { AppConfig } from '../../config/env.js';
 // CacheService is constructor-injected: Nest reads its type at runtime from
 // emitDecoratorMetadata, so it must stay a value import (do not "fix").
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -41,6 +43,7 @@ export class SettingsService {
     private readonly cache: CacheService,
 
     private readonly events: EventEmitter2,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /**
@@ -244,7 +247,10 @@ export class SettingsService {
   }
 
   private keyMaterial(): string {
-    const material = process.env.SETTINGS_ENCRYPTION_KEY;
+    // I1.1 consolidated: read through the validated AppConfig (AGENTS.md —
+    // never process.env directly in app code). Optional in the schema; the
+    // runtime check keeps the 32+ char rule with a clear 503.
+    const material = this.config.settingsEncryptionKey;
     if (!material || material.length < 32) {
       throw new HttpException(
         {

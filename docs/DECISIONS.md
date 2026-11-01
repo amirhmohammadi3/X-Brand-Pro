@@ -556,3 +556,19 @@ Entry format:
 - Reason: B1.14 needed a second repeatable on `maintenance` and the one-processor rule (B0.4) forbids a second register; a name-routing dispatcher scales to future housekeeping jobs without weakening the "exactly one consumer per queue" invariant. The handler map is module-level and REPLACES on re-register because test suites boot the AppModule repeatedly in one worker process.
 - Alternatives: a dedicated `users` queue (strays from the B0.4 queue plan), removing the one-processor rule (loses the clear consumer-per-queue contract).
 - Assumptions: none.
+
+## 2026-11-01 — I1.1 env consolidation: schema-first with a drift guard
+
+- Prompt: I1.1
+- Decision: `SETTINGS_ENCRYPTION_KEY` moved INTO the zod env schema (optional, default '') and SettingsService reads it via AppConfig instead of process.env (AGENTS.md: no direct process.env in app code). `check:env` compares `.env.example` keys against a deterministic regex extraction of the schema's top-level keys (importing the TS file from .mjs is not possible under the CJS package scope); web build-time keys (`NEXT_PUBLIC_API_URL`) are an explicit allow-list. `check:secrets` scans `git ls-files` for private-key headers, `sk-`/AKIA tokens and 32-hex secret assignments, exempting `.env.example`, lockfiles and `// fake-secret` lines. Both run in `pnpm verify` and CI. `env:init` fills ONLY empty/placeholder secret values (48-byte base64url for JWT/OTP secrets, 32-byte base64 for the settings key) and prints key names, never values.
+- Reason: The example file and the schema are two representations of one contract; the guard turns drift into a CI failure. Line-wise parsing (`split('\n')` + key-shape check) replaced a `matchAll` regex after the sandbox toolchain showed inconsistent multiline-`^` behavior — same semantics, no engine dependency.
+- Alternatives: joi/envalid (zod already pinned), importing compiled dist in the checker (build-order coupling), vault integration (out of scope per prompt).
+- Assumptions: none.
+
+## 2026-11-01 — I1.1 settings-key rotation is transactional and test-anchored
+
+- Prompt: I1.1
+- Decision: `rotate-settings-key.ts` re-encrypts every `is_secret` settings row with the NEW key inside one transaction (`SELECT … FOR UPDATE`), skipping non-envelope values; a wrong OLD key throws and rolls back EVERYTHING. The CLI wrapper (`rotate-settings-key.cli.ts`) walks up to `.env.example` for the repo root, loads `.env`, and refuses NEW == OLD / short keys.
+- Reason: A half-rotated settings table is unrecoverable by design (the old key is gone), so atomicity is the only safe shape. The integration test (settings.rotation.spec.ts) pins both the success path (values readable with NEW, unreadable with OLD, plain rows untouched) and the rollback path.
+- Alternatives: decrypt-in-app-on-read with dual keys (complex envelope versioning for one migration), offline export/import (manual error-prone).
+- Assumptions: none.

@@ -58,6 +58,11 @@ export const envSchema = z.object({
   // --- otp (B1.4) ---
   OTP_HMAC_SECRET: z.string().min(32, 'must be at least 32 characters'),
 
+  // --- settings secret encryption (B1.1, consolidated by I1.1). Optional in
+  // the schema so boot never hard-fails on a dev box; the settings service
+  // enforces the 32+ char rule with a 503 when a secret is actually touched. ---
+  SETTINGS_ENCRYPTION_KEY: z.string().default(''),
+
   // --- email (B1.6): Mailpit defaults for dev; settings keys email.smtp.* /
   // email.from.* (B1.1 registry) override these when they are set. ---
   SMTP_HOST: z.string().default('localhost'),
@@ -131,6 +136,7 @@ export type AppConfig = Readonly<{
   jwtAccessSecret: string;
   jwtRefreshSecret: string;
   otpHmacSecret: string;
+  settingsEncryptionKey: string;
   smtpHost: string;
   smtpPort: number;
   smtpSecure: boolean;
@@ -172,6 +178,7 @@ export function buildAppConfig(env: Env): AppConfig {
     jwtAccessSecret: env.JWT_ACCESS_SECRET,
     jwtRefreshSecret: env.JWT_REFRESH_SECRET,
     otpHmacSecret: env.OTP_HMAC_SECRET,
+    settingsEncryptionKey: env.SETTINGS_ENCRYPTION_KEY,
     smtpHost: env.SMTP_HOST,
     smtpPort: env.SMTP_PORT,
     smtpSecure: env.SMTP_SECURE,
