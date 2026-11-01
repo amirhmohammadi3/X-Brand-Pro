@@ -11,6 +11,7 @@ import {
   NotFoundException,
   Param,
   Post,
+  Query,
   Req,
   Res,
 } from '@nestjs/common';
@@ -46,6 +47,7 @@ import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { AuthService, type AuthFlowResult } from './auth.service.js';
 import { AuthOtpService } from './auth-otp.service.js';
+import { AuthOauthService } from './auth-oauth.service.js';
 import { AuthCookieService } from './auth-cookie.service.js';
 import { SessionService } from './session.service.js';
 import type { AuthenticatedHttpRequest } from './jwt-auth.guard.js';
@@ -66,6 +68,7 @@ export class AuthController {
     // satisfying consistent-type-imports (constructor params are type-only).
     @Inject(AuthService) private readonly auth: AuthService,
     @Inject(AuthOtpService) private readonly authOtp: AuthOtpService,
+    @Inject(AuthOauthService) private readonly oauth: AuthOauthService,
     @Inject(SessionService) private readonly sessions: SessionService,
     @Inject(AuthCookieService) private readonly cookies: AuthCookieService,
   ) {}
@@ -330,6 +333,50 @@ export class AuthController {
       accessToken: flow.accessToken,
       refreshToken: flow.refreshToken,
     });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Google OAuth (B1.8)
+  // ---------------------------------------------------------------------------
+
+  /** 404 unless an admin enabled Google login; otherwise 302 to accounts.google.com. */
+  @Public()
+  @RateLimit({ name: 'auth.google.start', limit: 20, windowSec: 600, scope: 'ip' })
+  @RawResponse()
+  @Get('google/start')
+  async googleStart(@Query('next') next: string | undefined, @Res() res: Response): Promise<void> {
+    const url = await this.oauth.start(res, next);
+    res.redirect(HttpStatus.FOUND, url);
+  }
+
+  /** State/PKCE verification + code exchange; always 302s to the web app. */
+  @Public()
+  @RawResponse()
+  @Get('google/callback')
+  async googleCallback(
+    @Query('state') state: string | undefined,
+    @Query('code') code: string | undefined,
+    @Req() req: Request,
+    @Res() res: Response,
+  ): Promise<void> {
+    const target = await this.oauth.callback({ req, res, state, code });
+    res.redirect(HttpStatus.FOUND, target);
+  }
+
+  /** Linked external identities of the caller (B1.8). */
+  @Get('oauth/accounts')
+  async oauthAccounts(@Req() req: Request & AuthenticatedHttpRequest) {
+    return this.oauth.listAccounts(this.requireUser(req).id);
+  }
+
+  /** Unlink; 422 LAST_LOGIN_METHOD when it is the only way in (B1.8). */
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @Delete('oauth/accounts/:id')
+  async unlinkOauthAccount(
+    @Param('id', new ZodValidationPipe(uuidSchema)) id: string,
+    @Req() req: Request & AuthenticatedHttpRequest,
+  ): Promise<void> {
+    await this.oauth.unlinkAccount({ userId: this.requireUser(req).id, accountId: id });
   }
 
   private requireUser(req: Request & AuthenticatedHttpRequest) {

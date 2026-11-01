@@ -78,6 +78,11 @@ export class UsersService {
     return this.repo.findByUsername(username);
   }
 
+  /** Exact email lookup (B1.8 OAuth linking). */
+  async getByEmail(email: string): Promise<UserRow | null> {
+    return this.repo.findByEmail(email);
+  }
+
   async getByIdentifier(identifier: string): Promise<UserRow | null> {
     return this.repo.findByIdentifier(identifier);
   }

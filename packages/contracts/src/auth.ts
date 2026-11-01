@@ -186,3 +186,24 @@ export type ResetPasswordBody = z.infer<typeof resetPasswordBodySchema>;
  * whether or not the target belongs to an account (anti-enumeration, B1.7).
  * The shape itself is `otpRequestResultSchema` from ./otp.js (B1.4).
  */
+
+// --- Linked OAuth accounts (B1.8) ---
+
+/** One linked external identity, as returned to its owner (B1.8). */
+export const oauthAccountSchema = z
+  .object({
+    id: z.string().uuid(),
+    provider: z.enum(['google']),
+    /** Email reported by the provider at link time; may be null. */
+    email: z.string().email().nullable(),
+    createdAt: z.string().datetime(),
+  })
+  .strict();
+export type OauthAccount = z.infer<typeof oauthAccountSchema>;
+
+export const oauthAccountsResponseSchema = z
+  .object({
+    accounts: z.array(oauthAccountSchema),
+  })
+  .strict();
+export type OauthAccountsResponse = z.infer<typeof oauthAccountsResponseSchema>;

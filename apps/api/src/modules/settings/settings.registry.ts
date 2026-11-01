@@ -235,6 +235,36 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     isSecret: false,
     description: 'Display name in the From header; empty = brand name for the locale.',
   },
+  // --- Google OAuth (B1.8). Disabled by default: Google endpoints are often
+  // unreachable from Iranian servers, so the feature must degrade to a 404
+  // until an admin explicitly enables it (DECISIONS B1.8). ---
+  'oauth.google.enabled': {
+    key: 'oauth.google.enabled',
+    schema: z.boolean(),
+    default: false,
+    group: 'integrations',
+    public: true,
+    isSecret: false,
+    description: 'Enable Google OAuth login (start/callback endpoints). Disabled by default.',
+  },
+  'oauth.google.clientId': {
+    key: 'oauth.google.clientId',
+    schema: z.string().max(300),
+    default: '',
+    group: 'integrations',
+    public: false,
+    isSecret: false,
+    description: 'Google OAuth 2.0 client id (web application).',
+  },
+  'oauth.google.clientSecret': {
+    key: 'oauth.google.clientSecret',
+    schema: z.string().max(300),
+    default: '',
+    group: 'integrations',
+    public: false,
+    isSecret: true,
+    description: 'Google OAuth 2.0 client secret (secret, encrypted at rest).',
+  },
 };
 
 export function getSettingDefinition(key: string): SettingDefinition<unknown> | undefined {

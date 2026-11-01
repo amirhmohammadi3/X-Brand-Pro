@@ -50,6 +50,11 @@ export const envSchema = z.object({
   SEED_SUPERADMIN_PASSWORD: z.string().optional(),
   SEED_SUPERADMIN_EMAIL: z.string().optional(),
 
+  // --- oauth (B1.8): base URL used to build the Google callback URL
+  // `${OAUTH_REDIRECT_BASE}/api/v1/auth/google/callback`. Defaults to the
+  // internal API URL; must be a PUBLIC reachability URL in production. ---
+  OAUTH_REDIRECT_BASE: z.string().url().optional(),
+
   // --- otp (B1.4) ---
   OTP_HMAC_SECRET: z.string().min(32, 'must be at least 32 characters'),
 
@@ -129,6 +134,8 @@ export type AppConfig = Readonly<{
   cookieDomain: string | undefined;
   /** Defaults to true in production, false otherwise (overridable by env). */
   cookieSecure: boolean;
+  /** Base for the OAuth callback URL (B1.8); falls back to API_INTERNAL_URL. */
+  oauthRedirectBase: string;
 }>;
 
 export function buildAppConfig(env: Env): AppConfig {
@@ -160,5 +167,6 @@ export function buildAppConfig(env: Env): AppConfig {
     refreshTtlSec: env.REFRESH_TTL_DAYS * 86_400,
     cookieDomain: env.COOKIE_DOMAIN,
     cookieSecure: env.COOKIE_SECURE ?? env.NODE_ENV === 'production',
+    oauthRedirectBase: env.OAUTH_REDIRECT_BASE ?? env.API_INTERNAL_URL,
   });
 }

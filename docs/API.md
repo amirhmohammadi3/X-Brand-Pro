@@ -294,3 +294,41 @@ All under `/api/v1/auth`. Tokens travel in httpOnly cookies (`at` access JWT, `r
 - Errors: none beyond envelope defaults
 - Rate limit: none
 - Notes: registered ONLY when `DEV_TOOLS=true` AND `NODE_ENV != production` (`loadEnv` rejects that combination in production at boot); reads the `dev:sms:outbox` Redis list written by the fake driver (trimmed to the newest 50); recipients are raw in the list but log lines are masked via `maskTarget`
+
+### GET /api/v1/auth/google/start
+
+- Module: auth (oauth) - Prompt: B1.8
+- Auth: public
+- Request: query `next` (optional relative path; validated — anything unsafe becomes `/`)
+- Response: none (302 redirect to the Google authorization endpoint with `client_id`, `redirect_uri`, `response_type=code`, `scope=openid email profile`, `state`, `code_challenge`, `code_challenge_method=S256`)
+- Errors: 404 `NOT_FOUND` when `oauth.google.enabled` is false or clientId/clientSecret are unset
+- Rate limit: 20 / 10 min per ip (`auth.google.start`, fail-open)
+- Notes: seals `state` + PKCE verifier + `next` into a signed httpOnly cookie `oauth_state` (5 min, Path=/api/v1/auth/google, SameSite=Lax). Real logins additionally need real Google credentials configured from the admin settings panel.
+
+### GET /api/v1/auth/google/callback
+
+- Module: auth (oauth) - Prompt: B1.8
+- Auth: public
+- Request: query `state`, `code` (Google authorization response); `oauth_state` cookie
+- Response: none — always 302. Success → `{PUBLIC_WEB_URL}{next}` with `at`/`rt` session cookies set and `oauth_state` cleared. ANY failure (state mismatch/expiry, code exchange failure, ID token invalid, banned account, feature disabled) → `{PUBLIC_WEB_URL}/login?error=oauth_failed` (reason logged server-side only, never in the redirect)
+- Errors: no envelope — the endpoint is `@RawResponse()` and redirect-only
+- Rate limit: none beyond the global default (state cookie is the gate)
+- Notes: account resolution order — (1) existing `oauth_accounts` row by (google, sub) → login; (2) Google-verified email matching an existing user → link; (3) create a user (email stored ONLY when Google reports `email_verified=true`; unverified-email logins get an account WITHOUT email)
+
+### GET /api/v1/auth/oauth/accounts
+
+- Module: auth (oauth) - Prompt: B1.8
+- Auth: jwt (any role)
+- Request: none
+- Response schema: `OauthAccountsResponse` (`packages/contracts/src/auth.ts`) — `{ accounts: [{ id, provider: 'google', email, createdAt }] }`
+- Errors: 401 unauthenticated
+- Rate limit: global default per ip/user
+
+### DELETE /api/v1/auth/oauth/accounts/:id
+
+- Module: auth (oauth) - Prompt: B1.8
+- Auth: jwt (owner only — the id must belong to the caller)
+- Request: param `id` (uuid)
+- Response: 204 no content
+- Errors: 401 unauthenticated, 404 unknown/foreign id, 422 `LAST_LOGIN_METHOD` when it is the caller's only login method (no password, no verified email/phone, no other linked account)
+- Rate limit: global default per ip/user

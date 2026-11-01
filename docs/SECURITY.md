@@ -154,3 +154,17 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 - Takeover rule: proving ownership of an identifier by OTP detaches it from any UNVERIFIED holder and verifies it on the prover; VERIFIED holders are never displaced (409 instead).
 - Residual risk: timing differences between the "issue+send" and "skip send" branches (an SMTP/SMS submission takes time) are measurable in principle. Reducing them (dummy sends) would burn provider quota on every enumeration attempt; accepted for now and re-evaluated in Q12.1.
 - A successful password reset (via code) revokes ALL sessions of the user immediately.
+
+## 2g. Google OAuth policy (B1.8)
+
+| name                | endpoint               | limit | window | scope          | prompt |
+| ------------------- | ---------------------- | ----- | ------ | -------------- | ------ |
+| `auth.google.start` | GET /auth/google/start | 20    | 10 min | ip (fail-open) | B1.8   |
+
+- **State cookie**: `oauth_state` is an HS256 JWT (signed with `JWT_REFRESH_SECRET`, issuer `xbrand:oauth`, audience `oauth-state`, 5-minute expiry), httpOnly, SameSite=Lax, Path=`/api/v1/auth/google`. It carries `state`, the PKCE `code_verifier` and the validated `next`; the callback requires the cookie AND the `state` query param to match, then clears it. Tampered/expired/missing → generic failure redirect.
+- **PKCE**: S256 for every flow even though it is a confidential server-side client (defense in depth for the verifier).
+- **Redirect validation**: `next` must be a relative path starting with a single `/`; `//`, backslashes and control characters are rejected to `/` — open-redirect attempts are neutralized before sealing AND again at callback time.
+- **ID token validation**: signature via Google's JWKS (cached 1 h), issuer `https://accounts.google.com`, audience = configured clientId, standard expiry with jose's clock tolerance. Failures never leak details — the callback redirects to `/login?error=oauth_failed` and logs the reason server-side.
+- **Identity resolution**: linking by email happens ONLY when Google reports `email_verified=true`; unverified-email logins create a standalone account WITHOUT an email (no account-takeover via unverified claims). Banned/blocked accounts are rejected at link and login time.
+- **Last login method**: unlinking is refused with 422 `LAST_LOGIN_METHOD` when the user has no password, no verified email/phone and no other linked account.
+- **Availability**: Google endpoints are commonly unreachable from Iranian servers (no VPN policy), so the feature ships DISABLED (`oauth.google.enabled=false`) and returns 404 until an admin explicitly enables it with credentials; the rest of the platform never depends on it.

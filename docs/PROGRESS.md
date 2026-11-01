@@ -29,7 +29,7 @@
 - [x] B1.5 🟡 درایور پیامک: interface + فیک + ملی‌پیامک + کاوه‌نگار (تنظیم از پنل) (2026-11-01)
 - [x] B1.6 🟡 درایور ایمیل: interface + SMTP + قالب‌ها + صف (2026-11-01)
 - [x] B1.7 🟡 ورود با OTP موبایل/ایمیل، تأیید ایمیل/موبایل، بازیابی رمز (2026-11-01)
-- [ ] B1.8 🟡 ورود با گوگل OAuth
+- [x] B1.8 🟡 ورود با گوگل OAuth (2026-11-01)
 - [ ] B1.9 🟡 ماژول ذخیره‌سازی (interface + درایور دیسک، اعتبارسنجی فایل، thumbnail با sharp)
 - [ ] B1.10 🟡 API پروفایل (me، ویرایش، آواتار، تغییر username، حذف حساب)
 - [ ] B1.11 🟡 audit log
@@ -232,6 +232,8 @@
 - [ ] (B1.4) Apply migration `0003_woozy_revanche` (otp_codes) and observe one real `otp:cleanup` worker tick against live Redis/Postgres on a Docker machine; the repeatable scheduler registration is verified by unit/type checks only here.
 - [ ] (B1.3) Apply migration `0002_plain_jack_flag` and run `pnpm db:seed` (super-admin seeder) against a live Postgres on a machine with Docker; the seeder CLI was verified up to the DB boundary (env validation passes, first query fails with ECONNREFUSED here).
 - [ ] (B1.3) Run the live-DB variant of the auth integration suite (`test/auth.api.spec.ts` uses in-memory repositories + FakeRedis today) and re-do the curl "Done when" walk-through (register → login → me → refresh → replay → me fails) against a running API on a Docker machine.
+- [ ] (B1.1→B1.8) Prompt B1.8 assumed settings keys `oauth.google.enabled/clientId/clientSecret` were registered by B1.1 — they were not; B1.8 registered them itself. When the admin panel settings pages land (F10.4), surface the oauth group in the UI as well.
+- [ ] (B1.8) Real end-to-end Google login cannot be verified without REAL Google credentials (and Google is commonly unreachable from Iranian servers — the feature ships disabled and 404s until an admin enables it). Verify once with real credentials from a machine with access; also apply migration `0004_ordinary_quicksilver` (oauth_accounts) against live Postgres on a Docker machine — the HTTP suite runs on in-memory fakes (see DECISIONS B1.8).
 - [ ] (B1.3) Add partial unique indexes on users(username) / users(email) / users(phone) when all writers exist (B1.7/B1.8) — uniqueness is service-enforced for now, as decided in B1.2.
 - [ ] (B1.3) Force-revoke a user's sessions synchronously on admin role change (B1.14) — today the role claim refreshes within ≤ ACCESS_TTL_SEC via refresh.
 - [ ] (B0.3) Cache stampede protection: single-flight lock for `CacheService.wrap` (only one producer per key) — deferred, acceptable at current scale.

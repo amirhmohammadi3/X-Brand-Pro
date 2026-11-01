@@ -29,6 +29,13 @@
       "when": 1793477303698,
       "tag": "0003_woozy_revanche",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793502089079,
+      "tag": "0004_ordinary_quicksilver",
+      "breakpoints": true
     }
   ]
 }

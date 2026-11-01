@@ -110,3 +110,17 @@ Block format (one per table):
 - Indexes: otp_target_purpose_created_idx (target, purpose, created_at DESC) btree — latest-unconsumed lookup; otp_expires_at_idx btree — maintenance cleanup
 - Constraints: FK user_id → users on delete set null
 - Retention: maintenance queue job `otp:cleanup` (every 10 min, worker process) deletes rows expired more than 1 day ago
+
+### oauth_accounts
+
+- Module: apps/api/src/modules/auth (oauth) - Prompt: B1.8
+- Purpose: linked external identities (Google B1.8); one row per (provider, provider user id).
+- Columns of note:
+  - `user_id uuid NOT NULL` → users.id ON DELETE CASCADE.
+  - `provider text NOT NULL` — `'google'` for B1.8.
+  - `provider_user_id text NOT NULL` — Google's stable `sub` claim (never the email).
+  - `email text NULL` — reported email at link time, display/admin use only.
+  - `created_at timestamptz NOT NULL DEFAULT now()`.
+- Indexes: `oauth_accounts_provider_uid_key` UNIQUE (provider, provider_user_id) — login lookup; `oauth_accounts_user_id_idx` btree — list/unlink and last-method checks.
+- Constraints: FK to users with cascade delete.
+- Retention: deleted on unlink or user deletion (hard rows, no soft delete).
