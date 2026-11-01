@@ -11,6 +11,7 @@ import { listSeeders, runSeeders } from './registry.js';
 
 // Importing registers the seeders (side-effect modules).
 import './super-admin.js';
+import './i18n.seed.js';
 
 async function main(): Promise<void> {
   loadDotenvIntoProcessEnv();

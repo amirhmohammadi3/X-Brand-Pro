@@ -492,3 +492,27 @@ Entry format:
 - Decision: audit rows for auth/settings actions are written ONLY by AuthAuditSubscriber (@OnEvent listeners); services emit, audit persists. `settings.set/reset` gained an optional actor parameter fed by the controller (never guessed). Failed logins are sampled at most 1 per identifier-hash per minute, keyed by userId when known else ip+reason (the B1.3 event payload carries no raw identifier — by design).
 - Reason: single write path per action (no doubles), and the request path never waits on audit IO. `auth.session.revoked` carries no userId in its payload (session-scoped), so those rows have a null actor and the sessionId as entityId.
 - Alternatives: writing audit inline in each service (duplicated, couples modules to audit), passing raw identifiers into events (PII in event payloads).
+
+## 2026-11-01 — B1.12 i18n storage model: flat dot keys, no HTML, insert-if-absent seeds
+
+- Prompt: B1.12
+- Decision: Translations are flat dot-key strings (PK (locale, key)) instead of jsonb per-locale documents. Seed files are nested JSON flattened at load; seeders are `always`-mode but insert-if-absent (`ON CONFLICT DO NOTHING`), so admin edits are never overwritten. Values are plain text: control characters stripped, HTML tags rejected with 422 (ICU-style `{var}` placeholders allowed).
+- Reason: Dot keys make namespace filtering, missing-key diffs and version hashing trivial; jsonb documents would need jsonb-path indexing for the same operations and hide per-key audit. Insert-if-absent matches the product reality: seed content is a BASELINE, the database is the source of truth after an admin touches it. No HTML keeps the render path safe without a sanitizer dependency (AGENTS.md: user-facing text is never trusted markup).
+- Alternatives: jsonb per-locale (heavier diffs, no per-key updated_by), overwriting seeds on every reseed (destroys admin edits), allowing a sanitized HTML subset (needs a sanitizer dependency for zero current consumers).
+- Assumptions: none.
+
+## 2026-11-01 — B1.12 bundle cache: per-locale Redis revision counter instead of key scans
+
+- Prompt: B1.12
+- Decision: Every translation write INCRs `i18n:rev:<locale>`; bundle caches are keyed by that revision (`i18n:raw:<locale>:v<N>`, `i18n:composed:<locale>:v<N>:d<D>`) with a 10-minute TTL. Nothing is scanned or deleted on write; old entries expire.
+- Reason: CacheService deliberately has no delByPrefix (SCAN-based invalidation was rejected in B0.3 for latency); a revision in the key gives instant, exact invalidation for both the written locale AND every locale that composes fallback from it (the default-locale revision is part of dependent bundle keys). Redis-down degrades to loader-per-request (cache fails open, B0.3 rule).
+- Alternatives: deleting all bundle keys per write (SCAN cost + racy), versioning bundles from a DB row (extra round trip per request).
+- Assumptions: none.
+
+## 2026-11-01 — B1.12 LocaleValidator moved to I18nModule (async, DB-backed)
+
+- Prompt: B1.12
+- Decision: The B1.10 static `{fa, en}` LocaleValidator is replaced by a DB-backed one in the i18n module (validates against ACTIVE languages, cached 60 s; region variants map to base codes). `normalize()` became async and the single call site (profile update) was updated. I18nModule is @Global so UsersModule/AuthModule need no import changes.
+- Reason: The languages table is the new source of truth; a static allow-list would drift the moment an admin adds `ar`. Keeping the `normalize(locale): string | null` contract (now a Promise) preserved the profile endpoint's semantics.
+- Alternatives: keeping the provider in UsersModule with an injected i18n repo (couples users to i18n internals), sync validator with a preloaded set (stale after language changes).
+- Assumptions: none.

@@ -162,3 +162,21 @@ Block format (one per table):
   - `ip text null`, `user_agent text null`, `request_id text null`
 - Indexes: `(created_at desc, id desc)` keyset paging; `(actor_user_id, created_at desc)`; `(action, created_at desc)`; `(entity_type, entity_id)`
 - Retention: keep 2 years, then purge (purge job lands with the retention prompts)
+
+### languages
+
+- Module: i18n - Prompt: B1.12
+- Purpose: UI languages available on the platform; the default language is the bundle-fallback source.
+- Columns of note: `code text pk` (`fa`, `en`, `ar`…), `name_native text`, `name_en text`, `dir text` CHECK in ('rtl','ltr'), `is_default boolean`, `is_active boolean` (new languages start inactive), `sort_order int`
+- Indexes: `languages_single_default_idx: (is_default) UNIQUE WHERE is_default (partial)` — at most one default
+- Constraints: `languages_dir_check`; protected rows enforced server-side (`fa` never deactivated/deleted, default never deactivated)
+- Retention: keep forever
+
+### translations
+
+- Module: i18n - Prompt: B1.12
+- Purpose: flat dot-key message strings per locale (seeded from `apps/api/src/modules/i18n/seed/*.json`, admin-editable).
+- Columns of note: `locale text` FK languages(code) ON DELETE CASCADE, `key text` (dot-separated, ≥2 segments — `i18nKeySchema`), `value text` (no HTML, control chars stripped, ≤5000 chars at the API boundary), `updated_by uuid` FK users ON DELETE SET NULL (null = seeder-written)
+- Indexes: `translations_locale_updated_idx: (locale, updated_at) btree`
+- Constraints: PRIMARY KEY (locale, key); values never contain HTML (enforced in the admin/import endpoints, B1.12)
+- Retention: keep forever; cascades on language delete

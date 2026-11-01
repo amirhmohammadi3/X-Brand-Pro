@@ -1,4 +1,11 @@
 #!/usr/bin/env sh
 # Husky pre-commit hook (husky v9 sources this with sh).
 # Cross-platform: uses pnpm exec to resolve lint-staged on any OS.
-pnpm exec lint-staged
+# corepack fallback: environments without a global pnpm shim (CI containers,
+# sandboxes) still have corepack, which honors the packageManager field.
+if command -v pnpm >/dev/null 2>&1; then
+  PNPM=pnpm
+else
+  PNPM="corepack pnpm"
+fi
+$PNPM exec lint-staged

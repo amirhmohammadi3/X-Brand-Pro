@@ -1,0 +1,1 @@
+ALTER TABLE "translations" ADD CONSTRAINT "translations_locale_key_pk" PRIMARY KEY("locale","key");

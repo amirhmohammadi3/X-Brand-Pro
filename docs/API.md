@@ -425,3 +425,41 @@ All routes require authentication (JWT access cookie or bearer). Responses use t
 - PUT body: `updateSettingBodySchema` — `{ value, clear? }`. Unknown key → 404/422 via registry lookup; secrets are write-only; an EMPTY string on a secret is rejected 422 (keep-unchanged) unless `clear: true`, which removes the override (registry default reapplies)
 - DELETE resets to the registry default
 - Both mutations emit `settings.updated` (actor + masked before/after) which the audit subscriber records as `settings.update` / `settings.reset`
+
+## /api/v1/i18n (B1.12)
+
+### GET /api/v1/i18n/languages
+
+- Auth: public — Rate limit `i18n.languages` 60/min per IP
+- Response: `{ items: Language[] }` (`languageSchema`) — ACTIVE languages only, sorted by sortOrder then code
+- Caching: `Cache-Control: public, max-age=60, stale-while-revalidate=300` + weak `ETag`
+- Errors: — (empty list when no active languages)
+
+### GET /api/v1/i18n/messages/:locale?namespaces=a,b
+
+- Auth: public — Rate limit `i18n.messages` 120/min per IP
+- Query: `messagesQuerySchema` — `namespaces` (comma-separated first key segments)
+- Response (raw JSON, no envelope): `messageBundleSchema` — `{ locale, version (sha1[:12]), messages }`
+- Fallback: keys missing in `locale` are filled from the DEFAULT locale; never invented
+- Caching: `ETag: "<version>"`; `If-None-Match` match → 304 (empty body); `Cache-Control: public, max-age=60, stale-while-revalidate=300`
+- Errors: 404 (unknown or INACTIVE locale), 400 (bad namespaces format)
+
+## /api/v1/admin/i18n (B1.12)
+
+- Auth: `i18n.manage` permission (admin, super_admin); audit-logged (`i18n.language.*`, `i18n.translation.*`, `i18n.translations.import`)
+
+| Method | Path                        | Body/Query schema                   | Notes                                                                                                                                                           |
+| ------ | --------------------------- | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | /admin/i18n/languages       | —                                   | ALL languages (active + inactive)                                                                                                                               |
+| POST   | /admin/i18n/languages       | `createLanguageBodySchema`          | starts INACTIVE; no translations copied                                                                                                                         |
+| PATCH  | /admin/i18n/languages/:code | `updateLanguageBodySchema`          | default cannot be deactivated; `fa` cannot be deactivated; `isDefault: true` switches atomically (previous default unset in one transaction)                    |
+| DELETE | /admin/i18n/languages/:code | —                                   | not default, not `fa`; cascades translations                                                                                                                    |
+| GET    | /admin/i18n/translations    | `adminTranslationsQuerySchema`      | `locale` + filters `q`, `namespace`, `missing=true` (keys of the default locale absent in `locale`, with `defaultValue` reference), `page`/`pageSize` (max 100) |
+| PUT    | /admin/i18n/translations    | `upsertTranslationsBodySchema`      | batch upsert ≤500 entries; values ≤5000 chars; control chars stripped; HTML tags → 422                                                                          |
+| DELETE | /admin/i18n/translations    | `adminTranslationDeleteQuerySchema` | `locale` + `key` query params                                                                                                                                   |
+| GET    | /admin/i18n/export/:locale  | —                                   | JSON attachment (`<locale>.json`): every default-locale key, `""` where missing; header `X-Bundle-Version`                                                      |
+| POST   | /admin/i18n/import          | `importTranslationsBodySchema`      | `fill_missing` inserts absent keys only; `overwrite` replaces existing/known keys; returns `{ inserted, updated, skipped }`                                     |
+
+- Rate limits: reads `admin.i18n.read` 60/min per user (export 30/min), writes `admin.i18n.write` 60/min per user (import 30/min)
+- Errors: 400 (validation), 401, 403, 422 (unknown language, invariant violations, HTML in values)
+- Notes: every write bumps the per-locale Redis revision counter, so public bundles re-compose on the next request; admin-edited values are never overwritten by re-seeding

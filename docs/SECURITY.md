@@ -212,3 +212,5 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 - Audit writes are redacted before insert: keys matching `/pass(word)?|secret|token|api[-_]?key|authorization|cookie|otp|code$/i` → `[redacted]`, depth ≤ 6, strings truncated at 2000 chars; settings secrets additionally contribute only the project mask plus a `changed` boolean. The plaintext can never reach `audit_logs` (covered by a table-scan test).
 - Failed-login events are SAMPLED: at most one row per identifier hash per minute (brute-force bursts cannot flood the trail).
 - Retention: audit rows are kept 2 years (DATA_MODEL).
+
+- `i18n.manage` — admins and super_admins: manage languages and translations (B1.12, `/admin/i18n/*`). Values are sanitized (control chars stripped) and HTML tags are rejected with 422, so stored messages can be rendered as plain text without injection risk.

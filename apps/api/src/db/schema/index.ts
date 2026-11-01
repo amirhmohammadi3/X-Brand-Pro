@@ -18,3 +18,4 @@ export * from './otp.js';
 export * from './media.js';
 export * from './users.js';
 export * from './oauth.js';
+export * from './i18n.js';

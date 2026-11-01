@@ -1,4 +1,10 @@
 #!/usr/bin/env sh
 # Husky commit-msg hook (husky v9 sources this with sh).
 # $1 is the path to the commit message file.
-pnpm exec commitlint --edit "$1"
+# corepack fallback — see pre-commit.
+if command -v pnpm >/dev/null 2>&1; then
+  PNPM=pnpm
+else
+  PNPM="corepack pnpm"
+fi
+$PNPM exec commitlint --edit "$1"

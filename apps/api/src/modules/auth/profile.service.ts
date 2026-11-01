@@ -15,7 +15,7 @@ import { MediaUrlService } from '../media/media-url.service.js';
 import { UsersService } from '../users/users.service.js';
 import { toCurrentUser } from '../users/current-user.mapper.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- DI metadata
-import { LocaleValidator } from '../users/locale-validator.js';
+import { LocaleValidator } from '../i18n/locale.validator.js';
 import { OAUTH_ACCOUNTS_REPOSITORY } from './oauth-accounts.repository.js';
 import type { OauthAccountsRepositoryLike } from './oauth-accounts.repository.js';
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports -- DI metadata
@@ -80,7 +80,7 @@ export class ProfileService {
       fields.bio = body.bio === null ? null : normalizePersianText(body.bio.trim());
     }
     if (body.locale !== undefined) {
-      const normalized = this.localeValidator.normalize(body.locale);
+      const normalized = await this.localeValidator.normalize(body.locale);
       if (!normalized) {
         throw unprocessable('Unsupported locale', { locale: body.locale });
       }

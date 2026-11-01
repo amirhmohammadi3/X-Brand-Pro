@@ -14,6 +14,7 @@ import { SmtpHealthIndicator } from './modules/email/smtp.health.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { PostgresHealthIndicator } from './modules/health/postgres.health.js';
+import { I18nModule } from './modules/i18n/i18n.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { OtpModule } from './modules/otp/otp.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
@@ -63,6 +64,7 @@ import { RedisModule } from './redis/redis.module.js';
     }),
     HealthModule.withIndicators(PostgresHealthIndicator, SmtpHealthIndicator),
     SettingsModule,
+    I18nModule,
     UsersModule,
     AuthModule,
     OtpModule,
