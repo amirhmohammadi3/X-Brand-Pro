@@ -19,6 +19,7 @@ import { LoginThrottleService } from './login-throttle.service.js';
 import { SessionService, type SessionMeta } from './session.service.js';
 import { TokenService } from './token.service.js';
 import { UsersService } from '../users/users.service.js';
+import { toCurrentUser } from '../users/current-user.mapper.js';
 
 /** Domain events consumed by audit (B1.11) and later notification wiring. */
 export const AUTH_SERVICE_EVENTS = {
@@ -69,19 +70,8 @@ export class AuthService {
   ) {}
 
   toCurrentUser(row: UserRow): CurrentUser {
-    return {
-      id: row.id,
-      username: row.username,
-      email: row.email,
-      phone: row.phone,
-      role: row.role,
-      status: row.status,
-      displayName: row.displayName,
-      locale: row.locale,
-      emailVerified: row.emailVerifiedAt !== null,
-      phoneVerified: row.phoneVerifiedAt !== null,
-      createdAt: row.createdAt.toISOString(),
-    };
+    // Shared mapper (B1.10) — auth responses and /users/me stay identical.
+    return toCurrentUser(row);
   }
 
   /**

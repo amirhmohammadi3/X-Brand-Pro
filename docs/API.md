@@ -361,3 +361,51 @@ All under `/api/v1/auth`. Tokens travel in httpOnly cookies (`at` access JWT, `r
 - Headers: `Content-Type` = stored mime (image/webp for processed images), `Cache-Control: public, max-age=31536000, immutable`, `ETag` (sha256 of key+size, 304 on If-None-Match), `Accept-Ranges: bytes`, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`
 - Range: single-range `bytes=start-end|start-|-suffix` → 206 + `Content-Range`; malformed/out-of-bounds → 416 with `Content-Range: bytes */<size>`
 - Errors: 404 NOT_FOUND for unknown keys, deleted rows, path-traversal keys (`..`, `\`, leading `/`) and — deliberately — every PRIVATE kind (`claim_document`, `verification_receipt`, `message_attachment`): those are served later by the authorized endpoints of the prompts that own them
+
+## /api/v1/users/me (B1.10 — profile)
+
+All routes require authentication (JWT access cookie or bearer). Responses use the success envelope with `currentUserSchema` (bio, avatarUrl, hasPassword, updatedAt included). Errors: 400 validation, 401 unauthenticated, 403 CSRF/ownership, 409 conflict, 422 business rule.
+
+### GET /users/me
+
+- Auth: authenticated
+- Response: `currentUserSchema` (avatarUrl resolved from the linked media row, thumb preferred)
+
+### PATCH /users/me
+
+- Auth: authenticated
+- Request: `updateProfileBodySchema` (strict; displayName 1–80 optional, bio ≤300 nullable optional, locale optional)
+- Notes: text is trimmed and Persian-normalized; locale must be `fa`/`en` (region variants map to base) until B1.12 replaces the `LocaleValidator`
+- Errors: 400 VALIDATION_FAILED, 422 UNPROCESSABLE (unsupported locale)
+
+### PUT /users/me/avatar
+
+- Auth: authenticated
+- Request: `setAvatarBodySchema` ({ mediaId })
+- Notes: media must belong to the caller, kind `avatar`, not deleted; the previous avatar is queued for deletion (media queue)
+- Errors: 403 (not yours/missing), 422 (wrong kind)
+
+### DELETE /users/me/avatar
+
+- Auth: authenticated
+- Response: currentUser with `avatarUrl: null`; old files queued for removal
+
+### POST /users/me/username
+
+- Auth: authenticated — Rate limit `users.change_username` 5/24h
+- Request: `changeUsernameBodySchema` ({ username })
+- Errors: 409 CONFLICT (taken, details.username), 422 UNPROCESSABLE (cooldown, details.retryAt)
+
+### POST /users/me/password
+
+- Auth: authenticated — Rate limit `users.change_password` 5/15min
+- Request: `changePasswordBodySchema` ({ currentPassword?, newPassword })
+- Notes: with an existing password `currentPassword` is required (wrong answers count toward login lockout); passwordless accounts set a first password with a verified identifier; all OTHER sessions are revoked, the current one survives
+- Errors: 401 INVALID_CREDENTIALS, 422
+
+### DELETE /users/me
+
+- Auth: authenticated
+- Request: `deleteAccountBodySchema` ({ password?, confirm: 'DELETE' })
+- Notes: soft delete; anonymizes email/phone/password/fullName/bio/avatar, username becomes `deleted_<id[:8]>`; removes OAuth links; revokes all sessions; emits `user.deleted`. User content is kept (rendered anonymous later). Passwordless accounts require a session created within the last 10 minutes.
+- Errors: 401, 422 (missing password / stale session)

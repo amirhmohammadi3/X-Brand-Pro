@@ -8,6 +8,7 @@ import {
 import type { UsersRepositoryLike } from '../src/modules/users/users.repository.js';
 import type { UserRow } from '../src/db/schema/users.js';
 import type { UserRole } from '@app/contracts';
+import type { MediaRowLite } from './auth.utils.js';
 
 function row(overrides: Partial<UserRow> = {}): UserRow {
   return {
@@ -25,16 +26,24 @@ function row(overrides: Partial<UserRow> = {}): UserRow {
     phoneVerifiedAt: overrides.phoneVerifiedAt ?? null,
     bannedUntil: overrides.bannedUntil ?? null,
     lastLoginAt: overrides.lastLoginAt ?? null,
+    usernameChangedAt: null,
+    deletedAt: null,
+    bio: null,
     createdAt: overrides.createdAt ?? new Date('2026-01-01T00:00:00Z'),
     updatedAt: overrides.updatedAt ?? new Date('2026-01-01T00:00:00Z'),
     lastSeenAt: overrides.lastSeenAt ?? null,
   };
 }
 
-function makeRepo(initial: UserRow[] = []): UsersRepositoryLike & { rows: Map<string, UserRow> } {
+function makeRepo(initial: UserRow[] = []): UsersRepositoryLike & {
+  rows: Map<string, UserRow>;
+  mediaRows: Map<string, MediaRowLite>;
+} {
   const rows = new Map<string, UserRow>(initial.map((r) => [r.id, r]));
+  const mediaRows = new Map<string, MediaRowLite>();
   return {
     rows,
+    mediaRows,
     async findById(id) {
       return rows.get(id) ?? null;
     },
@@ -99,6 +108,64 @@ function makeRepo(initial: UserRow[] = []): UsersRepositoryLike & { rows: Map<st
     async recordLogin(id) {
       const r = rows.get(id);
       if (r) rows.set(id, { ...r, lastLoginAt: new Date(), lastSeenAt: new Date() });
+    },
+    async updateProfile(id, fields) {
+      const r = rows.get(id);
+      if (!r) return null;
+      const updated = { ...r, ...fields, updatedAt: new Date() };
+      rows.set(id, updated);
+      return updated;
+    },
+    async setUsername(id, username) {
+      const r = rows.get(id);
+      if (!r) return null;
+      const updated = { ...r, username, usernameChangedAt: new Date(), updatedAt: new Date() };
+      rows.set(id, updated);
+      return updated;
+    },
+    async setAvatarMediaId(id, mediaId) {
+      const r = rows.get(id);
+      if (!r) return null;
+      const updated = { ...r, avatarMediaId: mediaId, updatedAt: new Date() };
+      rows.set(id, updated);
+      return updated;
+    },
+    async findAvatarMedia(id) {
+      const r = rows.get(id);
+      if (!r || !r.avatarMediaId) return null;
+      const media = mediaRows.get(r.avatarMediaId);
+      if (!media) return null;
+      return {
+        key: media.key,
+        thumbKey: media.thumbKey,
+        deletedAt: media.deletedAt,
+        ownerUserId: media.ownerUserId,
+        kind: media.kind,
+      };
+    },
+    async anonymizeAndDelete(id) {
+      const r = rows.get(id);
+      if (!r) return null;
+      const updated = {
+        ...r,
+        username: `deleted_${id.slice(0, 8)}`,
+        email: null,
+        phone: null,
+        passwordHash: null,
+        displayName: null,
+        bio: null,
+        avatarMediaId: null,
+        status: 'deleted' as const,
+        deletedAt: new Date(),
+        updatedAt: new Date(),
+      };
+      rows.set(id, updated);
+      return updated;
+    },
+    async markUsernameChanged(id, at) {
+      const r = rows.get(id);
+      if (!r) return;
+      rows.set(id, { ...r, usernameChangedAt: at, updatedAt: new Date() });
     },
     async attachIdentifier(params) {
       for (const [id, r] of rows) {

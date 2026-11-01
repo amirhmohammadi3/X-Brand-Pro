@@ -43,6 +43,13 @@
       "when": 1793504509354,
       "tag": "0005_goofy_odin",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793513199554,
+      "tag": "0006_profile_fields",
+      "breakpoints": true
     }
   ]
 }

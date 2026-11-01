@@ -10,6 +10,11 @@ type Entry = { value: string; expiresAt: number | null };
 export class FakeRedis implements RedisLike {
   store = new Map<string, Entry>();
 
+  /** Test helper: every live key (expired entries excluded). */
+  keys(): string[] {
+    return [...this.store.keys()].filter((k) => this.live(k) !== null);
+  }
+
   private live(key: string): Entry | null {
     const entry = this.store.get(key);
     if (!entry) return null;

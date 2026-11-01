@@ -18,7 +18,7 @@ export const userRoleEnum = pgEnum('user_role', [
   'super_admin',
 ]);
 
-export const userStatusEnum = pgEnum('user_status', ['active', 'blocked']);
+export const userStatusEnum = pgEnum('user_status', ['active', 'blocked', 'deleted']);
 
 /**
  * Users (B1.2). Password hash is nullable because an account may exist via
@@ -37,6 +37,8 @@ export const users = pgTable(
     role: userRoleEnum('role').notNull().default('user'),
     status: userStatusEnum('status').notNull().default('active'),
     displayName: text('display_name'),
+    // B1.10: short public profile text (<= 300 chars, nullable = unset).
+    bio: text('bio'),
     // B1.3: preferred UI locale (localeCodeShape); null = server default (fa).
     locale: text('locale'),
     // B1.3: email/phone stay UNVERIFIED at register; B1.7 flips the stamps.
@@ -51,6 +53,11 @@ export const users = pgTable(
       onDelete: 'set null',
     }),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
+    // B1.10: 30-day cooldown anchor between username changes (null = never).
+    usernameChangedAt: timestamp('username_changed_at', { withTimezone: true }),
+    // B1.10: soft delete stamp; deleted rows are anonymized and excluded
+    // from every login/lookup path.
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),

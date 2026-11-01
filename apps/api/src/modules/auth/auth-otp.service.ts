@@ -27,6 +27,7 @@ import { SessionService, type SessionMeta } from './session.service.js';
 import { TokenService } from './token.service.js';
 import { AUTH_SERVICE_EVENTS, type AuthFlowResult } from './auth.service.js';
 import { UsersService } from '../users/users.service.js';
+import { toCurrentUser } from '../users/current-user.mapper.js';
 import { OtpService } from '../otp/otp.service.js';
 import { SmsService } from '../sms/sms.service.js';
 import { EmailService } from '../email/email.service.js';
@@ -472,19 +473,8 @@ export class AuthOtpService {
   }
 
   toCurrentUser(row: UserRow): CurrentUser {
-    return {
-      id: row.id,
-      username: row.username,
-      email: row.email,
-      phone: row.phone,
-      role: row.role,
-      status: row.status,
-      displayName: row.displayName,
-      locale: row.locale,
-      emailVerified: row.emailVerifiedAt !== null,
-      phoneVerified: row.phoneVerifiedAt !== null,
-      createdAt: row.createdAt.toISOString(),
-    };
+    // Shared mapper (B1.10) — auth responses and /users/me stay identical.
+    return toCurrentUser(row);
   }
 }
 

@@ -21,6 +21,8 @@ export interface OauthAccountsRepositoryLike {
   listForUser(userId: string): Promise<OauthAccountRow[]>;
   findByIdForUser(id: string, userId: string): Promise<OauthAccountRow | null>;
   deleteByIdForUser(id: string, userId: string): Promise<boolean>;
+  /** B1.10 account deletion: unlink every external identity of the user. */
+  deleteForUser(userId: string): Promise<number>;
   countForUser(userId: string): Promise<number>;
 }
 
@@ -68,6 +70,14 @@ export class OauthAccountsRepository implements OauthAccountsRepositoryLike {
       )
       .limit(1);
     return rows[0] ?? null;
+  }
+
+  async deleteForUser(userId: string): Promise<number> {
+    const rows = await this.client.db
+      .delete(oauthAccounts)
+      .where(eq(oauthAccounts.userId, userId))
+      .returning();
+    return rows.length;
   }
 
   async listForUser(userId: string): Promise<OauthAccountRow[]> {

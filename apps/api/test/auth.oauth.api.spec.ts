@@ -109,6 +109,16 @@ function makeMemoryOauthRepo(): OauthAccountsRepositoryLike {
     async findByIdForUser(id, userId) {
       return [...store.values()].find((r) => r.id === id && r.userId === userId) ?? null;
     },
+    async deleteForUser(userId) {
+      let n = 0;
+      for (const [k, r] of store) {
+        if (r.userId === userId) {
+          store.delete(k);
+          n += 1;
+        }
+      }
+      return n;
+    },
     async deleteByIdForUser(id, userId) {
       const row = [...store.values()].find((r) => r.id === id && r.userId === userId);
       if (!row) return false;

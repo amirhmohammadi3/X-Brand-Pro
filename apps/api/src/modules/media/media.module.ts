@@ -6,6 +6,7 @@ import { registerMediaJobs } from './media.jobs.js';
 import { MediaRepository, MEDIA_REPOSITORY } from './media.repository.js';
 import { MediaController } from './media.controller.js';
 import { MediaServingController } from './media-serving.controller.js';
+import { MediaUrlService } from './media-url.service.js';
 import { MediaService, MEDIA_SERVICE } from './media.service.js';
 
 /**
@@ -36,8 +37,9 @@ export class MediaJobsInit implements OnModuleInit {
   providers: [
     { provide: MEDIA_REPOSITORY, useClass: MediaRepository },
     { provide: MEDIA_SERVICE, useClass: MediaService },
+    MediaUrlService,
     MediaJobsInit,
   ],
-  exports: [MEDIA_SERVICE],
+  exports: [MEDIA_SERVICE, MediaUrlService],
 })
 export class MediaModule {}

@@ -1,7 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, or } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 import { DrizzleClient } from '../../db/drizzle.client.js';
 import { users, type UserRow } from '../../db/schema/users.js';
+import { mediaFiles } from '../../db/schema/media.js';
 import type { UserRole, UserStatus } from '@app/contracts';
 
 /**
@@ -32,6 +33,24 @@ export interface UsersRepositoryLike {
   touchLastSeen(id: string): Promise<void>;
   setPasswordHash(id: string, passwordHash: string): Promise<void>;
   recordLogin(id: string): Promise<void>;
+  /* --- B1.10 profile --- */
+  updateProfile(
+    id: string,
+    fields: { displayName?: string | null; bio?: string | null; locale?: string | null },
+  ): Promise<UserRow | null>;
+  setUsername(id: string, username: string): Promise<UserRow | null>;
+  setAvatarMediaId(id: string, mediaId: string | null): Promise<UserRow | null>;
+  findAvatarMedia(id: string): Promise<{
+    key: string;
+    thumbKey: string | null;
+    deletedAt: Date | null;
+    ownerUserId: string | null;
+    kind: string;
+  } | null>;
+  /** B1.10 account deletion: anonymize in one update. */
+  anonymizeAndDelete(id: string): Promise<UserRow | null>;
+  /** B1.10: stamp username_changed_at with the cooldown anchor. */
+  markUsernameChanged(id: string, at: Date): Promise<void>;
   /**
    * B1.7: attach an OTP-proven identifier to a user and stamp it verified,
    * atomically. A VERIFIED holder other than `userId` → 'conflict' (409);
@@ -161,6 +180,84 @@ export class UsersRepository implements UsersRepositoryLike {
     await this.client.db
       .update(users)
       .set({ lastLoginAt: now, lastSeenAt: now })
+      .where(eq(users.id, id));
+  }
+
+  /* --- B1.10 profile --- */
+
+  async updateProfile(
+    id: string,
+    fields: { displayName?: string | null; bio?: string | null; locale?: string | null },
+  ): Promise<UserRow | null> {
+    const rows = await this.client.db
+      .update(users)
+      .set({ ...fields, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return rows[0] ?? null;
+  }
+
+  async setUsername(id: string, username: string): Promise<UserRow | null> {
+    const rows = await this.client.db
+      .update(users)
+      .set({ username, usernameChangedAt: new Date(), updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return rows[0] ?? null;
+  }
+
+  async setAvatarMediaId(id: string, mediaId: string | null): Promise<UserRow | null> {
+    const rows = await this.client.db
+      .update(users)
+      .set({ avatarMediaId: mediaId, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return rows[0] ?? null;
+  }
+
+  async findAvatarMedia(id: string) {
+    if (!id) return null;
+    const rows = await this.client.db
+      .select({
+        key: mediaFiles.key,
+        thumbKey: mediaFiles.thumbKey,
+        deletedAt: mediaFiles.deletedAt,
+        ownerUserId: mediaFiles.ownerUserId,
+        kind: mediaFiles.kind,
+      })
+      .from(users)
+      .innerJoin(mediaFiles, eq(users.avatarMediaId, mediaFiles.id))
+      .where(eq(users.id, id))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async anonymizeAndDelete(id: string): Promise<UserRow | null> {
+    const now = new Date();
+    const rows = await this.client.db
+      .update(users)
+      .set({
+        // username stays NOT NULL + unique: derived from the id prefix.
+        username: sql`'deleted_' || substring(${users.id}::text, 1, 8)`,
+        email: null,
+        phone: null,
+        passwordHash: null,
+        displayName: null,
+        bio: null,
+        avatarMediaId: null,
+        status: 'deleted',
+        deletedAt: now,
+        updatedAt: now,
+      })
+      .where(eq(users.id, id))
+      .returning();
+    return rows[0] ?? null;
+  }
+
+  async markUsernameChanged(id: string, at: Date): Promise<void> {
+    await this.client.db
+      .update(users)
+      .set({ usernameChangedAt: at, updatedAt: new Date() })
       .where(eq(users.id, id));
   }
 

@@ -56,10 +56,17 @@ export const currentUserSchema = z.object({
   role: userRoleSchema,
   status: userStatusSchema,
   displayName: z.string().max(100).nullable(),
+  // B1.10: profile fields.
+  bio: z.string().max(300).nullable(),
   locale: localeCodeSchema.nullable(),
+  /** Public URL of the avatar (thumb when present, else the main image). */
+  avatarUrl: z.string().nullable(),
+  /** True when the account can log in with a password (drives the UI form). */
+  hasPassword: z.boolean(),
   emailVerified: z.boolean(),
   phoneVerified: z.boolean(),
   createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true }),
 });
 export type CurrentUser = z.infer<typeof currentUserSchema>;
 

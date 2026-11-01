@@ -114,6 +114,43 @@ export class UsersService {
     return this.repo.attachIdentifier(params);
   }
 
+  /* --- B1.10 profile (façade over the repository; rules live in ProfileService) --- */
+
+  async updateProfile(
+    id: string,
+    fields: { displayName?: string | null; bio?: string | null; locale?: string | null },
+  ): Promise<UserRow> {
+    const updated = await this.repo.updateProfile(id, fields);
+    if (!updated) throw new NotFoundException(`User ${id} not found`);
+    return updated;
+  }
+
+  async setUsername(id: string, username: string): Promise<UserRow> {
+    const updated = await this.repo.setUsername(id, username);
+    if (!updated) throw new NotFoundException(`User ${id} not found`);
+    return updated;
+  }
+
+  async setAvatarMediaId(id: string, mediaId: string | null): Promise<UserRow> {
+    const updated = await this.repo.setAvatarMediaId(id, mediaId);
+    if (!updated) throw new NotFoundException(`User ${id} not found`);
+    return updated;
+  }
+
+  async findAvatarMedia(id: string) {
+    return this.repo.findAvatarMedia(id);
+  }
+
+  async anonymizeAndDelete(id: string): Promise<UserRow> {
+    const updated = await this.repo.anonymizeAndDelete(id);
+    if (!updated) throw new NotFoundException(`User ${id} not found`);
+    return updated;
+  }
+
+  async markUsernameChanged(id: string, at: Date): Promise<void> {
+    await this.repo.markUsernameChanged(id, at);
+  }
+
   async create(params: {
     username: string;
     email?: string | null;

@@ -457,3 +457,24 @@ Entry format:
 - Decision: media keys are `<kind>/<yyyy>/<mm>/<uuid>.webp` with the date taken from UTC at upload time.
 - Reason: the prompt specifies `<kind>/<yyyy>/<mm>/<uuid>` but no timezone; UTC keeps keys deterministic regardless of the server timezone (AGENTS.md: timestamps are stored in UTC), and the uuid makes collisions impossible.
 - Alternatives: Asia/Tehran partitions (align buckets with business-local time but make keys depend on host TZ settings), flat uuid-only keys (no sharding-friendly layout).
+
+## 2026-11-01 — B1.10 profile endpoints live in the auth module (route stays /users/me)
+
+- Prompt: B1.10 (said "user module")
+- Decision: `ProfileService` + `ProfileController` live in `modules/auth/` while mounting `/api/v1/users/me*`.
+- Reason: every profile flow touches sessions, password hashes, the login throttle and linked OAuth identities — all auth-module state. UsersModule cannot import AuthModule (AuthModule already imports UsersModule → DI cycle). AuthModule importing the (global) media services and UsersModule exports is one-directional and cycle-free.
+- Alternatives: forwardRef between the two modules (banned by AGENTS.md "no circular imports"), duplicating session/password logic in users (two sources of truth for security flows).
+
+## 2026-11-01 — B1.10 fullName maps to displayName; wire status gains 'deleted'
+
+- Prompt: B1.10
+- Decision: the profile contract uses `displayName` (matching the B1.2 column and B1.3 auth contract) instead of introducing a second `fullName` field; `USER_STATUSES`/`user_status` enum gains `'deleted'` so the wire type matches the database after the soft delete.
+- Reason: one field name across register (B1.3 already accepted `fullName` — mapped onto the same column), schema and admin view avoids a migration rename and a duplicated concept. Deleted users never authenticate, so the widened status never leaks into `currentUserSchema` in practice.
+- Alternatives: renaming the column to full_name (touches B1.2/B1.3 code), keeping the wire enum at active|blocked (cast gymnastics at the mapper).
+
+## 2026-11-01 — B1.10 shared CurrentUser mapper
+
+- Prompt: B1.10
+- Decision: one `toCurrentUser(row, avatarUrl?)` mapper in users module consumed by AuthService, AuthOtpService and ProfileService; `currentUserSchema` gains bio/avatarUrl/hasPassword/updatedAt.
+- Reason: three builders had already drifted; the schema `.parse()` at the boundary guarantees the wire shape stays contract-true.
+- Alternatives: keeping per-service builders (drift), resolving avatarUrl inside the mapper (would need a DB call in a pure function).

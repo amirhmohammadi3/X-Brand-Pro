@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { LocaleValidator } from './locale-validator.js';
 import { UsersRepository } from './users.repository.js';
 import { UsersService, USERS_REPOSITORY } from './users.service.js';
 
@@ -8,7 +9,11 @@ import { UsersService, USERS_REPOSITORY } from './users.service.js';
  * the service those prompts build on.
  */
 @Module({
-  providers: [{ provide: USERS_REPOSITORY, useClass: UsersRepository }, UsersService],
-  exports: [UsersService],
+  providers: [
+    { provide: USERS_REPOSITORY, useClass: UsersRepository },
+    UsersService,
+    LocaleValidator,
+  ],
+  exports: [UsersService, LocaleValidator],
 })
 export class UsersModule {}

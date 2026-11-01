@@ -195,3 +195,13 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 - `POST /api/v1/media/upload`: 30 req / 3600 s per user (key `media.upload`), failClosed (Redis down → 503, no open window).
 - `GET /media/<key>`: public, no limiter (immutable CDN-style caching headers; keys are unguessable uuids).
 - Upload payloads never touch disk before validation: multer memory storage with a hard cap of the largest per-kind limit (15 MB), per-kind caps enforced right after (413).
+
+## 2e. Rate limits (B1.10 additions)
+
+| Key                     | Endpoint(s)             | Limit | Window | Scope                                                                                              | Prompt |
+| ----------------------- | ----------------------- | ----- | ------ | -------------------------------------------------------------------------------------------------- | ------ |
+| `users.change_username` | POST /users/me/username | 5     | 24 h   | user (falls back to ip while the guard chain runs before JWT resolution — see PROGRESS Follow-ups) | B1.10  |
+| `users.change_password` | POST /users/me/password | 5     | 15 min | user (same fallback)                                                                               | B1.10  |
+
+- Password change wrong-current-password answers count toward the login lockout (`LoginThrottleService.recordFailure`), same 5/15min policy as login.
+- Account deletion requires the password when one is set; passwordless (OTP/Google) accounts require a session younger than 10 minutes (fresh-login proof) — no rate limit beyond the shared guard chain.

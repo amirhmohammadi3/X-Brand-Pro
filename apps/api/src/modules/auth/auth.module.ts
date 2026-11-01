@@ -12,6 +12,8 @@ import { createGoogleJwks, GOOGLE_OIDC_JWKS, GoogleOauthService } from './google
 import { LoginThrottleService } from './login-throttle.service.js';
 import { OAUTH_ACCOUNTS_REPOSITORY, OauthAccountsRepository } from './oauth-accounts.repository.js';
 import { PasswordService } from './password.service.js';
+import { ProfileController } from './profile.controller.js';
+import { ProfileService } from './profile.service.js';
 import { SESSIONS_REPOSITORY, SessionsRepository } from './session.repository.js';
 import { SessionService } from './session.service.js';
 import { TokenService } from './token.service.js';
@@ -27,7 +29,7 @@ import { TokenService } from './token.service.js';
  */
 @Module({
   imports: [UsersModule, OtpModule, SmsModule, SettingsModule],
-  controllers: [AuthController],
+  controllers: [AuthController, ProfileController],
   providers: [
     PasswordService,
     TokenService,
@@ -41,6 +43,7 @@ import { TokenService } from './token.service.js';
     AuthService,
     AuthOtpService,
     AuthOauthService,
+    ProfileService,
   ],
   exports: [TokenService, AuthService, SessionService],
 })

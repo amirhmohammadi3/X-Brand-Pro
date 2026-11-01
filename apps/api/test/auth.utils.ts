@@ -9,18 +9,32 @@ import type { UserRow } from '../src/db/schema/users.js';
 import type { SessionRow } from '../src/db/schema/sessions.js';
 import type { UserRole } from '@app/contracts';
 
+/** Minimal media row shape used by the avatar flow fakes (B1.10). */
+export interface MediaRowLite {
+  id: string;
+  key: string;
+  thumbKey: string | null;
+  ownerUserId: string | null;
+  kind: string;
+  deletedAt: Date | null;
+  attachedAt: Date | null;
+}
+
 /**
  * Auth test utilities (B1.3): in-memory fakes for the two repositories the
  * auth flows touch, a createUser factory that hashes like production, and a
  * loginAs helper returning cookies + bearer token for supertest flows.
  */
 
-export function makeMemoryUserRepo(
-  initial: UserRow[] = [],
-): UsersRepositoryLike & { rows: Map<string, UserRow> } {
+export function makeMemoryUserRepo(initial: UserRow[] = []): UsersRepositoryLike & {
+  rows: Map<string, UserRow>;
+  mediaRows: Map<string, MediaRowLite>;
+} {
   const rows = new Map<string, UserRow>(initial.map((r) => [r.id, r]));
+  const mediaRows = new Map<string, MediaRowLite>();
   return {
     rows,
+    mediaRows,
     async findById(id) {
       return rows.get(id) ?? null;
     },
@@ -56,6 +70,9 @@ export function makeMemoryUserRepo(
         phoneVerifiedAt: params.phoneVerified ? new Date() : null,
         bannedUntil: null,
         lastLoginAt: null,
+        usernameChangedAt: null,
+        deletedAt: null,
+        bio: null,
         createdAt: new Date(),
         updatedAt: new Date(),
         lastSeenAt: null,
@@ -99,6 +116,65 @@ export function makeMemoryUserRepo(
           lastSeenAt: new Date(),
           updatedAt: new Date(),
         });
+    },
+    /* --- B1.10 profile --- */
+    async updateProfile(id, fields) {
+      const r = rows.get(id);
+      if (!r) return null;
+      const updated = { ...r, ...fields, updatedAt: new Date() };
+      rows.set(id, updated);
+      return updated;
+    },
+    async setUsername(id, username) {
+      const r = rows.get(id);
+      if (!r) return null;
+      const updated = { ...r, username, usernameChangedAt: new Date(), updatedAt: new Date() };
+      rows.set(id, updated);
+      return updated;
+    },
+    async setAvatarMediaId(id, mediaId) {
+      const r = rows.get(id);
+      if (!r) return null;
+      const updated = { ...r, avatarMediaId: mediaId, updatedAt: new Date() };
+      rows.set(id, updated);
+      return updated;
+    },
+    async findAvatarMedia(id) {
+      const r = rows.get(id);
+      if (!r || !r.avatarMediaId) return null;
+      const media = mediaRows.get(r.avatarMediaId);
+      if (!media) return null;
+      return {
+        key: media.key,
+        thumbKey: media.thumbKey,
+        deletedAt: media.deletedAt,
+        ownerUserId: media.ownerUserId,
+        kind: media.kind,
+      };
+    },
+    async anonymizeAndDelete(id) {
+      const r = rows.get(id);
+      if (!r) return null;
+      const updated = {
+        ...r,
+        username: `deleted_${id.slice(0, 8)}`,
+        email: null,
+        phone: null,
+        passwordHash: null,
+        displayName: null,
+        bio: null,
+        avatarMediaId: null,
+        status: 'deleted' as const,
+        deletedAt: new Date(),
+        updatedAt: new Date(),
+      };
+      rows.set(id, updated);
+      return updated;
+    },
+    async markUsernameChanged(id, at) {
+      const r = rows.get(id);
+      if (!r) return;
+      rows.set(id, { ...r, usernameChangedAt: at, updatedAt: new Date() });
     },
     async attachIdentifier(params) {
       for (const [id, r] of rows) {
