@@ -11,7 +11,11 @@
     "next": "Next",
     "search": "Search",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "currency": {
+      "toman": "Toman"
+    },
+    "language": "Language"
   },
   "errors": {
     "validation_failed": "The input is invalid — please fix the highlighted fields.",
@@ -153,5 +157,16 @@
         }
       }
     }
+  },
+  "a11y": {
+    "skipToContent": "Skip to main content",
+    "mainContent": "Main content"
+  },
+  "home": {
+    "hero": {
+      "title": "Discover the city's businesses",
+      "subtitle": "Map-based search, real user reviews and online reservations — all in one place"
+    },
+    "cta": "Get started"
   }
 }

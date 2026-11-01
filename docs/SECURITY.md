@@ -227,3 +227,9 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 
 - `users.read` — moderators, admins and super_admins: list/detail users (GET /admin/users\*). Search is normalized and rate limited 120/min.
 - `users.manage` — admins and super_admins: role change, ban/unban, revoke-sessions. `users.assign_admin` is held ONLY by super_admin (an admin granting admin/super_admin is 403 even though the route permission passes). Full hierarchy table in docs/API.md (B1.14 section): no self-target, no equal-or-higher-rank ban, last super_admin is protected, role change revokes the target's sessions immediately.
+
+## 6. Web-app cookies & client storage (F1.1)
+
+| Cookie   | Purpose                                | Flags                                                                | Notes                                                                                                                                                                                                                                       |
+| -------- | -------------------------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `locale` | Persists the visitor's language choice | `SameSite=Lax`, `Secure` in production, max-age 1 year, NOT httpOnly | Non-sensitive UI preference written client-side by `useSwitchLocale` and read by the locale proxy; deliberately exempt from the httpOnly session-cookie rule. Values are validated against the active-language list server-side before use. |

@@ -36,7 +36,7 @@
 - [x] B1.12 🟡 بک‌اند i18n: زبان‌ها، کلیدها/ترجمه‌ها، CRUD ادمین، کش، import/export (2026-11-01)
 - [x] B1.13 🟡 بستهٔ تم در بک‌اند (۳ تم seed: مدرن، گرم، لوکس) + انتخاب فعال (2026-11-01)
 - [x] B1.14 🟡 API مدیریت کاربران (لیست، مسدود، تغییر نقش) (2026-11-01)
-- [ ] F1.1 🟡 i18n فرانت (next-intl با پیام‌ها از API، جهت هر زبان، ارقام فارسی، تقویم شمسی)
+- [x] F1.1 🟡 i18n فرانت (next-intl با پیام‌ها از API، جهت هر زبان، ارقام فارسی، تقویم شمسی) (2026-11-01)
 - [ ] F1.2 🔴 موتور توکن طراحی: تم‌های ۳‌گانه + روشن/تیره، بدون پرش در SSR
 - [ ] F1.3 🟡 UI Kit پایه (Button، Card، Badge، Avatar، Rating، Skeleton، EmptyState…)
 - [ ] F1.4 🟡 UI Kit فرم‌ها (Input، Select، Checkbox، Switch، Textarea، اعتبارسنجی)
@@ -221,7 +221,10 @@
 
 ## Follow-ups
 
-فرمت هر مورد: `- [ ] (ID پرامپت منشأ) شرح کار پیشنهادی و دلیل`
+- [ ] (F1.1) Pre-existing regression found at pristine HEAD (7c86cf9): test/audit.api.spec.ts fails 8/8 in the full run ("test pool not initialised (db unavailable?)") instead of self-skipping like the other DB-requiring suites; identical via stash-run, unrelated to F1.1. Fix the skip guard / pool bootstrap (needs a Docker-machine Postgres to re-verify).
+- [ ] (F1.1) With a Docker machine: hand-walk the Done-when against a live API — create+activate language `ar` via the admin API and confirm `/ar` renders with `dir="rtl"` within 60 s; also verify the ETag/304 path of GET /i18n/messages/:locale through Next's data cache. This sandbox ran the API-down fallback path only (unit tests cover the merge/cache logic).
+- [ ] (F1.1) Add component tests for `useLanguages`/`useSwitchLocale` (jsdom + Testing Library) once the test infra lands (Q0.1); today only the pure helpers beneath them are unit-tested.
+      فرمت هر مورد: `- [ ] (ID پرامپت منشأ) شرح کار پیشنهادی و دلیل`
 
 - [ ] (B1.5) Verify the Melipayamak and Kavenegar drivers with REAL provider accounts before production (send one SMS each, confirm URLs/params/response parsing and the admin test endpoint's ok/errorCode paths). This sandbox has no provider credentials; both drivers were implemented from the providers' official REST docs/samples (see DECISIONS 2026-11-01).
 - [ ] (B1.5) With a Docker machine: run the worker (`pnpm --filter @app/api dev:worker`), set `sms.provider=fake`, call POST /admin/sms/test as super admin and watch the message appear at GET /dev/sms-outbox; observe one real BullMQ retry of a retryable provider error.

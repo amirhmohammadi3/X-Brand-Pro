@@ -5,4 +5,6 @@
  */
 export const qk = {
   health: () => ['health'] as const,
+  /** Active language list (`GET /i18n/languages`), 60 s fresh (F1.1). */
+  languages: () => ['i18n', 'languages'] as const,
 };

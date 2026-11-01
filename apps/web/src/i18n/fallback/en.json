@@ -1,0 +1,172 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "retry": "Retry",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "back": "Back",
+    "next": "Next",
+    "search": "Search",
+    "yes": "Yes",
+    "no": "No",
+    "currency": {
+      "toman": "Toman"
+    },
+    "language": "Language"
+  },
+  "errors": {
+    "validation_failed": "The input is invalid — please fix the highlighted fields.",
+    "unauthenticated": "You need to sign in to do that.",
+    "forbidden": "You do not have permission to perform this action.",
+    "not_found": "The requested item could not be found.",
+    "conflict": "This item already exists or conflicts with the current state.",
+    "rate_limited": "Too many requests — please try again shortly.",
+    "invalid_credentials": "Incorrect username or password.",
+    "account_banned": "Your account has been banned.",
+    "token_reused": "Your session was ended for security reasons — please sign in again.",
+    "session_revoked": "Your session has ended — please sign in again.",
+    "account_locked": "Temporarily locked after repeated failed attempts — try again later.",
+    "otp_invalid": "The code you entered is not correct.",
+    "otp_expired": "This code has expired — request a new one.",
+    "otp_too_many_attempts": "Too many attempts — request a new code.",
+    "otp_resend_too_soon": "Please wait a moment before requesting a new code.",
+    "payload_too_large": "The submitted data is too large.",
+    "unsupported_media_type": "This file format is not supported.",
+    "unprocessable": "This request conflicts with the platform rules.",
+    "service_unavailable": "The service is temporarily unavailable — please try again later.",
+    "internal_error": "Something went wrong on our side — please try again.",
+    "csrf": "The request came from an untrusted origin."
+  },
+  "settings": {
+    "site": {
+      "name": {
+        "label": "Site display name",
+        "description": "The name shown across the platform; the product name itself lives in brand.ts."
+      },
+      "timezone": {
+        "label": "Time zone",
+        "description": "Default IANA time zone used by business-hours logic."
+      },
+      "locale": {
+        "label": "Default site locale",
+        "description": "Locale used when a user has not picked one of their own."
+      }
+    },
+    "sms": {
+      "provider": {
+        "label": "SMS provider",
+        "description": "The active SMS driver; “fake” is for development only."
+      },
+      "melipayamak": {
+        "username": {
+          "label": "Melipayamak username",
+          "description": "Username of the Melipayamak account."
+        },
+        "password": {
+          "label": "Melipayamak password",
+          "description": "Password of the Melipayamak account (stored encrypted)."
+        },
+        "sender": {
+          "label": "Melipayamak sender number",
+          "description": "The sending line configured in Melipayamak."
+        },
+        "otpBodyId": {
+          "label": "Melipayamak OTP body ID",
+          "description": "Template ID for OTP messages in Melipayamak."
+        }
+      },
+      "kavenegar": {
+        "apiKey": {
+          "label": "Kavenegar API key",
+          "description": "API key of the Kavenegar account (stored encrypted)."
+        },
+        "sender": {
+          "label": "Kavenegar sender number",
+          "description": "Sending line in Kavenegar; empty means the account default."
+        },
+        "otpTemplate": {
+          "label": "Kavenegar OTP template",
+          "description": "Name of the OTP lookup template in Kavenegar."
+        }
+      }
+    },
+    "otp": {
+      "length": {
+        "label": "OTP length",
+        "description": "Number of digits in the code (4 to 8)."
+      },
+      "ttlSec": {
+        "label": "OTP validity (seconds)",
+        "description": "How long a one-time code stays valid after it is sent."
+      },
+      "maxAttempts": {
+        "label": "Max attempts per code",
+        "description": "How many times a code can be entered incorrectly."
+      }
+    },
+    "email": {
+      "smtp": {
+        "host": {
+          "label": "SMTP host",
+          "description": "Hostname of the outgoing mail server."
+        },
+        "port": {
+          "label": "SMTP port",
+          "description": "Port used to reach the mail server (usually 587 or 465)."
+        },
+        "secure": {
+          "label": "Secure connection (TLS)",
+          "description": "Enable this when using port 465."
+        },
+        "user": {
+          "label": "SMTP username",
+          "description": "Username used to sign in to the mail server."
+        },
+        "password": {
+          "label": "SMTP password",
+          "description": "Password of the mail account (stored encrypted)."
+        }
+      },
+      "from": {
+        "address": {
+          "label": "From address",
+          "description": "Email address messages are sent from."
+        },
+        "name": {
+          "label": "From name",
+          "description": "Display name shown next to the from address."
+        }
+      }
+    },
+    "oauth": {
+      "google": {
+        "enabled": {
+          "label": "Sign in with Google",
+          "description": "Whether Google sign-in is enabled."
+        },
+        "clientId": {
+          "label": "Google client ID",
+          "description": "The OAuth client ID from the Google console."
+        },
+        "clientSecret": {
+          "label": "Google client secret",
+          "description": "The OAuth client secret from the Google console (stored encrypted)."
+        }
+      }
+    }
+  },
+  "a11y": {
+    "skipToContent": "Skip to main content",
+    "mainContent": "Main content"
+  },
+  "home": {
+    "hero": {
+      "title": "Discover the city's businesses",
+      "subtitle": "Map-based search, real user reviews and online reservations — all in one place"
+    },
+    "cta": "Get started"
+  }
+}
