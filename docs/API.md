@@ -463,3 +463,33 @@ All routes require authentication (JWT access cookie or bearer). Responses use t
 - Rate limits: reads `admin.i18n.read` 60/min per user (export 30/min), writes `admin.i18n.write` 60/min per user (import 30/min)
 - Errors: 400 (validation), 401, 403, 422 (unknown language, invariant violations, HTML in values)
 - Notes: every write bumps the per-locale Redis revision counter, so public bundles re-compose on the next request; admin-edited values are never overwritten by re-seeding
+
+## /api/v1/theme (B1.13)
+
+### GET /api/v1/theme
+
+- Auth: public — Rate limit `theme.active` 120/min per IP
+- Response: `activeThemeSchema` — `{ pack: { id, names, tokens }, version: "<id>:<packVersion>:<tokenHash[:8]>" }`
+- Caching: active pack cached in Redis 60 s (invalidated on every admin write); `ETag` + `Cache-Control: public, max-age=60, stale-while-revalidate=300`
+
+### GET /api/v1/theme/packs
+
+- Auth: public — Rate limit `theme.list` 60/min per IP
+- Response: `{ items: [{ id, names, isActive, version, preview: { light[5], dark[5] } }] }` (bg, surface, primary, text, accent per mode)
+
+### GET /api/v1/theme/packs/:id
+
+- Auth: public — Rate limit `theme.pack` 60/min per IP
+- Response: `themePackSchema` (full tokens, for previews) — 404 unknown pack
+
+## /api/v1/admin/theme (B1.13)
+
+- Auth: `theme.manage` permission (admin, super_admin); audit-logged (`theme.active.set`, `theme.tokens.update`, `theme.pack.reset`); rate limit `admin.theme.write` 30/min per user
+
+| Method | Path                         | Body                                         | Notes                                                                                                                                                      |
+| ------ | ---------------------------- | -------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PUT    | /admin/theme/active          | `setActiveThemeBodySchema` (`{ packId }`)    | switches the active pack via the `theme.activePackId` setting; cache invalidated immediately                                                               |
+| PUT    | /admin/theme/packs/:id       | `updateThemeTokensBodySchema` (`{ tokens }`) | server re-validates contrast (WCAG 2.2, docs/DESIGN.md section 5 pairs); 422 with `details.failedPairs` (`{ mode, pair, ratio, min }`); bumps pack version |
+| POST   | /admin/theme/packs/:id/reset | —                                            | restores the shipped tokens from `packages/contracts/src/theme/packs.ts`                                                                                   |
+
+- Errors: 400 (validation), 401, 403, 404 (unknown pack), 422 (contrast failures)

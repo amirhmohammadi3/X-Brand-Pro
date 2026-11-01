@@ -516,3 +516,19 @@ Entry format:
 - Reason: The languages table is the new source of truth; a static allow-list would drift the moment an admin adds `ar`. Keeping the `normalize(locale): string | null` contract (now a Promise) preserved the profile endpoint's semantics.
 - Alternatives: keeping the provider in UsersModule with an injected i18n repo (couples users to i18n internals), sync validator with a preloaded set (stale after language changes).
 - Assumptions: none.
+
+## 2026-11-01 — B1.13 theme tokens live once in contracts; DB stores admin state
+
+- Prompt: B1.13
+- Decision: The three builtin packs' token values exist ONLY in `packages/contracts/src/theme/packs.ts` (transcribed from docs/DESIGN.md sections 2-4 and pinned by ratio tests against the section-5 table, tolerance < 0.005). The `theme_packs` table is seeded insert-if-absent; `resetToDefault` re-reads the contracts values. The active pack id is the `theme.activePackId` setting (group `theme`, public) so F2.4 settings UI and the theme endpoint share one source.
+- Reason: DESIGN.md section 1 mandates tokens defined once; duplicating them in a seeder would let the two copies drift. Insert-if-absent seeding keeps admin edits authoritative while making shipped values restorable without a migration.
+- Alternatives: storing seed values in the DB and treating it as canonical (reset needs a backup table), compiling DESIGN.md into CSS at build time (no admin switching without deploy).
+- Assumptions: none — the seed ratios were verified against the DESIGN.md contrast table by test (all three packs, both modes).
+
+## 2026-11-01 — B1.13 contrast validation at the API boundary, not the DB
+
+- Prompt: B1.13
+- Decision: `PUT /admin/theme/packs/:id` runs `validatePackContrast` (WCAG relative luminance, the exact pair list and 4.5/3.0 thresholds of DESIGN.md section 5) BEFORE persisting; failures return 422 with `details.failedPairs: [{ mode, pair, ratio, min }]`. The DB itself stores jsonb tokens without constraints.
+- Reason: Contrast math (pow/log) is not reasonably expressible as a CHECK constraint; the API is the only writer (service-validated, B1.13 admin-only), so boundary validation is sufficient and gives editors actionable failure details.
+- Alternatives: DB trigger validating jsonb (undiscoverable errors, hard to test), accepting and flagging invalid packs (ships broken themes).
+- Assumptions: none.

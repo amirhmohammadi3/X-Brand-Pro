@@ -214,3 +214,5 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 - Retention: audit rows are kept 2 years (DATA_MODEL).
 
 - `i18n.manage` — admins and super_admins: manage languages and translations (B1.12, `/admin/i18n/*`). Values are sanitized (control chars stripped) and HTML tags are rejected with 422, so stored messages can be rendered as plain text without injection risk.
+
+- `theme.manage` — admins and super_admins: switch the active theme pack and edit tokens (B1.13, `/admin/theme/*`). Token edits are rejected server-side when any WCAG pair from docs/DESIGN.md section 5 falls below its threshold, so a broken/low-contrast theme can never ship to users.

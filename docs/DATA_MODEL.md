@@ -180,3 +180,12 @@ Block format (one per table):
 - Indexes: `translations_locale_updated_idx: (locale, updated_at) btree`
 - Constraints: PRIMARY KEY (locale, key); values never contain HTML (enforced in the admin/import endpoints, B1.12)
 - Retention: keep forever; cascades on language delete
+
+### theme_packs
+
+- Module: theme - Prompt: B1.13
+- Purpose: the three builtin theme packs (modern/warm/luxe) with admin-editable tokens; the shipped values live ONLY in `packages/contracts/src/theme/packs.ts` (docs/DESIGN.md section 1: tokens defined once).
+- Columns of note: `id text pk` ('modern'|'warm'|'luxe'), `names jsonb` (localizedText map), `tokens jsonb` (full themeTokensSchema payload), `version int` (bumped on every token edit; part of the public version string), `is_builtin boolean`, `updated_by uuid` FK users ON DELETE SET NULL
+- Indexes: primary key only
+- Constraints: tokens validated against `themeTokensSchema` + `validatePackContrast` at the API boundary; re-seeding never overwrites edited tokens (insert-if-absent)
+- Retention: keep forever

@@ -18,6 +18,7 @@ import { I18nModule } from './modules/i18n/i18n.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { OtpModule } from './modules/otp/otp.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
+import { ThemeModule } from './modules/theme/theme.module.js';
 import { DevSmsModule, SmsModule } from './modules/sms/sms.module.js';
 import { devSmsEnabled } from './modules/sms/dev-sms.controller.js';
 import { UsersModule } from './modules/users/users.module.js';
@@ -64,6 +65,7 @@ import { RedisModule } from './redis/redis.module.js';
     }),
     HealthModule.withIndicators(PostgresHealthIndicator, SmtpHealthIndicator),
     SettingsModule,
+    ThemeModule,
     I18nModule,
     UsersModule,
     AuthModule,

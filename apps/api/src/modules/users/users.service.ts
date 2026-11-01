@@ -30,7 +30,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<UserRole, readonly string[]>> = {
   user: [],
   owner: [],
   moderator: [],
-  admin: ['settings.manage', 'audit.read', 'i18n.manage'],
+  admin: ['settings.manage', 'audit.read', 'i18n.manage', 'theme.manage'],
   super_admin: ['*'],
 };
 

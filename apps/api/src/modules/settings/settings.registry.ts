@@ -265,6 +265,16 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     isSecret: true,
     description: 'Google OAuth 2.0 client secret (secret, encrypted at rest).',
   },
+  // --- Theme packs (B1.13). The active pack id; tokens live in theme_packs. ---
+  'theme.activePackId': {
+    key: 'theme.activePackId',
+    schema: z.enum(['modern', 'warm', 'luxe']),
+    default: 'modern',
+    group: 'theme',
+    public: true,
+    isSecret: false,
+    description: 'Which builtin theme pack is active (modern, warm, luxe).',
+  },
 };
 
 export function getSettingDefinition(key: string): SettingDefinition<unknown> | undefined {
