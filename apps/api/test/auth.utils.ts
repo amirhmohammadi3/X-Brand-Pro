@@ -69,6 +69,7 @@ export function makeMemoryUserRepo(initial: UserRow[] = []): UsersRepositoryLike
         emailVerifiedAt: params.emailVerified ? new Date() : null,
         phoneVerifiedAt: params.phoneVerified ? new Date() : null,
         bannedUntil: null,
+        bannedReason: null,
         lastLoginAt: null,
         usernameChangedAt: null,
         deletedAt: null,
@@ -98,6 +99,65 @@ export function makeMemoryUserRepo(initial: UserRow[] = []): UsersRepositoryLike
       return [...rows.values()].filter(
         (r) => r.role === role && (status ? r.status === status : true),
       ).length;
+    },
+    async listUsers(query) {
+      // Mirrors the SQL repo's filters closely enough for API specs.
+      let all = [...rows.values()].filter((r) => r.deletedAt === null);
+      if (query.role) all = all.filter((r) => r.role === query.role);
+      if (query.status) all = all.filter((r) => r.status === query.status);
+      if (query.q) {
+        const needle = query.q.toLowerCase();
+        const digits = query.q.replace(/[^\d]/g, '');
+        all = all.filter(
+          (r) =>
+            r.username.toLowerCase().includes(needle) ||
+            (r.email ?? '').toLowerCase().includes(needle) ||
+            (r.displayName ?? '').toLowerCase().includes(needle) ||
+            (digits.length >= 3 && (r.phone ?? '').includes(digits)),
+        );
+      }
+      const direction = query.direction === 'asc' ? 1 : -1;
+      all.sort((a, b) => {
+        let cmp: number;
+        if (query.sort === 'username') {
+          cmp = a.username.localeCompare(b.username) * direction;
+        } else {
+          const key = query.sort === 'lastLoginAt' ? 'lastLoginAt' : 'createdAt';
+          cmp = (a[key]?.getTime() ?? 0) - (b[key]?.getTime() ?? 0);
+          if (query.direction !== 'asc') cmp = -cmp;
+        }
+        return cmp !== 0 ? cmp : a.id < b.id ? -1 : 1;
+      });
+      const total = all.length;
+      const items = all.slice((query.page - 1) * query.pageSize, query.page * query.pageSize);
+      return { items, total };
+    },
+    async setBan(id, fields) {
+      const r = rows.get(id);
+      if (!r) return null;
+      const updated = { ...r, ...fields, updatedAt: new Date() };
+      rows.set(id, updated);
+      return updated;
+    },
+    async expireBans(now) {
+      const lifted: string[] = [];
+      for (const r of rows.values()) {
+        if (
+          r.status === 'blocked' &&
+          r.bannedUntil !== null &&
+          r.bannedUntil.getTime() <= now.getTime()
+        ) {
+          rows.set(r.id, {
+            ...r,
+            status: 'active',
+            bannedReason: null,
+            bannedUntil: null,
+            updatedAt: new Date(),
+          });
+          lifted.push(r.id);
+        }
+      }
+      return lifted;
     },
     async touchLastSeen(id) {
       const r = rows.get(id);
@@ -257,6 +317,14 @@ export function makeMemorySessionRepo(): SessionsRepositoryLike & {
     },
     async listActiveForUser(userId) {
       return [...rows.values()].filter((r) => r.userId === userId && r.revokedAt === null);
+    },
+    async countActiveByUsers(userIds) {
+      const counts = new Map<string, number>();
+      for (const uid of userIds) {
+        const n = [...rows.values()].filter((r) => r.userId === uid && r.revokedAt === null).length;
+        if (n > 0) counts.set(uid, n);
+      }
+      return counts;
     },
     async touchUsed(id, when) {
       const r = rows.get(id);

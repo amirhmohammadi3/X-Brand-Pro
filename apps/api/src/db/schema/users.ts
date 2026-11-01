@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm';
 import {
   index,
   pgEnum,
@@ -46,6 +47,8 @@ export const users = pgTable(
     phoneVerifiedAt: timestamp('phone_verified_at', { withTimezone: true }),
     // B1.3: temporary ban window (login + guard reject while it is in the future).
     bannedUntil: timestamp('banned_until', { withTimezone: true }),
+    // B1.14: admin-set ban reason (3-500 chars) stored alongside the window.
+    bannedReason: text('banned_reason'),
     // B1.9: avatar media row; null until B1.10 wires the profile avatar flow.
     // FK is declared here, on the users side of the users<->media pair (the
     // media side references users.id); drizzle resolves both lazily.
@@ -67,6 +70,16 @@ export const users = pgTable(
     index('users_email_idx').on(table.email),
     index('users_phone_idx').on(table.phone),
     index('users_role_idx').on(table.role),
+    // B1.14: trigram search over lowercased identity columns (admin q search).
+    index('users_username_trgm_idx').using('gin', sql`lower(${table.username}) gin_trgm_ops`),
+    index('users_email_trgm_idx').using('gin', sql`lower(${table.email}) gin_trgm_ops`),
+    index('users_display_name_trgm_idx').using(
+      'gin',
+      sql`lower(${table.displayName}) gin_trgm_ops`,
+    ),
+    // Admin list filters/sorts (B1.14).
+    index('users_status_idx').on(table.status),
+    index('users_created_at_idx').on(table.createdAt),
   ],
 );
 

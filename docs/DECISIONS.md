@@ -532,3 +532,27 @@ Entry format:
 - Reason: Contrast math (pow/log) is not reasonably expressible as a CHECK constraint; the API is the only writer (service-validated, B1.13 admin-only), so boundary validation is sufficient and gives editors actionable failure details.
 - Alternatives: DB trigger validating jsonb (undiscoverable errors, hard to test), accepting and flagging invalid packs (ships broken themes).
 - Assumptions: none.
+
+## 2026-11-01 — B1.14 hierarchy rules in the service; admin controller lives in AuthModule
+
+- Prompt: B1.14
+- Decision: Role/ban hierarchy (self-target, rank table user<owner<moderator<admin<super_admin, users.assign_admin = super_admin only, target-active rule, last super_admin protection) is enforced in UsersService — the controller only audits. The UsersAdminController lives in the AUTH module (like ProfileService, B1.10) because ban/role-change must revoke sessions SYNCHRONOUSLY through SessionService and UsersModule cannot import AuthModule without a DI cycle.
+- Reason: Service-level enforcement keeps the invariants true for every future caller (CLI, jobs), not just HTTP. Synchronous revocation closes the "banned user keeps a live token" window entirely; an event-driven revoke would be eventual.
+- Alternatives: controller-only checks (bypassable), cross-module repository import (AGENTS.md 6 forbids), forwardRef module cycle (fragile).
+- Assumptions: none.
+
+## 2026-11-01 — B1.14 expired bans are "not banned" in code; the job is durable cleanup
+
+- Prompt: B1.14
+- Decision: `UsersService.effectiveStatus(row)` maps `blocked` + past `banned_until` to `active`; login, refresh and the JwtAuthGuard status cache all compare through it. The guard's 30 s `auth:userstatus:<id>` cache stores the EFFECTIVE status, and admin mutations + the `users:expire-bans` job (maintenance queue, every 5 min) invalidate it per user.
+- Reason: The prompt requires an expired ban to stop blocking immediately; a job-only design would keep users locked for up to 5 minutes past expiry. With effectiveStatus the recovery is instant everywhere, and the job remains the bookkeeping that restores the row.
+- Alternatives: job-only unban (5-min lockout tail), TTL-0 status cache (extra DB hit per request), triggers on banned_until (hidden logic).
+- Assumptions: none.
+
+## 2026-11-01 — B1.14 shared maintenance-queue dispatcher
+
+- Prompt: B1.14
+- Decision: WorkersService keeps its one-processor-per-queue rule; a dispatcher (`src/queue/maintenance.jobs.ts`, registered once from AppModule) owns the `maintenance` processor and routes job names to handlers registered by domain modules (`registerMaintenanceHandler` / `scheduleMaintenanceJob`). otp:cleanup (B1.7) was migrated to the dispatcher.
+- Reason: B1.14 needed a second repeatable on `maintenance` and the one-processor rule (B0.4) forbids a second register; a name-routing dispatcher scales to future housekeeping jobs without weakening the "exactly one consumer per queue" invariant. The handler map is module-level and REPLACES on re-register because test suites boot the AppModule repeatedly in one worker process.
+- Alternatives: a dedicated `users` queue (strays from the B0.4 queue plan), removing the one-processor rule (loses the clear consumer-per-queue contract).
+- Assumptions: none.

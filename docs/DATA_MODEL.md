@@ -189,3 +189,10 @@ Block format (one per table):
 - Indexes: primary key only
 - Constraints: tokens validated against `themeTokensSchema` + `validatePackContrast` at the API boundary; re-seeding never overwrites edited tokens (insert-if-absent)
 - Retention: keep forever
+
+### users — B1.14 additions
+
+- Module: users (admin API) - Prompt: B1.14
+- New column: `banned_reason text` (3-500 chars, set by POST /:id/ban, cleared on unban/expire)
+- New indexes: `users_username_trgm_idx` GIN on `lower(username) gin_trgm_ops`, `users_email_trgm_idx` GIN on `lower(email)`, `users_display_name_trgm_idx` GIN on `lower(display_name)` (admin q search); `users_status_idx` + `users_created_at_idx` btree (admin list filters/sort)
+- Sorting note: admin list always appends `id` as the stable tiebreaker (AGENTS.md 6)

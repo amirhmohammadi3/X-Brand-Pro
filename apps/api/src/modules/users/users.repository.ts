@@ -1,9 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, isNull, or, sql } from 'drizzle-orm';
 import { DrizzleClient } from '../../db/drizzle.client.js';
 import { users, type UserRow } from '../../db/schema/users.js';
 import { mediaFiles } from '../../db/schema/media.js';
 import type { UserRole, UserStatus } from '@app/contracts';
+import { normalizeDigits, normalizePersianText } from '@app/contracts';
 
 /**
  * All Drizzle access for the users domain (AGENTS.md 6). The narrow surface
@@ -30,6 +31,21 @@ export interface UsersRepositoryLike {
   updateRole(id: string, role: UserRole): Promise<UserRow | null>;
   updateStatus(id: string, status: UserStatus): Promise<UserRow | null>;
   countByRole(role: UserRole, status?: UserStatus): Promise<number>;
+  /* --- B1.14 admin users --- */
+  listUsers(query: {
+    q?: string;
+    role?: UserRole;
+    status?: UserStatus;
+    sort: 'createdAt' | 'lastLoginAt' | 'username';
+    direction: 'asc' | 'desc';
+    page: number;
+    pageSize: number;
+  }): Promise<{ items: UserRow[]; total: number }>;
+  setBan(
+    id: string,
+    fields: { status: UserStatus; bannedReason: string | null; bannedUntil: Date | null },
+  ): Promise<UserRow | null>;
+  expireBans(now: Date): Promise<string[]>;
   touchLastSeen(id: string): Promise<void>;
   setPasswordHash(id: string, passwordHash: string): Promise<void>;
   recordLogin(id: string): Promise<void>;
@@ -301,5 +317,90 @@ export class UsersRepository implements UsersRepositoryLike {
         .where(eq(users.id, params.userId));
       return 'attached';
     });
+  }
+
+  /* --- B1.14 admin users --- */
+
+  async listUsers(query: {
+    q?: string;
+    role?: UserRole;
+    status?: UserStatus;
+    sort: 'createdAt' | 'lastLoginAt' | 'username';
+    direction: 'asc' | 'desc';
+    page: number;
+    pageSize: number;
+  }): Promise<{ items: UserRow[]; total: number }> {
+    // Anonymized (soft-deleted) rows never appear in admin listings (B1.14).
+    const conditions = [isNull(users.deletedAt)];
+    if (query.role) conditions.push(eq(users.role, query.role));
+    if (query.status) conditions.push(eq(users.status, query.status));
+    if (query.q) {
+      // Trigram-friendly search: normalized + lowercased identity text, and
+      // digit-only needles match the phone (Persian digits normalize away).
+      const normalized = normalizePersianText(normalizeDigits(query.q));
+      const text = '%' + normalized.toLowerCase() + '%';
+      const digits = normalized.replace(/[^\d]/g, '');
+      const phoneNeedle = digits.length >= 3 ? '%' + digits + '%' : null;
+      const match = phoneNeedle
+        ? or(
+            ilike(users.username, text),
+            ilike(users.email, text),
+            ilike(users.displayName, text),
+            ilike(users.phone, phoneNeedle),
+          )
+        : or(ilike(users.username, text), ilike(users.email, text), ilike(users.displayName, text));
+      if (match) conditions.push(match);
+    }
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const sortColumn =
+      query.sort === 'lastLoginAt'
+        ? users.lastLoginAt
+        : query.sort === 'username'
+          ? users.username
+          : users.createdAt;
+    const direction = query.direction === 'asc' ? asc : desc;
+
+    const items = await this.client.db
+      .select()
+      .from(users)
+      .where(where)
+      // AGENTS.md 6: every sort ends with id as the stable tiebreaker.
+      .orderBy(direction(sortColumn), asc(users.id))
+      .limit(query.pageSize)
+      .offset((query.page - 1) * query.pageSize);
+    const totalRows = await this.client.db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(users)
+      .where(where);
+    return { items, total: totalRows[0]?.count ?? 0 };
+  }
+
+  async setBan(
+    id: string,
+    fields: { status: UserStatus; bannedReason: string | null; bannedUntil: Date | null },
+  ): Promise<UserRow | null> {
+    const rows = await this.client.db
+      .update(users)
+      .set({ ...fields, updatedAt: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return rows[0] ?? null;
+  }
+
+  async expireBans(now: Date): Promise<string[]> {
+    // Auto-unban (B1.14): lifts ONLY time-boxed bans whose window has passed;
+    // indefinite bans (banned_until null) stay until an admin unbans.
+    const rows = await this.client.db
+      .update(users)
+      .set({ status: 'active', bannedReason: null, bannedUntil: null, updatedAt: new Date() })
+      .where(
+        and(
+          eq(users.status, 'blocked'),
+          sql`${users.bannedUntil} is not null and ${users.bannedUntil} <= ${now}`,
+        ),
+      )
+      .returning({ id: users.id });
+    return rows.map((r) => r.id);
   }
 }

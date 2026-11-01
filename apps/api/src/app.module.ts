@@ -22,6 +22,7 @@ import { ThemeModule } from './modules/theme/theme.module.js';
 import { DevSmsModule, SmsModule } from './modules/sms/sms.module.js';
 import { devSmsEnabled } from './modules/sms/dev-sms.controller.js';
 import { UsersModule } from './modules/users/users.module.js';
+import { MaintenanceJobsInit } from './queue/maintenance.jobs.js';
 import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
 
@@ -80,6 +81,9 @@ import { RedisModule } from './redis/redis.module.js';
       : []),
   ],
   providers: [
+    // B1.14: the single `maintenance` queue processor (routes job names to
+    // per-prompt handlers; see src/queue/maintenance.jobs.ts).
+    MaintenanceJobsInit,
     // Global opt-in rate limiting: routes annotated with @RateLimit are
     // enforced with the Redis limiter; everything else passes through.
     { provide: APP_GUARD, useClass: RateLimitGuard },

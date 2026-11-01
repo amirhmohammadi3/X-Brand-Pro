@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull, ne } from 'drizzle-orm';
+import { and, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { DrizzleClient } from '../../db/drizzle.client.js';
 import { sessions, type SessionRow } from '../../db/schema/sessions.js';
 
@@ -25,6 +25,8 @@ export interface SessionsRepositoryLike {
   revoke(id: string, reason: string): Promise<void>;
   revokeFamily(familyId: string, reason: string, exceptId?: string): Promise<number>;
   listActiveForUser(userId: string): Promise<SessionRow[]>;
+  /** B1.14: active-session counts for a batch of users (admin list). */
+  countActiveByUsers(userIds: string[]): Promise<Map<string, number>>;
   touchUsed(id: string, when: Date): Promise<void>;
 }
 
@@ -87,6 +89,18 @@ export class SessionsRepository implements SessionsRepositoryLike {
       .select()
       .from(sessions)
       .where(and(eq(sessions.userId, userId), isNull(sessions.revokedAt)));
+  }
+
+  async countActiveByUsers(userIds: string[]): Promise<Map<string, number>> {
+    const counts = new Map<string, number>();
+    if (userIds.length === 0) return counts;
+    const rows = await this.client.db
+      .select({ userId: sessions.userId, count: sql<number>`count(*)::int` })
+      .from(sessions)
+      .where(and(inArray(sessions.userId, userIds), isNull(sessions.revokedAt)))
+      .groupBy(sessions.userId);
+    for (const row of rows) counts.set(row.userId, row.count);
+    return counts;
   }
 
   async touchUsed(id: string, when: Date): Promise<void> {

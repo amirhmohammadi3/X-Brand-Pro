@@ -193,7 +193,7 @@ export class AuthService {
     }
 
     // Verified owner may learn the ban state — non-owners get generic 401.
-    if (row.status === 'blocked' || this.users.isCurrentlyBanned(row)) {
+    if (this.users.effectiveStatus(row) === 'blocked' || this.users.isCurrentlyBanned(row)) {
       this.events.emit(AUTH_SERVICE_EVENTS.loginFailed, {
         userId: row.id,
         ip: meta.ip,
@@ -237,7 +237,7 @@ export class AuthService {
     const issued = await this.sessions.rotate(refreshToken, meta);
     const row = await this.users.getById(issued.userId);
     // An account banned between rotations dies here; the fresh session burns.
-    if (row.status === 'blocked' || this.users.isCurrentlyBanned(row)) {
+    if (this.users.effectiveStatus(row) === 'blocked' || this.users.isCurrentlyBanned(row)) {
       await this.sessions.revoke(issued.sessionId, 'banned_user');
       throw new HttpException(
         { code: 'ACCOUNT_BANNED' as const, message: 'Account is banned' },

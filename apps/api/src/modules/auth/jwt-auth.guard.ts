@@ -93,7 +93,11 @@ export class JwtAuthGuard implements CanActivate {
     return true;
   }
 
-  /** User status with a 30s Redis cache; DB is the fallback and the truth. */
+  /**
+   * User status with a 30s Redis cache; DB is the fallback and the truth.
+   * B1.14: the cache holds the EFFECTIVE status — an expired time-boxed ban
+   * counts as active (the users:expire-bans job then lifts it for real).
+   */
   private async loadStatus(userId: string): Promise<string> {
     const key = `auth:userstatus:${userId}`;
     try {
@@ -103,11 +107,12 @@ export class JwtAuthGuard implements CanActivate {
       // fall through to the database
     }
     const row = await this.users.getById(userId);
+    const effective = this.users.effectiveStatus(row);
     try {
-      await this.redis.set(key, row.status, 'EX', 30);
+      await this.redis.set(key, effective, 'EX', 30);
     } catch {
       // cache write failures are non-fatal
     }
-    return row.status;
+    return effective;
   }
 }

@@ -1,5 +1,12 @@
 import { z } from 'zod';
-import { localeCodeSchema, passwordSchema, usernameSchema, uuidSchema } from './primitives.js';
+import {
+  isoDateSchema,
+  localeCodeSchema,
+  passwordSchema,
+  usernameSchema,
+  uuidSchema,
+} from './primitives.js';
+import { pageMetaSchema, pageQuerySchema } from './pagination.js';
 
 /**
  * Users & roles (B1.2). Wire shapes for the user model and RBAC. The
@@ -101,3 +108,65 @@ export const deleteAccountBodySchema = z
   })
   .strict();
 export type DeleteAccountBody = z.infer<typeof deleteAccountBodySchema>;
+
+// ---------------------------------------------------------------------------
+// Admin users API (B1.14)
+// ---------------------------------------------------------------------------
+
+export const ADMIN_USER_SORTS = ['createdAt', 'lastLoginAt', 'username'] as const;
+export const adminUserSortSchema = z.enum(ADMIN_USER_SORTS);
+export type AdminUserSort = (typeof ADMIN_USER_SORTS)[number];
+
+/** Admin list query: search + filters + page + explicit stable sort. */
+export const adminUserListQuerySchema = pageQuerySchema
+  .extend({
+    q: z.string().min(1).max(200).optional(),
+    role: userRoleSchema.optional(),
+    status: userStatusSchema.optional(),
+    sort: adminUserSortSchema.default('createdAt'),
+    /** `asc` | `desc` (default `desc` for dates, `asc` for username). */
+    direction: z.enum(['asc', 'desc']).optional(),
+  })
+  .strict();
+export type AdminUserListQuery = z.infer<typeof adminUserListQuerySchema>;
+
+/**
+ * Full admin view of a user — the adminUserView (B1.2) plus everything an
+ * administrator may act on. Never includes secrets (password hash, tokens).
+ */
+export const adminUserSchema = adminUserViewSchema
+  .extend({
+    displayName: z.string().max(100).nullable(),
+    bio: z.string().max(300).nullable(),
+    locale: z.string().nullable(),
+    emailVerified: z.boolean(),
+    phoneVerified: z.boolean(),
+    bannedReason: z.string().max(500).nullable(),
+    bannedUntil: z.string().datetime({ offset: true }).nullable(),
+    lastLoginAt: z.string().datetime({ offset: true }).nullable(),
+    deletedAt: z.string().datetime({ offset: true }).nullable(),
+    sessionsCount: z.number().int().min(0),
+  })
+  .strict();
+export type AdminUser = z.infer<typeof adminUserSchema>;
+
+export const adminUserDetailSchema = adminUserSchema;
+export type AdminUserDetail = z.infer<typeof adminUserDetailSchema>;
+
+export const adminUserListResponseSchema = z.object({
+  items: z.array(adminUserSchema),
+  meta: pageMetaSchema,
+});
+export type AdminUserListResponse = z.infer<typeof adminUserListResponseSchema>;
+
+/** `changeRoleBodySchema` (B1.2) is the PATCH /:id/role body. */
+
+/** Body for POST /admin/users/:id/ban. */
+export const banBodySchema = z
+  .object({
+    reason: z.string().min(3).max(500),
+    /** Optional expiry; omit = indefinite ban (until manually unbanned). */
+    until: isoDateSchema.optional(),
+  })
+  .strict();
+export type BanBody = z.infer<typeof banBodySchema>;

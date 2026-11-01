@@ -7,8 +7,8 @@ import {
 } from '../src/modules/users/users.service.js';
 import type { UsersRepositoryLike } from '../src/modules/users/users.repository.js';
 import type { UserRow } from '../src/db/schema/users.js';
-import type { UserRole } from '@app/contracts';
 import type { MediaRowLite } from './auth.utils.js';
+import { makeMemoryUserRepo } from './auth.utils.js';
 
 function row(overrides: Partial<UserRow> = {}): UserRow {
   return {
@@ -25,6 +25,7 @@ function row(overrides: Partial<UserRow> = {}): UserRow {
     emailVerifiedAt: overrides.emailVerifiedAt ?? null,
     phoneVerifiedAt: overrides.phoneVerifiedAt ?? null,
     bannedUntil: overrides.bannedUntil ?? null,
+    bannedReason: overrides.bannedReason ?? null,
     lastLoginAt: overrides.lastLoginAt ?? null,
     usernameChangedAt: null,
     deletedAt: null,
@@ -39,161 +40,10 @@ function makeRepo(initial: UserRow[] = []): UsersRepositoryLike & {
   rows: Map<string, UserRow>;
   mediaRows: Map<string, MediaRowLite>;
 } {
-  const rows = new Map<string, UserRow>(initial.map((r) => [r.id, r]));
-  const mediaRows = new Map<string, MediaRowLite>();
-  return {
-    rows,
-    mediaRows,
-    async findById(id) {
-      return rows.get(id) ?? null;
-    },
-    async findByUsername(username) {
-      return [...rows.values()].find((r) => r.username === username) ?? null;
-    },
-    async findByEmail(email) {
-      return [...rows.values()].find((r) => r.email === email) ?? null;
-    },
-    async findByPhone(phone) {
-      return [...rows.values()].find((r) => r.phone === phone) ?? null;
-    },
-    async findByIdentifier(identifier) {
-      return (
-        [...rows.values()].find(
-          (r) => r.username === identifier || r.email === identifier || r.phone === identifier,
-        ) ?? null
-      );
-    },
-    async create(params) {
-      const created = row({
-        id: `u-${rows.size + 1}`,
-        username: params.username,
-        email: params.email ?? null,
-        phone: params.phone ?? null,
-        passwordHash: params.passwordHash ?? null,
-        role: params.role ?? 'user',
-        displayName: params.displayName ?? null,
-        locale: params.locale ?? null,
-        emailVerifiedAt: params.emailVerified ? new Date() : null,
-        phoneVerifiedAt: params.phoneVerified ? new Date() : null,
-      });
-      rows.set(created.id, created);
-      return created;
-    },
-    async updateRole(id, role: UserRole) {
-      const r = rows.get(id);
-      if (!r) return null;
-      const updated = { ...r, role, updatedAt: new Date() };
-      rows.set(id, updated);
-      return updated;
-    },
-    async updateStatus(id, status) {
-      const r = rows.get(id);
-      if (!r) return null;
-      const updated = { ...r, status, updatedAt: new Date() };
-      rows.set(id, updated);
-      return updated;
-    },
-    async countByRole(role, status) {
-      return [...rows.values()].filter(
-        (r) => r.role === role && (status ? r.status === status : true),
-      ).length;
-    },
-    async touchLastSeen() {
-      return undefined;
-    },
-    async setPasswordHash(id, passwordHash) {
-      const r = rows.get(id);
-      if (r) rows.set(id, { ...r, passwordHash, updatedAt: new Date() });
-    },
-    async recordLogin(id) {
-      const r = rows.get(id);
-      if (r) rows.set(id, { ...r, lastLoginAt: new Date(), lastSeenAt: new Date() });
-    },
-    async updateProfile(id, fields) {
-      const r = rows.get(id);
-      if (!r) return null;
-      const updated = { ...r, ...fields, updatedAt: new Date() };
-      rows.set(id, updated);
-      return updated;
-    },
-    async setUsername(id, username) {
-      const r = rows.get(id);
-      if (!r) return null;
-      const updated = { ...r, username, usernameChangedAt: new Date(), updatedAt: new Date() };
-      rows.set(id, updated);
-      return updated;
-    },
-    async setAvatarMediaId(id, mediaId) {
-      const r = rows.get(id);
-      if (!r) return null;
-      const updated = { ...r, avatarMediaId: mediaId, updatedAt: new Date() };
-      rows.set(id, updated);
-      return updated;
-    },
-    async findAvatarMedia(id) {
-      const r = rows.get(id);
-      if (!r || !r.avatarMediaId) return null;
-      const media = mediaRows.get(r.avatarMediaId);
-      if (!media) return null;
-      return {
-        key: media.key,
-        thumbKey: media.thumbKey,
-        deletedAt: media.deletedAt,
-        ownerUserId: media.ownerUserId,
-        kind: media.kind,
-      };
-    },
-    async anonymizeAndDelete(id) {
-      const r = rows.get(id);
-      if (!r) return null;
-      const updated = {
-        ...r,
-        username: `deleted_${id.slice(0, 8)}`,
-        email: null,
-        phone: null,
-        passwordHash: null,
-        displayName: null,
-        bio: null,
-        avatarMediaId: null,
-        status: 'deleted' as const,
-        deletedAt: new Date(),
-        updatedAt: new Date(),
-      };
-      rows.set(id, updated);
-      return updated;
-    },
-    async markUsernameChanged(id, at) {
-      const r = rows.get(id);
-      if (!r) return;
-      rows.set(id, { ...r, usernameChangedAt: at, updatedAt: new Date() });
-    },
-    async attachIdentifier(params) {
-      for (const [id, r] of rows) {
-        if (id === params.userId) continue;
-        const holderValue = params.channel === 'email' ? r.email : r.phone;
-        if (holderValue !== params.target) continue;
-        const verified =
-          params.channel === 'email' ? r.emailVerifiedAt !== null : r.phoneVerifiedAt !== null;
-        if (verified) return 'conflict' as const;
-        rows.set(id, {
-          ...r,
-          ...(params.channel === 'email' ? { email: null } : { phone: null }),
-          updatedAt: new Date(),
-        });
-      }
-      const me = rows.get(params.userId);
-      if (me) {
-        rows.set(params.userId, {
-          ...me,
-          ...(params.channel === 'email'
-            ? { email: params.target, emailVerifiedAt: new Date() }
-            : { phone: params.target, phoneVerifiedAt: new Date() }),
-          updatedAt: new Date(),
-        });
-      }
-      return 'attached' as const;
-    },
-  };
+  // B1.14: the shared in-memory repo implements the full interface
+  // (listUsers/setBan/expireBans included); the spec adds an empty media map.
+  const base = makeMemoryUserRepo(initial);
+  return { ...base, mediaRows: new Map<string, MediaRowLite>() };
 }
 
 function makeService(initial: UserRow[] = []) {
@@ -218,26 +68,44 @@ describe('UsersService (B1.2)', () => {
     ).rejects.toMatchObject({ response: { statusCode: 409 } });
   });
 
-  it('changes a role and emits user.role.changed with from/to', async () => {
+  it('changes a role and emits user.role.changed with from/to/actorId', async () => {
     const { service, events } = makeService([row({ id: 'u-1', role: 'user' })]);
-    const view = await service.changeRole('u-1', 'moderator', 'admin');
+    const view = await service.changeRole('u-1', 'moderator', { id: 'actor-1', role: 'admin' });
     expect(view.role).toBe('moderator');
     expect(events.emit).toHaveBeenCalledWith(USER_ROLE_CHANGED, {
       userId: 'u-1',
       from: 'user',
       to: 'moderator',
+      actorId: 'actor-1',
     });
   });
 
-  it('refuses to demote a super_admin unless the actor is a super_admin', async () => {
-    const { service } = makeService([row({ id: 'root', role: 'super_admin' })]);
-    await expect(service.changeRole('root', 'admin', 'admin')).rejects.toMatchObject({
-      response: { statusCode: 409 },
-    });
-    // Even a super_admin actor cannot demote the ONLY active super_admin.
-    await expect(service.changeRole('root', 'admin', 'super_admin')).rejects.toMatchObject({
-      response: { statusCode: 409 },
-    });
+  it('refuses privileged role changes unless the actor is a super_admin (403)', async () => {
+    const { service } = makeService([
+      row({ id: 'root', role: 'super_admin' }),
+      row({ id: 'u-2', role: 'user' }),
+    ]);
+    // An admin cannot touch an admin/super_admin target OR grant the role.
+    await expect(
+      service.changeRole('root', 'admin', { id: 'adm', role: 'admin' }),
+    ).rejects.toMatchObject({ response: { statusCode: 403 } });
+    await expect(
+      service.changeRole('u-2', 'admin', { id: 'adm', role: 'admin' }),
+    ).rejects.toMatchObject({ response: { statusCode: 403 } });
+  });
+
+  it('refuses an actor changing their OWN role', async () => {
+    const { service } = makeService([row({ id: 'me', role: 'admin' })]);
+    await expect(
+      service.changeRole('me', 'moderator', { id: 'me', role: 'super_admin' }),
+    ).rejects.toMatchObject({ response: { statusCode: 409 } });
+  });
+
+  it('refuses role changes on a non-active target', async () => {
+    const { service } = makeService([row({ id: 'u-3', role: 'user', status: 'blocked' })]);
+    await expect(
+      service.changeRole('u-3', 'moderator', { id: 'adm', role: 'super_admin' }),
+    ).rejects.toMatchObject({ response: { statusCode: 409 } });
   });
 
   it('refuses to demote the LAST active super_admin even by a super_admin', async () => {
@@ -245,9 +113,9 @@ describe('UsersService (B1.2)', () => {
       row({ id: 'root-1', role: 'super_admin', status: 'active' }),
       row({ id: 'root-2', role: 'super_admin', status: 'blocked' }),
     ]);
-    await expect(service.changeRole('root-1', 'admin', 'super_admin')).rejects.toMatchObject({
-      response: { statusCode: 409 },
-    });
+    await expect(
+      service.changeRole('root-1', 'admin', { id: 'other', role: 'super_admin' }),
+    ).rejects.toMatchObject({ response: { statusCode: 409 } });
   });
 
   it('allows demotion when another ACTIVE super_admin remains', async () => {
@@ -255,7 +123,7 @@ describe('UsersService (B1.2)', () => {
       row({ id: 'root-1', role: 'super_admin', status: 'active' }),
       row({ id: 'root-2', role: 'super_admin', status: 'active' }),
     ]);
-    const view = await service.changeRole('root-1', 'admin', 'super_admin');
+    const view = await service.changeRole('root-1', 'admin', { id: 'other', role: 'super_admin' });
     expect(view.role).toBe('admin');
   });
 

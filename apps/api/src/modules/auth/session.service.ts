@@ -133,21 +133,42 @@ export class SessionService {
     this.events.emit(AUTH_EVENTS.sessionRevoked, { sessionId, reason });
   }
 
-  async revokeAllForUser(userId: string, exceptSessionId?: string): Promise<number> {
+  async revokeAllForUser(
+    userId: string,
+    exceptSessionId?: string,
+    reason = 'logout_all',
+  ): Promise<number> {
     const active = await this.repo.listActiveForUser(userId);
     let count = 0;
     for (const s of active) {
       if (exceptSessionId && s.id === exceptSessionId) continue;
-      await this.repo.revoke(s.id, 'logout_all');
+      await this.repo.revoke(s.id, reason);
       this.redis.del(this.activeKey(s.id)).catch(() => {});
-      this.events.emit(AUTH_EVENTS.sessionRevoked, { sessionId: s.id, reason: 'logout_all' });
+      // No userId on purpose: the audit subscriber treats payload.userId as the
+      // ACTOR. Admin-initiated revocations are audited by the admin controller
+      // with the real actor (a self-revoked event would mis-attribute).
+      this.events.emit(AUTH_EVENTS.sessionRevoked, { sessionId: s.id, reason });
       count += 1;
     }
     return count;
   }
 
+  /** B1.14: active-session counts per user for the admin list (batch). */
+  async countActiveByUsers(userIds: string[]): Promise<Map<string, number>> {
+    return this.repo.countActiveByUsers(userIds);
+  }
+
   async listForUser(userId: string): Promise<SessionRow[]> {
     return this.repo.listActiveForUser(userId);
+  }
+
+  /**
+   * B1.14: drops the guard's cached user status (`auth:userstatus:<id>`, 30 s
+   * TTL) so a ban/unban/role change is reflected on the VERY next request
+   * instead of up to 30 s later. Failures are non-fatal (the TTL bounds it).
+   */
+  invalidateStatusCache(userId: string): void {
+    this.redis.del(`auth:userstatus:${userId}`).catch(() => {});
   }
 
   /**

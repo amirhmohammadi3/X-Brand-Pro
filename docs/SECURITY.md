@@ -216,3 +216,6 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 - `i18n.manage` — admins and super_admins: manage languages and translations (B1.12, `/admin/i18n/*`). Values are sanitized (control chars stripped) and HTML tags are rejected with 422, so stored messages can be rendered as plain text without injection risk.
 
 - `theme.manage` — admins and super_admins: switch the active theme pack and edit tokens (B1.13, `/admin/theme/*`). Token edits are rejected server-side when any WCAG pair from docs/DESIGN.md section 5 falls below its threshold, so a broken/low-contrast theme can never ship to users.
+
+- `users.read` — moderators, admins and super_admins: list/detail users (GET /admin/users\*). Search is normalized and rate limited 120/min.
+- `users.manage` — admins and super_admins: role change, ban/unban, revoke-sessions. `users.assign_admin` is held ONLY by super_admin (an admin granting admin/super_admin is 403 even though the route permission passes). Full hierarchy table in docs/API.md (B1.14 section): no self-target, no equal-or-higher-rank ban, last super_admin is protected, role change revokes the target's sessions immediately.

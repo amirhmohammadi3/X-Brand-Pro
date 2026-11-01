@@ -493,3 +493,28 @@ All routes require authentication (JWT access cookie or bearer). Responses use t
 | POST   | /admin/theme/packs/:id/reset | —                                            | restores the shipped tokens from `packages/contracts/src/theme/packs.ts`                                                                                   |
 
 - Errors: 400 (validation), 401, 403, 404 (unknown pack), 422 (contrast failures)
+
+## /api/v1/admin/users (B1.14)
+
+- Rate limit: 120/min per user on ALL routes (`admin.users.read` / `admin.users.write`)
+- Audit: `users.role_changed`, `users.banned`, `users.unbanned`, `users.sessions_revoked` (actor + before/after)
+
+| Method | Path                             | Permission                         | Body/Query                                                                                                                                     | Notes                                                                                                                                                                                              |
+| ------ | -------------------------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | /admin/users                     | `users.read` (moderators may read) | `adminUserListQuerySchema` — `q` (search), `role`, `status`, `sort` (createdAt/lastLoginAt/username), `direction`, `page`/`pageSize` (max 100) | `q` matches username/email/displayName (normalized + lowercased, trigram GIN indexes) and phone (digit-only needle ≥3); anonymized (deleted) users never appear; every row carries `sessionsCount` |
+| GET    | /admin/users/:id                 | `users.read`                       | —                                                                                                                                              | full `adminUserSchema` view (verification flags, ban fields, sessionsCount)                                                                                                                        |
+| PATCH  | /admin/users/:id/role            | `users.manage`                     | `changeRoleBodySchema` (`{ role }`)                                                                                                            | hierarchy rules below; target's sessions are revoked so the new role applies at once                                                                                                               |
+| POST   | /admin/users/:id/ban             | `users.manage`                     | `banBodySchema` (`{ reason 3-500, until? future ISO }`)                                                                                        | sets status blocked + reason + time box; revokes all sessions                                                                                                                                      |
+| POST   | /admin/users/:id/unban           | `users.manage`                     | —                                                                                                                                              | clears status/reason/until                                                                                                                                                                         |
+| POST   | /admin/users/:id/revoke-sessions | `users.manage`                     | —                                                                                                                                              | revokes every active session of the target (except the actor's own)                                                                                                                                |
+
+- Errors: 400 (validation), 401, 403 (permission / rank), 404 (unknown user), 409 (self-target, inactive target, last super_admin, expired `until`, unban of a non-banned user)
+- Auto-unban: the `users:expire-bans` repeatable (maintenance queue, every 5 min) lifts expired time-boxed bans; login AND the request guard already treat an expired ban as not banned (`effectiveStatus`), so expiry takes effect immediately with at most a 30 s guard-cache lag.
+
+### Hierarchy rules (enforced server-side)
+
+- Nobody changes their own role or bans themselves.
+- Granting/removing `admin` or `super_admin` requires the ACTOR to be `super_admin` (`users.assign_admin`); an `admin` may set `user`/`owner`/`moderator` only.
+- Ban: an actor can never ban a user whose role rank is EQUAL or HIGHER (user < owner < moderator < admin < super_admin).
+- The last remaining active `super_admin` can never be demoted or banned.
+- Role change requires an ACTIVE target.

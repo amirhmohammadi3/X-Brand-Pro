@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module.js';
 import { OtpModule } from '../otp/otp.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
 import { SmsModule } from '../sms/sms.module.js';
@@ -13,6 +14,7 @@ import { LoginThrottleService } from './login-throttle.service.js';
 import { OAUTH_ACCOUNTS_REPOSITORY, OauthAccountsRepository } from './oauth-accounts.repository.js';
 import { PasswordService } from './password.service.js';
 import { ProfileController } from './profile.controller.js';
+import { UsersAdminController } from './users-admin.controller.js';
 import { ProfileService } from './profile.service.js';
 import { SESSIONS_REPOSITORY, SessionsRepository } from './session.repository.js';
 import { SessionService } from './session.service.js';
@@ -28,8 +30,8 @@ import { TokenService } from './token.service.js';
  * across modules).
  */
 @Module({
-  imports: [UsersModule, OtpModule, SmsModule, SettingsModule],
-  controllers: [AuthController, ProfileController],
+  imports: [AuditModule, UsersModule, OtpModule, SmsModule, SettingsModule],
+  controllers: [AuthController, ProfileController, UsersAdminController],
   providers: [
     PasswordService,
     TokenService,

@@ -14,6 +14,11 @@ export const WORKERS_SERVICE = Symbol('WORKERS_SERVICE');
  * prefixed `bull:` by the library itself, and our RedisService prefix
  * (`xbrand:`) is NOT applied to BullMQ connections, which is intentional:
  * BullMQ manages its own key space.
+ *
+ * NOTE (B1.14): MaintenanceJobsInit is NOT registered here — it imports
+ * WORKERS_SERVICE from this module, and importing it back would be a
+ * circular import (the symbol evaluates undefined). It is registered as an
+ * AppModule provider instead.
  */
 @Global()
 @Module({

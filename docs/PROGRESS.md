@@ -35,7 +35,7 @@
 - [x] B1.11 🟡 audit log (2026-11-01)
 - [x] B1.12 🟡 بک‌اند i18n: زبان‌ها، کلیدها/ترجمه‌ها، CRUD ادمین، کش، import/export (2026-11-01)
 - [x] B1.13 🟡 بستهٔ تم در بک‌اند (۳ تم seed: مدرن، گرم، لوکس) + انتخاب فعال (2026-11-01)
-- [ ] B1.14 🟡 API مدیریت کاربران (لیست، مسدود، تغییر نقش)
+- [x] B1.14 🟡 API مدیریت کاربران (لیست، مسدود، تغییر نقش) (2026-11-01)
 - [ ] F1.1 🟡 i18n فرانت (next-intl با پیام‌ها از API، جهت هر زبان، ارقام فارسی، تقویم شمسی)
 - [ ] F1.2 🔴 موتور توکن طراحی: تم‌های ۳‌گانه + روشن/تیره، بدون پرش در SSR
 - [ ] F1.3 🟡 UI Kit پایه (Button، Card، Badge، Avatar، Rating، Skeleton، EmptyState…)
@@ -239,7 +239,8 @@
 - [ ] (B1.1→B1.8) Prompt B1.8 assumed settings keys `oauth.google.enabled/clientId/clientSecret` were registered by B1.1 — they were not; B1.8 registered them itself. When the admin panel settings pages land (F10.4), surface the oauth group in the UI as well.
 - [ ] (B1.8) Real end-to-end Google login cannot be verified without REAL Google credentials (and Google is commonly unreachable from Iranian servers — the feature ships disabled and 404s until an admin enables it). Verify once with real credentials from a machine with access; also apply migration `0004_ordinary_quicksilver` (oauth_accounts) against live Postgres on a Docker machine — the HTTP suite runs on in-memory fakes (see DECISIONS B1.8).
 - [ ] (B1.3) Add partial unique indexes on users(username) / users(email) / users(phone) when all writers exist (B1.7/B1.8) — uniqueness is service-enforced for now, as decided in B1.2.
-- [ ] (B1.3) Force-revoke a user's sessions synchronously on admin role change (B1.14) — today the role claim refreshes within ≤ ACCESS_TTL_SEC via refresh.
+- [x] (B1.3) Force-revoke a user's sessions synchronously on admin role change (B1.14) — today the role claim refreshes within ≤ ACCESS_TTL_SEC via refresh. ✅ Done by B1.14: PATCH /admin/users/:id/role revokes all sessions + drops the guard status cache.
+- [ ] (B1.14) Run test/users.admin.api.spec.ts (role×action×target matrix, trigram search incl. Persian digits, expire-bans job, audit before/after) against a real Postgres on a Docker machine — the suite self-skips in this sandbox; the service layer is covered by users.service.spec unit tests.
 - [ ] (B0.3) Cache stampede protection: single-flight lock for `CacheService.wrap` (only one producer per key) — deferred, acceptable at current scale.
 - [ ] (B0.3) Add a Redis probe to the health endpoint (ping + latency) once a liveness/readiness split exists; the limiter and cache fail open until then.
 - [ ] (B0.4) Verify the worker end to end against live Redis (enqueue → consume → retry on failure) on a machine with Docker; unit tests use a BullMQ mock, and the SIGTERM drain path was verified only with an empty registry.
