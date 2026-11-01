@@ -169,6 +169,72 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     isSecret: false,
     description: 'Failed verification attempts allowed before a code is dead (1–10).',
   },
+  // Email delivery (B1.6) — an empty/null value means "not set, use the
+  // matching SMTP_* env default". The SMTP password is a secret (encrypted at
+  // rest, masked in listings) and is read at send time, never cached.
+  'email.smtp.host': {
+    key: 'email.smtp.host',
+    schema: z.string().max(200),
+    default: '',
+    group: 'integrations',
+    public: false,
+    isSecret: false,
+    description: 'SMTP server host; empty = SMTP_HOST env (default Mailpit localhost).',
+  },
+  'email.smtp.port': {
+    key: 'email.smtp.port',
+    schema: z.number().int().min(0).max(65535).nullable(),
+    default: null,
+    group: 'integrations',
+    public: false,
+    isSecret: false,
+    description: 'SMTP server port; null = SMTP_PORT env (default Mailpit 1025).',
+  },
+  'email.smtp.secure': {
+    key: 'email.smtp.secure',
+    schema: z.boolean().nullable(),
+    default: null,
+    group: 'integrations',
+    public: false,
+    isSecret: false,
+    description: 'TLS from the start (port 465 style); null = SMTP_SECURE env.',
+  },
+  'email.smtp.user': {
+    key: 'email.smtp.user',
+    schema: z.string().max(200),
+    default: '',
+    group: 'integrations',
+    public: false,
+    isSecret: false,
+    description: 'SMTP auth user; empty = SMTP_USER env (Mailpit needs no auth).',
+  },
+  'email.smtp.password': {
+    key: 'email.smtp.password',
+    schema: z.string().max(200),
+    default: '',
+    group: 'integrations',
+    public: false,
+    isSecret: true,
+    description: 'SMTP auth password (secret); empty = SMTP_PASSWORD env.',
+  },
+  'email.from.address': {
+    key: 'email.from.address',
+    schema: z.string().max(200),
+    default: '',
+    group: 'integrations',
+    public: false,
+    isSecret: false,
+    description: 'From address for outgoing mail; empty = SMTP_FROM env.',
+  },
+  'email.from.name': {
+    key: 'email.from.name',
+    schema: z.string().max(100),
+    default: '',
+    group: 'integrations',
+    public: false,
+    isSecret: false,
+    description: 'Display name in the From header; empty = brand name for the locale.',
+  },
 };
 
 export function getSettingDefinition(key: string): SettingDefinition<unknown> | undefined {

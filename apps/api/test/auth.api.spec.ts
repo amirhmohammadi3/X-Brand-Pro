@@ -389,8 +389,12 @@ describe('Banned accounts and guard behavior (B1.3)', () => {
   });
 
   it('leaves @Public routes open and 401s unauthenticated protected ones', async () => {
+    // /health is public but returns 503 without its critical dependencies
+    // (B0.2 postgres, B1.6 smtp) — the envelope proves the route itself is
+    // reachable without an access token.
     const health = await get('/api/v1/health');
-    expect(health.status).toBe(200);
+    expect([200, 503]).toContain(health.status);
+    expect(health.body.ok).toBe(true);
     const me = await get('/api/v1/auth/me');
     expect(me.status).toBe(401);
     expect(me.body.error.code).toBe('UNAUTHENTICATED');

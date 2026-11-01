@@ -128,12 +128,14 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 
 ## 2f. SMS policy (B1.5)
 
-| Key              | Endpoint(s)          | Limit | Window | Scope             | Prompt |
-| ---------------- | -------------------- | ----- | ------ | ----------------- | ------ |
-| `admin.sms.test` | POST /admin/sms/test | 5     | 60 s   | user (failClosed) | B1.5   |
+| Key                | Endpoint(s)            | Limit | Window | Scope             | Prompt |
+| ------------------ | ---------------------- | ----- | ------ | ----------------- | ------ |
+| `admin.sms.test`   | POST /admin/sms/test   | 5     | 60 s   | user (failClosed) | B1.5   |
+| `admin.email.test` | POST /admin/email/test | 5     | 60 s   | user (failClosed) | B1.6   |
 
 - Permissions: `@RequirePermissions('settings.manage')` — first consumer of the RBAC permission layer (ROLE_PERMISSIONS static map: admin holds `settings.manage`, super_admin holds `*`). Moderator/owner/user/guest are 403.
 - Provider credentials (`sms.melipayamak.username/password`, `sms.kavenegar.apiKey`) are registry secrets: AES-256-GCM encrypted at rest, masked in admin listings, read from SettingsService at SEND time and never logged.
+- SMTP password (`email.smtp.password`) is a registry secret (B1.6): AES-256-GCM encrypted at rest, masked in admin listings, resolved with the `SMTP_PASSWORD` env fallback at SEND time and never logged. The SMTP driver rebuilds its pooled transport when the settings hash changes; the hash covers host/port/secure/user/password but is never emitted. Mailpit (dev) runs unauthenticated on localhost:1025.
 - Logs and the fake-driver console line carry only the masked target (`maskTarget`); message text is NOT logged in production (fake driver logs only outside production).
 - The dev outbox endpoint is structurally unavailable in production: the module is not registered unless `DEV_TOOLS=true` with `NODE_ENV != production`, and `loadEnv` fails boot on that combination in production.
 - OTP job hygiene: `sendOtp` jobs run with `removeOnComplete: true` and `removeOnFail: { age: 3600 }` so the code never persists in Redis after delivery; the code travels only inside the job payload.

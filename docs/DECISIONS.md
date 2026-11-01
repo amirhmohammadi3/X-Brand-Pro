@@ -387,3 +387,32 @@ Entry format:
 - Reason: Both providers are the dominant Iranian SMS gateways with stable, undocumented-in-OpenAPI REST surfaces; following their exact parameter names/response envelopes (verified against the providers' own sample code) avoids surprises. Form-urlencoded was chosen over JSON because both endpoints documented it. Retryability is explicit per error, because retrying a 418 "insufficient credit" would only multiply cost.
 - Alternatives: SDK packages (@kavenegar/node, melipayamak npm — unmaintained, extra surface), SOAP Melipayamak API (legacy), SMS.ir (different customer base). Alternatives rejected: retrying on every failure (burns credit and delays OTP), storing provider responses (delivery reports are out of scope per the prompt).
 - Assumptions: The Melipayamak sample repo and Kavenegar's doc page were readable, but NO live account was available — both drivers MUST be verified with real credentials before production (recorded in PROGRESS Follow-ups). Kavenegar `verify/lookup.json` path was confirmed via the official Node client sample (kavenegar-node README) while the main doc page only partially rendered today.
+
+## 2026-11-01 — B1.6 nodemailer 10.3.1 and SMTP error classification
+
+- Prompt: B1.6
+- Decision: nodemailer 10.3.1 (runtime), @types/nodemailer 8.0.2 (dev) — exact pins, versions read from the npm registry; SMTP transport options (host/port/secure/pool/auth/tls.rejectUnauthorized) and `verify()` semantics confirmed against nodemailer.com/smtp. Classification: `responseCode` 4xx → retryable, 5xx → permanent; transport codes ECONNECTION/ECONNREFUSED/ECONNRESET/ESOCKET/ETIMEDOUT/EDNS → retryable; EAUTH/EENVELOPE/EMESSAGE and unknown → permanent.
+- Reason: nodemailer is the de-facto Node SMTP library and pools connections (one TCP stream for bursts of transactional mail). The mapping mirrors SMTP semantics (4xx temporary, 5xx permanent) instead of guessing from error strings.
+- Alternatives: bare `net`+TLS hand-rolled SMTP (no), email HTTP APIs (none reachable from an Iranian host without VPN for the major providers).
+- Assumptions: @types/nodemailer 8.x matches nodemailer 10.x (types track the 8.0 line of DefinitelyTyped for nodemailer 10 — verified by successful typecheck of all used APIs).
+
+## 2026-11-01 — B1.6 settings-over-env resolution and null-means-unset
+
+- Prompt: B1.6
+- Decision: Effective SMTP config = `email.smtp.*` / `email.from.*` setting when set, else `SMTP_*` env (registered in env.ts with Mailpit defaults). "Unset" in the registry is represented as `''` for strings and `null` for port/secure (nullable schemas) — not sentinel numbers.
+- Reason: The prompt requires settings-if-set-otherwise-env; a boolean cannot use '' and a port 0 sentinel is a lie the schema would have to allow. Null schemas make admin "clear this override" unambiguous.
+- Alternatives: separate `email.smtp.overrides` object (harder per-key masking in listings), env-only config (prompt requires panel-managed values).
+
+## 2026-11-01 — B1.6 health-indicator aggregation (HealthModule.withIndicators) + postgres gap fix
+
+- Prompt: B1.6 (wiring), B0.2 (postgres indicator requirement)
+- Decision: `HealthModule.withIndicators(...classes)` aggregates indicator instances into the HEALTH_INDICATORS array token via a factory; AppModule uses `HealthModule.withIndicators(PostgresHealthIndicator, SmtpHealthIndicator)`. The `postgres` critical indicator (B0.2's spec: `select 1`, 2 s timeout) was missing from the committed B0.2 chain and is added here alongside the new non-critical `smtp` indicator (verify() cached 60 s in the driver). EmailModule is @Global (like RedisModule/DrizzleModule) so the SMTP_DRIVER token is visible to the HealthModule context.
+- Reason: Nest never merges providers sharing a token across modules, so aggregation must happen in exactly one factory. Email is cross-cutting (auth verification in B1.7, notifications in B5.x), which justifies global visibility. Fixing the B0.2 gap while touching the exact wiring avoids leaving a known prompt requirement open indefinitely.
+- Alternatives: registering indicators inside their owning modules with a collector service (more moving parts), leaving postgres out and adding a Follow-up (the health contract in B0.2's Done-when explicitly names it).
+
+## 2026-11-01 — B1.6 inline fa/en templates until B5.3, one escape point
+
+- Prompt: B1.6
+- Decision: Five templates (otp, verify-email, reset-password, welcome, generic) live as code with inline fa/en text; `renderEmail(id, locale, vars, fallbackLocale)` resolves fa/en or falls back to the site locale then `en`. Variables are escaped exactly once in the template builders via the shared `escapeHtml`; the shared layout receives pre-escaped strings and escapes only its own brand constants.
+- Reason: The i18n module (B1.12) and translatable notification templates (B5.3) do not exist yet — the prompt explicitly scopes inline templates. Double-escaping was caught by tests (title passed through layout twice) and fixed by the single-escape-point contract.
+- Alternatives: translation keys now (i18n seed files are for UI chrome, not rich mail bodies), a mail-merge library (unnecessary for five templates).

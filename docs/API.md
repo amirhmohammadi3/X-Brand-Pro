@@ -211,6 +211,20 @@ All under `/api/v1/auth`. Tokens travel in httpOnly cookies (`at` access JWT, `r
 - Rate limit: 5 req / 60 s per user (key `admin.sms.test`, failClosed)
 - Notes: sends a fixed test message through the CURRENTLY configured provider SYNCHRONOUSLY (not queued); provider failures — including unconfigured credentials — come back as `ok: false` with `errorCode` (e.g. `NOT_CONFIGURED`, provider RetStatus), never a 500; the active driver is read from `sms.provider` at call time
 
+### POST /api/v1/admin/email/test
+
+- Module: email - Prompt: B1.6
+- Auth: permission `settings.manage` (admin and super_admin via ROLE_PERMISSIONS)
+- Request: EmailTestBody (body; strict) — `to` (emailSchema, exactly one recipient)
+- Response: EmailTestResult (status 200) — `{ ok, providerMessageId?, errorCode? }`
+- Errors: 400 VALIDATION_FAILED, 401 UNAUTHENTICATED, 403 FORBIDDEN (missing permission), 429 RATE_LIMITED, 503 SERVICE_UNAVAILABLE (limiter down — failClosed)
+- Rate limit: 5 req / 60 s per user (key `admin.email.test`, failClosed)
+- Notes: renders the `generic` template and sends SYNCHRONOUSLY through the CURRENTLY configured SMTP transport (not queued); transport failures — including auth/config problems — come back as `ok: false` with `errorCode` (`SMTP_5xx`, `EAUTH`, `ECONNREFUSED`, …), never a 500; effective SMTP settings are `email.smtp.*` / `email.from.*` settings with `SMTP_*` env fallback, read at call time
+
+### Health checks (B0.2/B1.6)
+
+`GET /api/v1/health` aggregates indicators: `postgres` (critical, `select 1` with 2 s timeout) and `smtp` (non-critical, nodemailer `verify()` cached 60 s). Any critical indicator down → HTTP 503 with `status: 'down'`; only non-critical down → 200 with `status: 'degraded'`.
+
 ### GET /api/v1/dev/sms-outbox
 
 - Module: sms (dev tools) - Prompt: B1.5

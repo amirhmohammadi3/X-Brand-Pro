@@ -52,6 +52,18 @@ export const envSchema = z.object({
 
   // --- otp (B1.4) ---
   OTP_HMAC_SECRET: z.string().min(32, 'must be at least 32 characters'),
+
+  // --- email (B1.6): Mailpit defaults for dev; settings keys email.smtp.* /
+  // email.from.* (B1.1 registry) override these when they are set. ---
+  SMTP_HOST: z.string().default('localhost'),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
+  SMTP_SECURE: z
+    .string()
+    .default('false')
+    .transform((v) => v === 'true'),
+  SMTP_USER: z.string().default(''),
+  SMTP_PASSWORD: z.string().default(''),
+  SMTP_FROM: z.string().default('no-reply@localhost'),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -104,6 +116,12 @@ export type AppConfig = Readonly<{
   jwtAccessSecret: string;
   jwtRefreshSecret: string;
   otpHmacSecret: string;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser: string;
+  smtpPassword: string;
+  smtpFrom: string;
   accessTtlSec: number;
   refreshTtlDays: number;
   /** Refresh TTL expressed in seconds for cookie maxAge and expires_at math. */
@@ -131,6 +149,12 @@ export function buildAppConfig(env: Env): AppConfig {
     jwtAccessSecret: env.JWT_ACCESS_SECRET,
     jwtRefreshSecret: env.JWT_REFRESH_SECRET,
     otpHmacSecret: env.OTP_HMAC_SECRET,
+    smtpHost: env.SMTP_HOST,
+    smtpPort: env.SMTP_PORT,
+    smtpSecure: env.SMTP_SECURE,
+    smtpUser: env.SMTP_USER,
+    smtpPassword: env.SMTP_PASSWORD,
+    smtpFrom: env.SMTP_FROM,
     accessTtlSec: env.ACCESS_TTL_SEC,
     refreshTtlDays: env.REFRESH_TTL_DAYS,
     refreshTtlSec: env.REFRESH_TTL_DAYS * 86_400,

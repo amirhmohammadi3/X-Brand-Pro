@@ -27,7 +27,7 @@
 - [x] B1.3 🔴 هستهٔ احراز هویت: ثبت‌نام/ورود با یوزر و پسورد (argon2)، JWT، refresh چرخشی، نشست‌ها (2026-11-01)
 - [x] B1.4 🟡 موتور OTP (هش، انقضا، تلاش، rate limit) (2026-11-01)
 - [x] B1.5 🟡 درایور پیامک: interface + فیک + ملی‌پیامک + کاوه‌نگار (تنظیم از پنل) (2026-11-01)
-- [ ] B1.6 🟡 درایور ایمیل: interface + SMTP + قالب‌ها + صف
+- [x] B1.6 🟡 درایور ایمیل: interface + SMTP + قالب‌ها + صف (2026-11-01)
 - [ ] B1.7 🟡 ورود با OTP موبایل/ایمیل، تأیید ایمیل/موبایل، بازیابی رمز
 - [ ] B1.8 🟡 ورود با گوگل OAuth
 - [ ] B1.9 🟡 ماژول ذخیره‌سازی (interface + درایور دیسک، اعتبارسنجی فایل، thumbnail با sharp)
@@ -225,6 +225,8 @@
 
 - [ ] (B1.5) Verify the Melipayamak and Kavenegar drivers with REAL provider accounts before production (send one SMS each, confirm URLs/params/response parsing and the admin test endpoint's ok/errorCode paths). This sandbox has no provider credentials; both drivers were implemented from the providers' official REST docs/samples (see DECISIONS 2026-11-01).
 - [ ] (B1.5) With a Docker machine: run the worker (`pnpm --filter @app/api dev:worker`), set `sms.provider=fake`, call POST /admin/sms/test as super admin and watch the message appear at GET /dev/sms-outbox; observe one real BullMQ retry of a retryable provider error.
+- [ ] (B1.6) With a Docker machine: run `pnpm services:up`, call POST /admin/email/test as the seeded super admin and see the message in the Mailpit UI (http://localhost:8025) with the correct RTL layout for a fa recipient; observe one real BullMQ retry for a retryable SMTP error. The sandbox has no Docker — the Mailpit integration test skips automatically, everything else is green.
+- [ ] (B1.6) Verify the SMTP driver against a REAL provider (not Mailpit) before production — TLS, auth and connection pooling are confirmed by mocks/typecheck only.
 - [ ] (B0.2) Run `pnpm db:migrate` and `pnpm db:migrate:test` against a live Postgres (Docker) to verify the migration runner end to end. In this sandbox Docker is unavailable; verified instead: `db:generate` (no-DB diff), clean ECONNREFUSED failure path of the CLI, and 12 unit tests.
 - [ ] (B1.4) Apply migration `0003_woozy_revanche` (otp_codes) and observe one real `otp:cleanup` worker tick against live Redis/Postgres on a Docker machine; the repeatable scheduler registration is verified by unit/type checks only here.
 - [ ] (B1.3) Apply migration `0002_plain_jack_flag` and run `pnpm db:seed` (super-admin seeder) against a live Postgres on a machine with Docker; the seeder CLI was verified up to the DB boundary (env validation passes, first query fails with ECONNREFUSED here).

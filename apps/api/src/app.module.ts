@@ -9,7 +9,10 @@ import { DrizzleModule } from './db/drizzle.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CsrfOriginGuard } from './modules/auth/csrf-origin.guard.js';
 import { JwtAuthGuard } from './modules/auth/jwt-auth.guard.js';
+import { EmailModule } from './modules/email/email.module.js';
+import { SmtpHealthIndicator } from './modules/email/smtp.health.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { PostgresHealthIndicator } from './modules/health/postgres.health.js';
 import { OtpModule } from './modules/otp/otp.module.js';
 import { SettingsModule } from './modules/settings/settings.module.js';
 import { DevSmsModule, SmsModule } from './modules/sms/sms.module.js';
@@ -55,12 +58,13 @@ import { RedisModule } from './redis/redis.module.js';
         autoLogging: true,
       },
     }),
-    HealthModule,
+    HealthModule.withIndicators(PostgresHealthIndicator, SmtpHealthIndicator),
     SettingsModule,
     UsersModule,
     AuthModule,
     OtpModule,
     SmsModule,
+    EmailModule,
     // Dev-only raw outbox (B1.5): never registered in production — loadEnv
     // additionally rejects DEV_TOOLS=true with NODE_ENV=production at boot.
     ...(devSmsEnabled(process.env.NODE_ENV, process.env.DEV_TOOLS === 'true')

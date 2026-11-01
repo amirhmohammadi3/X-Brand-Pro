@@ -8,5 +8,6 @@ export * from './pagination.js';
 export * from './primitives.js';
 export * from './settings.js';
 export * from './sms.js';
+export * from './email.js';
 export * from './text.js';
 export * from './users.js';
