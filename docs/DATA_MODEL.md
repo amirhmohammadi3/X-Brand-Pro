@@ -124,3 +124,27 @@ Block format (one per table):
 - Indexes: `oauth_accounts_provider_uid_key` UNIQUE (provider, provider_user_id) — login lookup; `oauth_accounts_user_id_idx` btree — list/unlink and last-method checks.
 - Constraints: FK to users with cascade delete.
 - Retention: deleted on unlink or user deletion (hard rows, no soft delete).
+
+### media_files
+
+- Module: media - Prompt: B1.9
+- Purpose: every stored user file. Rows start unattached right after upload; the owning prompt's flow calls markAttached when the file is referenced by an entity. Orphans (unattached for > 24 h) are deleted hourly, files and rows.
+- Columns of note:
+  - id uuid PRIMARY KEY default gen_random_uuid()
+  - owner_user_id uuid NULL → users.id ON DELETE SET NULL
+  - kind media_kind enum NOT NULL — avatar | business_photo | review_photo | menu_photo | claim_document | message_attachment | verification_receipt
+  - key text NOT NULL UNIQUE — storage driver address `<kind>/<yyyy>/<mm>/<uuid>.webp` (images; `.pdf` for documents); also the public url path after MEDIA_PUBLIC_BASE
+  - thumb_key text NULL — 400 px WebP thumbnail key (null for raw documents)
+  - mime text NOT NULL — STORED (post-processing) mime: always image/webp for images; application/pdf for untouched documents
+  - size_bytes integer NOT NULL — bytes of the stored file
+  - width/height integer NULL — processed (post-orientation) pixel size, null for documents
+  - attached_at timestamptz NULL — set idempotently by markAttached(mediaId, ownerId)
+  - created_at timestamptz NOT NULL, deleted_at timestamptz NULL (SOFT delete before queued file removal)
+- Indexes: media_files_owner_created_idx (owner_user_id, created_at) btree; media_files_unattached_idx (attached_at) btree WHERE attached_at IS NULL — the hourly orphan scan
+- Constraints: FK owner_user_id → users on delete set null
+- Lifecycle jobs (worker process): `media` queue — `delete` jobs remove stored files of soft-deleted rows; repeatable `media:cleanup-orphans` (every hour) deletes rows unattached for more than 24 h together with their files
+
+### users (B1.9 additions)
+
+- Columns of note:
+  - avatar_media_id uuid NULL → media_files.id ON DELETE SET NULL — deferred FK added in migration 0005 (alongside media_files) so B1.10 can wire the profile avatar without another migration; null until a profile sets it

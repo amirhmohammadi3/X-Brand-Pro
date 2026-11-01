@@ -36,6 +36,13 @@
       "when": 1793502089079,
       "tag": "0004_ordinary_quicksilver",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793504509354,
+      "tag": "0005_goofy_odin",
+      "breakpoints": true
     }
   ]
 }

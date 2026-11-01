@@ -20,6 +20,7 @@ function row(overrides: Partial<UserRow> = {}): UserRow {
     status: overrides.status ?? 'active',
     displayName: overrides.displayName ?? null,
     locale: overrides.locale ?? null,
+    avatarMediaId: overrides.avatarMediaId ?? null,
     emailVerifiedAt: overrides.emailVerifiedAt ?? null,
     phoneVerifiedAt: overrides.phoneVerifiedAt ?? null,
     bannedUntil: overrides.bannedUntil ?? null,

@@ -30,7 +30,7 @@
 - [x] B1.6 🟡 درایور ایمیل: interface + SMTP + قالب‌ها + صف (2026-11-01)
 - [x] B1.7 🟡 ورود با OTP موبایل/ایمیل، تأیید ایمیل/موبایل، بازیابی رمز (2026-11-01)
 - [x] B1.8 🟡 ورود با گوگل OAuth (2026-11-01)
-- [ ] B1.9 🟡 ماژول ذخیره‌سازی (interface + درایور دیسک، اعتبارسنجی فایل، thumbnail با sharp)
+- [x] B1.9 🟡 ماژول ذخیره‌سازی (interface + درایور دیسک، اعتبارسنجی فایل، thumbnail با sharp) (2026-11-01)
 - [ ] B1.10 🟡 API پروفایل (me، ویرایش، آواتار، تغییر username، حذف حساب)
 - [ ] B1.11 🟡 audit log
 - [ ] B1.12 🟡 بک‌اند i18n: زبان‌ها، کلیدها/ترجمه‌ها، CRUD ادمین، کش، import/export
@@ -228,6 +228,8 @@
 - [ ] (B1.7) With a Docker machine: hand-walk the Done-when (DEV_TOOLS=true): request an SMS OTP, read it from GET /api/v1/dev/sms-outbox, verify and receive cookies; request an email OTP and read it in Mailpit. The HTTP tests simulate the worker inline (InlineQueuesService — see DECISIONS 2026-11-01); a live BullMQ worker tick is still unverified.
 - [ ] (B1.6) With a Docker machine: run `pnpm services:up`, call POST /admin/email/test as the seeded super admin and see the message in the Mailpit UI (http://localhost:8025) with the correct RTL layout for a fa recipient; observe one real BullMQ retry for a retryable SMTP error. The sandbox has no Docker — the Mailpit integration test skips automatically, everything else is green.
 - [ ] (B1.6) Verify the SMTP driver against a REAL provider (not Mailpit) before production — TLS, auth and connection pooling are confirmed by mocks/typecheck only.
+- [ ] (B1.9) With a Docker machine: run `pnpm services:up` + `pnpm db:migrate` to apply migration 0005 (media_kind enum, media_files, users.avatar_media_id) against a real Postgres — the migration SQL is generated and typechecked but was never executed here (no Docker); then hand-walk the Done-when: upload a phone photo with EXIF GPS, open the returned /media URL through the API port and confirm a WebP WITHOUT EXIF, and upload a .txt renamed .jpg to see 415/422. All HTTP-level behaviours are already covered by test/media.api.spec.ts with fakes.
+- [ ] (B1.9) F0.1 did not create the promised apps/web `/media/*` → API proxy rewrites (next.config.ts has no `rewrites()` yet). Add them when the web app first renders user media (F1.x) so `/media/<key>` resolves same-origin in dev; until then media urls only resolve through the API port directly.
 - [ ] (B0.2) Run `pnpm db:migrate` and `pnpm db:migrate:test` against a live Postgres (Docker) to verify the migration runner end to end. In this sandbox Docker is unavailable; verified instead: `db:generate` (no-DB diff), clean ECONNREFUSED failure path of the CLI, and 12 unit tests.
 - [ ] (B1.4) Apply migration `0003_woozy_revanche` (otp_codes) and observe one real `otp:cleanup` worker tick against live Redis/Postgres on a Docker machine; the repeatable scheduler registration is verified by unit/type checks only here.
 - [ ] (B1.3) Apply migration `0002_plain_jack_flag` and run `pnpm db:seed` (super-admin seeder) against a live Postgres on a machine with Docker; the seeder CLI was verified up to the DB boundary (env validation passes, first query fails with ECONNREFUSED here).

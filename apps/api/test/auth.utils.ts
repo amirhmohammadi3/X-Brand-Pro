@@ -51,6 +51,7 @@ export function makeMemoryUserRepo(
         status: 'active',
         displayName: params.displayName ?? null,
         locale: params.locale ?? null,
+        avatarMediaId: null,
         emailVerifiedAt: params.emailVerified ? new Date() : null,
         phoneVerifiedAt: params.phoneVerified ? new Date() : null,
         bannedUntil: null,

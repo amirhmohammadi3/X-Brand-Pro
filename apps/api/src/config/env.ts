@@ -69,6 +69,16 @@ export const envSchema = z.object({
   SMTP_USER: z.string().default(''),
   SMTP_PASSWORD: z.string().default(''),
   SMTP_FROM: z.string().default('no-reply@localhost'),
+
+  // --- storage / media (B1.9) ---
+  // Only `disk` exists now; S3-compatible drivers come with B11.x.
+  STORAGE_DRIVER: z.enum(['disk']).default('disk'),
+  STORAGE_ROOT: z.string().default('./data/uploads'),
+  // Public URL prefix stored in media URLs (`/media/<key>` in dev; a CDN or
+  // media host would set e.g. `https://media.example.com`).
+  MEDIA_PUBLIC_BASE: z.string().default('/media'),
+  // Decompression-bomb guard: refuse inputs whose declared pixels exceed this.
+  MAX_IMAGE_PIXELS: z.coerce.number().int().min(1_000_000).default(50_000_000),
 });
 
 export type Env = z.infer<typeof envSchema>;
@@ -127,6 +137,12 @@ export type AppConfig = Readonly<{
   smtpUser: string;
   smtpPassword: string;
   smtpFrom: string;
+  storageDriver: Env['STORAGE_DRIVER'];
+  /** Root directory the disk driver writes into (resolved at use time). */
+  storageRoot: string;
+  /** URL prefix stored in media urls, e.g. `/media` -> `/media/<key>`. */
+  mediaPublicBase: string;
+  maxImagePixels: number;
   accessTtlSec: number;
   refreshTtlDays: number;
   /** Refresh TTL expressed in seconds for cookie maxAge and expires_at math. */
@@ -162,6 +178,10 @@ export function buildAppConfig(env: Env): AppConfig {
     smtpUser: env.SMTP_USER,
     smtpPassword: env.SMTP_PASSWORD,
     smtpFrom: env.SMTP_FROM,
+    storageDriver: env.STORAGE_DRIVER,
+    storageRoot: env.STORAGE_ROOT,
+    mediaPublicBase: env.MEDIA_PUBLIC_BASE,
+    maxImagePixels: env.MAX_IMAGE_PIXELS,
     accessTtlSec: env.ACCESS_TTL_SEC,
     refreshTtlDays: env.REFRESH_TTL_DAYS,
     refreshTtlSec: env.REFRESH_TTL_DAYS * 86_400,

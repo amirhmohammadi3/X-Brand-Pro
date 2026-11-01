@@ -1,4 +1,13 @@
-import { index, pgEnum, pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import {
+  index,
+  pgEnum,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+  type AnyPgColumn,
+} from 'drizzle-orm/pg-core';
+import { mediaFiles } from './media.js';
 
 /** Database roles (guest is implicit for unauthenticated requests). */
 export const userRoleEnum = pgEnum('user_role', [
@@ -35,6 +44,12 @@ export const users = pgTable(
     phoneVerifiedAt: timestamp('phone_verified_at', { withTimezone: true }),
     // B1.3: temporary ban window (login + guard reject while it is in the future).
     bannedUntil: timestamp('banned_until', { withTimezone: true }),
+    // B1.9: avatar media row; null until B1.10 wires the profile avatar flow.
+    // FK is declared here, on the users side of the users<->media pair (the
+    // media side references users.id); drizzle resolves both lazily.
+    avatarMediaId: uuid('avatar_media_id').references((): AnyPgColumn => mediaFiles.id, {
+      onDelete: 'set null',
+    }),
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

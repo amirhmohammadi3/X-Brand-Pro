@@ -438,3 +438,22 @@ Entry format:
 - Reason: the prompt names jose for ID token verification; reusing it avoids a second JWT stack. Sealing state as a JWT reuses an existing secret and gives expiry/tamper detection for free. Injectable JWKS keeps tests deterministic per AGENTS.md §10.
 - Alternatives: a dedicated OAUTH_STATE_SECRET env (rejected: another secret to rotate for no security gain — the payload is stateless and short-lived), google-auth-library (heavy, pulls gRPC; jose already covers verification), verifying via the tokeninfo endpoint (extra network hop, deprecated pattern).
 - Assumptions/limits: real end-to-end login cannot be verified without real Google credentials (and Google is commonly unreachable from Iranian servers — the reason the feature ships disabled and 404s until an admin enables it). Settings keys `oauth.google.enabled/clientId/clientSecret` were NOT registered by B1.1 as the prompt assumed — B1.8 registered them itself (see PROGRESS Follow-ups).
+
+## 2026-11-01 — B1.9 image stack: sharp 0.35.5, file-type 22.3.0 (ESM via dynamic import), multer 2.5.0
+
+- Prompt: B1.9
+- Decision: Pinned sharp 0.35.5, file-type 22.3.0, multer 2.5.0 (+ @types/multer 2.3.0 dev) in apps/api. Images are processed as `sharp(buffer, { autoOrient: true, limitInputPixels: MAX_IMAGE_PIXELS })` → `.resize(2560, 2560, { fit: 'inside', withoutEnlargement: true })` → `.webp({ quality: 82 })`, thumbnail `.resize(400, 400, { fit: 'inside', withoutEnlargement: true })` q75. `autoOrient: true` replaces the prompt's `.rotate()` form — the current sharp docs (v0.35 constructor API) expose EXIF orientation handling as the constructor option `autoOrient`; the output is identical (orientation applied, tag not needed). Metadata stripping is sharp's documented DEFAULT ("The default behaviour, when withMetadata is not used, is to strip all metadata") — no withMetadata call exists anywhere in the pipeline.
+- Reason: exact-pinned current stables per AGENTS.md 2 (npm registry, 2026-11-01): sharp 0.35.5 (ESM+CJS builds), file-type 22.3.0, multer 2.5.0 (post-2.2.0 security line, `@nestjs/platform-express` 12.3.2 compatible).
+- Alternatives: file-type 16.5.4 (last CJS line, 2022 — rejected, not current and missing modern formats' checks); imagemin/jimp (slower, weaker format support); streaming through busboy manually (reimplementing multer).
+- Notes/assumptions:
+  - file-type 22 is ESM-only while @app/api is CJS: the media service uses `await import('file-type')` (true dynamic import). On the runtime Node line this resolves through require(esm) (unflagged since Node 22.12) or native dynamic import; vitest executes it natively. TypeScript needs a one-file ambient shim `apps/api/src/types/file-type.d.ts` because the api tsconfig chain uses `moduleResolution: "Node"` which cannot read exports-only type maps — remove the shim when the chain moves to node16/nodenext/bundler.
+  - Serving route placement: `GET /media/<key>` must live OUTSIDE `/api/v1` while upload/delete stay inside. `setGlobalPrefix('api/v1', { exclude })` therefore excludes only GET `media/{*splat}` routes (path-to-regexp v8 named wildcard) — a string-based exclude would strip the prefix from POST/DELETE too.
+  - Multipart field order is unreliable, so "check kind before buffering" is approximated as documented in the prompt: multer caps at the largest per-kind limit (15 MB), MediaService enforces the exact per-kind cap (413) right after parsing. Nest maps multer `LIMIT_FILE_SIZE` to 413 natively.
+  - Disk driver writes are atomic (temp file + rename in the same directory), keys are re-validated on EVERY driver call, and the media serving route computes a stable ETag from key+size (keys embed a fresh uuid, so content is immutable).
+
+## 2026-11-01 — B1.9 storage keys use UTC <yyyy>/<mm> partitions
+
+- Prompt: B1.9
+- Decision: media keys are `<kind>/<yyyy>/<mm>/<uuid>.webp` with the date taken from UTC at upload time.
+- Reason: the prompt specifies `<kind>/<yyyy>/<mm>/<uuid>` but no timezone; UTC keeps keys deterministic regardless of the server timezone (AGENTS.md: timestamps are stored in UTC), and the uuid makes collisions impossible.
+- Alternatives: Asia/Tehran partitions (align buckets with business-local time but make keys depend on host TZ settings), flat uuid-only keys (no sharding-friendly layout).

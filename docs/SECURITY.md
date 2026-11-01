@@ -51,6 +51,27 @@ Format: where each secret lives and how to rotate it. Never write real values.
 
 Format: one row per upload kind: allowed types, max size, processing, storage path, who can upload, who can read.
 
+Filled by B1.9 (`POST /api/v1/media/upload`); attaching to entities adds the owner checks of the prompt that owns the entity (e.g. B2.7 for business photos).
+
+| Kind                 | Allowed (magic bytes)      | Max size | Processing                                                               | Storage key                                    | Who can upload                                        | Who can read                     |
+| -------------------- | -------------------------- | -------- | ------------------------------------------------------------------------ | ---------------------------------------------- | ----------------------------------------------------- | -------------------------------- |
+| avatar               | jpeg, png, webp, avif      | 2 MB     | re-encode WebP q82, strip metadata, autoOrient, <=2560 px + 400 px thumb | avatar/yyyy/mm/<uuid>.webp                     | any authenticated user                                | public via /media                |
+| business_photo       | jpeg, png, webp, avif      | 10 MB    | same                                                                     | business_photo/yyyy/mm/<uuid>.webp             | owner/admin/super_admin (B2.7 adds attach-time check) | public via /media                |
+| review_photo         | jpeg, png, webp, avif      | 10 MB    | same                                                                     | review_photo/yyyy/mm/<uuid>.webp               | any authenticated user                                | public via /media                |
+| menu_photo           | jpeg, png, webp, avif      | 10 MB    | same                                                                     | menu_photo/yyyy/mm/<uuid>.webp                 | any authenticated user                                | public via /media                |
+| claim_document       | jpeg, png, webp, avif, pdf | 15 MB    | images re-encoded; PDF stored UNTOUCHED, never served inline             | claim_document/yyyy/mm/<uuid>.{webp,pdf}       | any authenticated user                                | private (moderation flow only)   |
+| message_attachment   | jpeg, png, webp, avif, pdf | 10 MB    | same as claim_document                                                   | message_attachment/yyyy/mm/<uuid>.{webp,pdf}   | any authenticated user                                | private (chat participants only) |
+| verification_receipt | jpeg, png, webp, avif, pdf | 10 MB    | same as claim_document                                                   | verification_receipt/yyyy/mm/<uuid>.{webp,pdf} | any authenticated user                                | private (moderation flow only)   |
+
+Hard rules enforced by the media module (B1.9):
+
+- The client mime type and file name are NEVER trusted: the real type comes from magic bytes (file-type 22.3.0). A text file renamed `.jpg` → 422; SVG (scriptable) and GIF are rejected outright; a PDF for an image-only kind → 415.
+- Decompression bombs: sharp `limitInputPixels` = `MAX_IMAGE_PIXELS` (default 50 M px) rejects oversized declared canvases → 422.
+- All metadata (EXIF incl. GPS) is stripped on re-encode; orientation is APPLIED (autoOrient) so the visual result is upright without the tag.
+- Files are stored with random server-side uuid names under `STORAGE_ROOT`; keys are validated on every driver call (`..`, backslash, absolute → rejected) and resolved inside the root.
+- `GET /media/<key>` serves ONLY public kinds (avatar, business_photo, review_photo, menu_photo) and returns 404 for private kinds' keys, deleted rows and traversal keys. Private documents get `Content-Disposition: attachment` from their owning endpoints (B2.9/B5.x), never inline rendering here.
+- Deletion is a soft delete + queued file removal (3 attempts); unattached uploads are reaped after 24 h.
+
 ## 5. Threat notes
 
 Short notes of known risks and the mitigation implemented, one bullet each, with the prompt ID.
@@ -168,3 +189,9 @@ Short notes of known risks and the mitigation implemented, one bullet each, with
 - **Identity resolution**: linking by email happens ONLY when Google reports `email_verified=true`; unverified-email logins create a standalone account WITHOUT an email (no account-takeover via unverified claims). Banned/blocked accounts are rejected at link and login time.
 - **Last login method**: unlinking is refused with 422 `LAST_LOGIN_METHOD` when the user has no password, no verified email/phone and no other linked account.
 - **Availability**: Google endpoints are commonly unreachable from Iranian servers (no VPN policy), so the feature ships DISABLED (`oauth.google.enabled=false`) and returns 404 until an admin explicitly enables it with credentials; the rest of the platform never depends on it.
+
+## 2h. Media policy (B1.9)
+
+- `POST /api/v1/media/upload`: 30 req / 3600 s per user (key `media.upload`), failClosed (Redis down → 503, no open window).
+- `GET /media/<key>`: public, no limiter (immutable CDN-style caching headers; keys are unguessable uuids).
+- Upload payloads never touch disk before validation: multer memory storage with a hard cap of the largest per-kind limit (15 MB), per-kind caps enforced right after (413).

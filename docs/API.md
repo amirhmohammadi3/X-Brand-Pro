@@ -332,3 +332,32 @@ All under `/api/v1/auth`. Tokens travel in httpOnly cookies (`at` access JWT, `r
 - Response: 204 no content
 - Errors: 401 unauthenticated, 404 unknown/foreign id, 422 `LAST_LOGIN_METHOD` when it is the caller's only login method (no password, no verified email/phone, no other linked account)
 - Rate limit: global default per ip/user
+
+## Media (B1.9)
+
+### POST /api/v1/media/upload
+
+- Module: media - Prompt: B1.9
+- Auth: any authenticated user (bearer or cookie)
+- Request: multipart/form-data — `file` (binary; multer memory storage, hard cap = the largest per-kind limit) + `kind` field (mediaKindSchema; validated server-side because multipart field order is not reliable)
+- Response: UploadMediaResponse (status 201) — `{ id, kind, url, thumbUrl, mime, sizeBytes, width, height }`; urls are `MEDIA_PUBLIC_BASE/<key>` (default `/media/<key>`)
+- Errors: 400 VALIDATION_FAILED (unknown `kind`), 401 UNAUTHENTICATED, 403 FORBIDDEN (`business_photo` requires owner/admin/super_admin until B2.7), 413 PAYLOAD_TOO_LARGE (per-kind cap; also multer's LIMIT_FILE_SIZE → 413), 415 UNSUPPORTED_MEDIA_TYPE (valid magic bytes of a disallowed type, e.g. GIF, PDF-for-avatar), 422 UNPROCESSABLE (no magic bytes — text renamed .jpg, SVG — corrupt image, or decompression bomb), 429 RATE_LIMITED, 503 SERVICE_UNAVAILABLE (limiter down — failClosed)
+- Processing: file-type 22.3.0 magic-byte sniffing (client mime/name never trusted); images re-encoded with sharp 0.35.5 (`autoOrient`, `limitInputPixels` = MAX_IMAGE_PIXELS, ALL metadata stripped, fit-inside 2560 px without enlargement, WebP q82) + 400 px thumbnail (WebP q75); `claim_document` / `message_attachment` PDFs stored untouched (never served inline)
+- Rate limit: 30 req / 3600 s per user (key `media.upload`, failClosed)
+
+### DELETE /api/v1/media/:id
+
+- Module: media - Prompt: B1.9
+- Auth: owner of the file or admin/super_admin
+- Response: `{ deleted: true }` (status 200)
+- Errors: 401 UNAUTHENTICATED, 403 FORBIDDEN (not yours), 404 NOT_FOUND (unknown id or already deleted), 422 UNPROCESSABLE (id is not a uuid)
+- Notes: SOFT delete (deleted_at) — the physical files (main + thumb) are removed asynchronously by a `media` queue job (worker process, 3 attempts); immediate session/role effects none
+
+### GET /media/<key> (public serving, NOT under /api/v1)
+
+- Module: media - Prompt: B1.9
+- Auth: none (public; the key namespace IS the authorization) — `@Public()`, served outside the API prefix via a GET-only global-prefix exclude
+- Response: raw bytes streamed from the storage driver (envelope bypassed via @RawResponse)
+- Headers: `Content-Type` = stored mime (image/webp for processed images), `Cache-Control: public, max-age=31536000, immutable`, `ETag` (sha256 of key+size, 304 on If-None-Match), `Accept-Ranges: bytes`, `X-Content-Type-Options: nosniff`, `Content-Disposition: inline`
+- Range: single-range `bytes=start-end|start-|-suffix` → 206 + `Content-Range`; malformed/out-of-bounds → 416 with `Content-Range: bytes */<size>`
+- Errors: 404 NOT_FOUND for unknown keys, deleted rows, path-traversal keys (`..`, `\`, leading `/`) and — deliberately — every PRIVATE kind (`claim_document`, `verification_receipt`, `message_attachment`): those are served later by the authorized endpoints of the prompts that own them

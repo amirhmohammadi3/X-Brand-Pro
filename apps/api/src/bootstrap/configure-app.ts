@@ -1,6 +1,7 @@
 import {
   type INestApplication,
   Logger,
+  RequestMethod,
   ValidationPipe as NestValidationPipe,
 } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
@@ -60,8 +61,17 @@ export function configureApp(app: NestExpressApplication): INestApplication {
     exposedHeaders: ['X-Request-Id', 'Retry-After'],
   });
 
-  // Global prefix — health lives under it too (per prompt B0.1).
-  app.setGlobalPrefix('api/v1');
+  // Global prefix — health lives under it too (per prompt B0.1). Media
+  // serving (B1.9) is intentionally OUTSIDE the prefix: urls stay stable as
+  // `/media/<key>`. Only GET routes are excluded — the upload/delete
+  // controller keeps the normal /api/v1/media/* paths. path-to-regexp v8
+  // needs a named wildcard (`*splat`) to cover nested keys.
+  app.setGlobalPrefix('api/v1', {
+    exclude: [
+      { path: 'media/{*splat}', method: RequestMethod.GET },
+      { path: 'media', method: RequestMethod.GET },
+    ],
+  });
 
   // Pino HTTP logging is attached via LoggerModule.forRoot in app.module.ts.
   app.useLogger(app.get(PinoLogger));
