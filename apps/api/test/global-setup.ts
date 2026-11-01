@@ -7,7 +7,12 @@
 export function setup(): void {
   process.env.NODE_ENV = process.env.NODE_ENV ?? 'test';
   process.env.API_PORT = process.env.API_PORT ?? '4100';
-  process.env.PUBLIC_WEB_URL = process.env.PUBLIC_WEB_URL ?? 'http://localhost:3100';
+  // Tests always use the :3100 origin (every spec's `ORIGIN` constant + the
+  // CSRF guard compare against it). The dev .env ships PUBLIC_WEB_URL=:3000
+  // for the web app; `??` would let that leak into tests and break every
+  // cookie-authenticated unsafe request with a CSRF mismatch. Override
+  // unconditionally so the test world is self-consistent.
+  process.env.PUBLIC_WEB_URL = 'http://localhost:3100';
   process.env.DATABASE_URL =
     process.env.DATABASE_URL ?? 'postgres://app:app_dev_password@localhost:5432/app_test';
   process.env.TEST_DATABASE_URL =
