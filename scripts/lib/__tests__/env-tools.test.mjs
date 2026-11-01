@@ -71,16 +71,17 @@ export const OTHER = z.object({
 
 describe('check-secrets scanner (I1.1)', () => {
   it('flags private keys, sk- tokens, AKIA ids and hex secret assignments with line numbers', () => {
-    // Credential-shaped literals are built at runtime so this test file
-    // itself never contains a string the scanner would flag.
+    // Credential-shaped literals are built at runtime where possible; the
+    // two literals below are inline `fake-secret` fixtures so the scanner
+    // exempts them while the assertions still exercise the patterns.
     const PRIVATE_KEY_HEADER = ['-----BEGIN ', 'RSA PRIVATE KEY', '-----'].join('');
     const AWS_ID = ['AKIA', 'IOSFODNN', '7EXAMPLE'].join('');
     const content = [
       `const a = "${PRIVATE_KEY_HEADER}";`,
       'clean line',
-      'const key = "sk-abcdefghijklmnopqrstuvwx";',
+      'const key = "sk-abcdefghijklmnopqrstuvwx";', // fake-secret — scanner fixture
       `aws_id = "${AWS_ID}"`,
-      'const db_password = "aabbccddeeff00112233445566778899aabbccdd"',
+      'const db_password = "aabbccddeeff00112233445566778899aabbccdd"', // fake-secret — scanner fixture
     ].join('\n');
     const findings = scanContent(content);
     assert.equal(findings.length, 4);
