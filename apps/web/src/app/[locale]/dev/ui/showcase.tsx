@@ -26,6 +26,7 @@ import {
   Icons,
 } from '../../../../components/ui';
 import { Inbox, RefreshCw, Plus, Star, AlertTriangle } from '../../../../components/ui/icons';
+import { FormPlayground } from './form-playground';
 
 /**
  * The component gallery rendered inside /dev/ui (F1.3). Every base UI Kit
@@ -280,6 +281,11 @@ export function DevUiShowcase() {
           </Text>
           <Text size="xs">Text ریز (xs).</Text>
         </Card>
+      </section>
+
+      {/* Forms (F1.4) */}
+      <section>
+        <FormPlayground />
       </section>
     </div>
   );

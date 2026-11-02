@@ -23,3 +23,6 @@ export { Text, type TextProps } from './text';
 export { VisuallyHidden, type VisuallyHiddenProps } from './visually-hidden';
 export { DirIcon, type DirIconProps } from './dir-icon';
 export * as Icons from './icons';
+
+// Form UI Kit (F1.4) — form components + the Zod form hook.
+export * from './form';

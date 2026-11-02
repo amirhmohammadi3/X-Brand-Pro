@@ -180,5 +180,77 @@
       "inputLabel": "Your rating",
       "star": "{value} stars"
     }
+  },
+  "validation": {
+    "required": "This field is required.",
+    "email": "Enter a valid email address.",
+    "phone": "Enter a valid phone number.",
+    "min": "Must be at least {min} characters.",
+    "max": "Must be at most {max} characters.",
+    "password": "Password must be at least {min} characters and include letters and numbers.",
+    "username": "Username must be {min}-{max} characters: letters, numbers, underscore.",
+    "match": "The two values do not match."
+  },
+  "form": {
+    "required": "(required)",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "passwordStrength": {
+      "label": "Password strength",
+      "0": "Very weak",
+      "1": "Weak",
+      "2": "Fair",
+      "3": "Good",
+      "4": "Strong"
+    },
+    "characterCount": "{count} of {max} characters",
+    "otp": {
+      "label": "Verification code",
+      "description": "Enter the {length}-digit code."
+    },
+    "fileDropzone": {
+      "drop": "Drag files here or click to browse",
+      "dropSingle": "Drag a file here or click to browse",
+      "accepted": "Accepted: {types}",
+      "tooLarge": "{name} is too large (max {max}).",
+      "remove": "Remove {name}",
+      "preview": "Preview of {name}"
+    },
+    "copy": {
+      "copy": "Copy",
+      "copied": "Copied"
+    },
+    "errorSummary": {
+      "title": "Please fix the following:",
+      "link": "Go to {label}"
+    },
+    "playground": {
+      "title": "Form playground",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "password": "Password",
+      "otp": "Verification code",
+      "bio": "Bio",
+      "role": "Role",
+      "rolePlaceholder": "Select a role",
+      "roleOwner": "Business owner",
+      "roleStaff": "Staff",
+      "roleCustomer": "Customer",
+      "agree": "I accept the terms",
+      "agreeDesc": "You must accept the terms to continue.",
+      "contactPref": "Preferred contact method",
+      "contactSms": "SMS",
+      "contactEmail": "Email",
+      "contactCall": "Phone call",
+      "newsletter": "Send me the newsletter",
+      "newsletterDesc": "Occasional updates; unsubscribe anytime.",
+      "files": "Attachments",
+      "referral": "Referral code",
+      "submit": "Submit",
+      "injectServerError": "Inject server error",
+      "reset": "Reset",
+      "statesTitle": "Disabled & readonly states"
+    }
   }
 }

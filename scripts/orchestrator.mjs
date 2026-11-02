@@ -453,15 +453,16 @@ function cmdStatus() {
   );
 }
 
-function cmdAcquire() {
+function cmdAcquire(force = false) {
   const s = readState();
-  if (lockIsFresh()) {
+  if (!force && lockIsFresh()) {
     const lock = readLock();
     console.log(
       JSON.stringify(
         {
           action: 'skip',
           reason: 'previous run still active (lock is fresh and/or pid alive)',
+          hint: 'If you are sure no other turn is running, retry with `acquire --force`.',
           lock,
           current_phase: s.current_phase,
           status: s.status,
@@ -471,6 +472,21 @@ function cmdAcquire() {
       ),
     );
     process.exit(0);
+  }
+  // --force (or stale lock): clear any existing lock before acquiring.
+  if (existsSync(LOCK_FILE)) {
+    const old = readLock();
+    try {
+      unlinkSync(LOCK_FILE);
+    } catch {
+      /* ignore */
+    }
+    if (old) {
+      appendLog(
+        s,
+        `cleared previous lock (pid ${old.pid}, acquired ${old.acquired_at}) on forced acquire`,
+      );
+    }
   }
   // If the current phase is already completed, advance first.
   if (s.status === 'completed') {
@@ -633,7 +649,7 @@ switch (cmd) {
     cmdStatus();
     break;
   case 'acquire':
-    cmdAcquire();
+    cmdAcquire(rest.includes('--force'));
     break;
   case 'release':
     cmdRelease(rest[0]);
