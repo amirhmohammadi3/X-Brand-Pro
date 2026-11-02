@@ -251,6 +251,45 @@
       "injectServerError": "Inject server error",
       "reset": "Reset",
       "statesTitle": "Disabled & readonly states"
+    },
+    "overlay": {
+      "close": "Close",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "dragHandle": "Drag handle"
+    },
+    "confirm": {
+      "title": "Are you sure?",
+      "description": "This action cannot be undone."
+    },
+    "toast": {
+      "close": "Close notification",
+      "success": "Success",
+      "error": "Error",
+      "info": "Information"
+    },
+    "table": {
+      "empty": "No results found.",
+      "loading": "Loading…",
+      "error": "Failed to load data.",
+      "retry": "Retry",
+      "sortAscending": "Sort ascending",
+      "sortDescending": "Sort descending",
+      "unsort": "Clear sort",
+      "rowsSelected": "{count} row(s) selected",
+      "selectRow": "Select row",
+      "selectAll": "Select all rows"
+    },
+    "pagination": {
+      "previous": "Previous page",
+      "next": "Next page",
+      "page": "Page {page} of {total}",
+      "pageLabel": "Page {page}",
+      "current": "Current page"
+    },
+    "stat": {
+      "increase": "Increased",
+      "decrease": "Decreased"
     }
   }
 }

@@ -251,6 +251,45 @@
       "injectServerError": "تزریق خطای سرور",
       "reset": "بازنشانی",
       "statesTitle": "حالت‌های غیرفعال و فقط‌خواندنی"
+    },
+    "overlay": {
+      "close": "بستن",
+      "cancel": "انصراف",
+      "confirm": "تأیید",
+      "dragHandle": "دسته کشیدن"
+    },
+    "confirm": {
+      "title": "مطمئن هستید؟",
+      "description": "این عمل قابل بازگشت نیست."
+    },
+    "toast": {
+      "close": "بستن اعلان",
+      "success": "موفق",
+      "error": "خطا",
+      "info": "اطلاعات"
+    },
+    "table": {
+      "empty": "نتیجه‌ای یافت نشد.",
+      "loading": "در حال بارگذاری…",
+      "error": "بارگذاری داده ناموفق بود.",
+      "retry": "تلاش دوباره",
+      "sortAscending": "مرتب‌سازی صعودی",
+      "sortDescending": "مرتب‌سازی نزولی",
+      "unsort": "حذف مرتب‌سازی",
+      "rowsSelected": "{count} ردیف انتخاب شد",
+      "selectRow": "انتخاب ردیف",
+      "selectAll": "انتخاب همه ردیف‌ها"
+    },
+    "pagination": {
+      "previous": "صفحه قبل",
+      "next": "صفحه بعد",
+      "page": "صفحه {page} از {total}",
+      "pageLabel": "صفحه {page}",
+      "current": "صفحه فعلی"
+    },
+    "stat": {
+      "increase": "افزایش",
+      "decrease": "کاهش"
     }
   }
 }
