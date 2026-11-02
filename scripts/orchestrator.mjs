@@ -382,12 +382,14 @@ function readPromptText(promptId) {
       ? path.join(PROMPTS_ROOT, 'P-I-Q')
       : path.join(PROMPTS_ROOT, track);
   if (!existsSync(trackDir)) return null;
-  // Find the phase file containing this prompt id
-  // Phase files are named like phase-00-01.md, phase-02-03.md, phase-04.md, phase-05-06.md...
+  // Find the phase file containing this prompt id.
+  // Phase files are named like phase-00-01.md, phase-02-03.md, phase-04.md,
+  // phase-05-06.md... and phase-12-security-tests.md / phase-12-perf-ops.md /
+  // phase-12-deploy-final.md (the phase-12 split files carry a textual suffix).
   const phaseNum = parseInt(promptId.match(/\d+/)?.[0] ?? '0', 10);
   const candidates = [];
   for (const f of readdirSafe(trackDir)) {
-    const m = f.match(/^phase-(\d+)(?:-(\d+))?\.md$/);
+    const m = f.match(/^phase-(\d+)(?:-(\d+))?[a-z0-9-]*\.md$/i);
     if (!m) continue;
     const lo = parseInt(m[1], 10);
     const hi = m[2] ? parseInt(m[2], 10) : lo;
@@ -536,18 +538,31 @@ function cmdRelease(flag) {
   const s = readState();
   const ok = flag === '--ok';
   const fail = flag === '--fail';
-  if (!ok && !fail) {
-    console.error('orchestrator release: must pass --ok or --fail');
+  const pause = flag === '--pause';
+  if (!ok && !fail && !pause) {
+    console.error('orchestrator release: must pass --ok | --fail | --pause');
     process.exit(2);
   }
   if (ok) {
     s.status = 'completed';
     s.completed_at = nowIso();
     appendLog(s, `phase ${s.current_phase} completed`);
-  } else {
+  } else if (fail) {
     s.status = 'failed';
     appendLog(s, `phase ${s.current_phase} marked failed`);
+  } else {
+    // --pause: the cron-fired agent ran out of time mid-phase. Drop the lock
+    // so the next cron can pick the phase up, but keep status='pending' and
+    // prompts_done intact so work resumes where it left off (no restart).
+    s.status = 'pending';
+    appendLog(
+      s,
+      `phase ${s.current_phase} paused mid-phase (${(s.prompts_done ?? []).length}/${
+        currentPhaseDef(s)?.prompts.length ?? '?'
+      } prompts done); lock released for next cron`,
+    );
   }
+  if (pause) s.started_at = null;
   writeState(s);
   clearLock();
   console.log(
@@ -630,7 +645,7 @@ switch (cmd) {
     cmdLog(rest.join(' '));
     break;
   default:
-    console.log(`Usage: node scripts/orchestrator.mjs <status|acquire|release --ok|--fail|next|log "message">
+    console.log(`Usage: node scripts/orchestrator.mjs <status|acquire|release --ok|--fail|--pause|next|log "message">
 State file: ${STATE_FILE}
 Lock file:  ${LOCK_FILE}
 Prompts:    ${PROMPTS_ROOT}

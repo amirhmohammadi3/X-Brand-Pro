@@ -35,7 +35,7 @@ function requirePool(): Pool {
   if (!pool) throw new Error('test pool not initialised (db unavailable?)');
   return pool;
 }
-import { databaseAvailable, prepareTestDatabase } from './db.js';
+import { databaseAvailable, databaseReachableSync, prepareTestDatabase } from './db.js';
 import { FakeRedis } from './fake-redis.js';
 import { createUser, loginAs, makeMemorySessionRepo, makeMemoryUserRepo } from './auth.utils.js';
 
@@ -127,7 +127,7 @@ async function waitForRows(action: string, count: number, timeoutMs = 3000): Pro
   throw new Error(`audit rows for "${action}" did not reach ${count} in time`);
 }
 
-describe.skipIf(!process.env.TEST_DATABASE_URL)(
+describe.skipIf(!databaseReachableSync())(
   'GET /api/v1/admin/audit-logs permission matrix (B1.11)',
   () => {
     it('401 anonymous, 403 user and moderator, 200 admin and super_admin', async () => {
@@ -173,7 +173,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)(
   },
 );
 
-describe.skipIf(!process.env.TEST_DATABASE_URL)('audit rows for auth flows (B1.11)', () => {
+describe.skipIf(!databaseReachableSync())('audit rows for auth flows (B1.11)', () => {
   it('writes auth.register, auth.login and auth.logout rows with the actor', async () => {
     // register → auth.register (controller emits via AuthService.register)
     await request(app.getHttpServer())
@@ -235,7 +235,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('audit rows for auth flows (B1.1
   });
 });
 
-describe.skipIf(!process.env.TEST_DATABASE_URL)('settings audit + secret safety (B1.11)', () => {
+describe.skipIf(!databaseReachableSync())('settings audit + secret safety (B1.11)', () => {
   it('records settings.update with the actor, redacts secrets, never stores plaintext', async () => {
     await createUser(app, { username: 'settings_admin1', password: 'Sup3rSecret!', role: 'admin' });
     const admin = await loginAs(app, 'settings_admin1', 'Sup3rSecret!');
@@ -302,7 +302,7 @@ describe.skipIf(!process.env.TEST_DATABASE_URL)('settings audit + secret safety 
   });
 });
 
-describe.skipIf(!process.env.TEST_DATABASE_URL)('audit list pagination + filters (B1.11)', () => {
+describe.skipIf(!databaseReachableSync())('audit list pagination + filters (B1.11)', () => {
   it('pages deterministically and honours action prefix/entity filters', async () => {
     // Seed 25 rows directly (created_at identical is the interesting case).
     for (let i = 0; i < 25; i += 1) {

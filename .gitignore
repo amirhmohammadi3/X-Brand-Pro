@@ -41,3 +41,6 @@ yarn-error.log*
 .phase-state.json
 .phase-lock
 .phase-orchestrator.log
+
+# phase runner logs (local only)
+.phase-logs/
