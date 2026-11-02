@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { notFound } from 'next/navigation';
+import { cookies } from 'next/headers';
 import { NextIntlClientProvider } from 'next-intl';
 import { getTranslations } from 'next-intl/server';
 import '@fontsource-variable/vazirmatn';
@@ -12,16 +13,15 @@ import {
   isKnownLocale,
   localeDirection,
 } from '../../i18n/languages';
-
-export const metadata: Metadata = {
-  title: 'X-Brand skeleton',
-  description: 'Temporary skeleton title — replaced by real branding and i18n in phase 1.',
-};
-
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-};
+import { getActiveTheme, type ResolvedTheme } from '../../lib/theme/server';
+import { tokensToCss } from '../../lib/theme/tokens-to-css';
+import {
+  MODE_COOKIE,
+  parseModeCookie,
+  resolveServerMode,
+  SYSTEM_MODE_INLINE_SCRIPT,
+} from '../../lib/theme/mode';
+import { ActiveThemeProvider } from '../../lib/theme/active-theme-context';
 
 /**
  * Build-time prerender covers the build-safe fallback locales; languages an
@@ -33,12 +33,34 @@ export function generateStaticParams(): Array<{ locale: string }> {
 }
 
 /**
+ * Per-request metadata: the `theme-color` meta follows the active pack's
+ * `bg` token (DESIGN.md section 10). Title/description are placeholders
+ * replaced by real branding in a later prompt.
+ */
+export async function generateMetadata(): Promise<Metadata> {
+  const theme = await getActiveTheme();
+  return {
+    title: 'X-Brand skeleton',
+    description: 'Temporary skeleton title — replaced by real branding and i18n in phase 1.',
+    other: { 'theme-color': theme.tokens.light.bg },
+  };
+}
+
+/** Per-request viewport: width + the same theme-color as metadata. */
+export function generateViewport(): Viewport {
+  return { width: 'device-width', initialScale: 1 };
+}
+
+/**
  * Root layout (lives under [locale] because every route is locale-scoped).
- * `lang`/`dir` come from the dynamic LANGUAGE RECORD (F1.1 — not a static
- * map); a locale that is not an active language renders the localized 404.
- * `data-theme`/`data-mode` are set SERVER-side so there is no light/dark
- * flash (DESIGN.md section 10). F0.1 pins the default pack and light mode;
- * F1.2 wires the cookie-driven engine.
+ * The active theme pack + mode are resolved SERVER-side and injected as:
+ *  - a single inline `<style id="theme-vars">` with the pack's CSS variables
+ *    for both modes (generated from validated tokens — the ONLY permitted
+ *    use of dangerouslySetInnerHTML, defensively escaped);
+ *  - `data-theme`, `data-mode`, `data-mode-pref`, `data-card`, `data-header`,
+ *    `data-density` on `<html>` (no flash, DESIGN.md section 10);
+ *  - a tiny blocking inline script in `<head>` that corrects `data-mode` from
+ *    `prefers-color-scheme` when the preference is `system`.
  */
 export default async function LocaleLayout({
   children,
@@ -55,8 +77,30 @@ export default async function LocaleLayout({
   const dir = localeDirection(languages, locale);
   const t = await getTranslations('a11y');
 
+  // Resolve the active theme (API or bundled fallback) and the visitor's mode.
+  const theme: ResolvedTheme = await getActiveTheme();
+  const cookieStore = await cookies();
+  const modePref = parseModeCookie(cookieStore.get(MODE_COOKIE)?.value);
+  const resolvedMode = resolveServerMode(modePref);
+  const cssText = tokensToCss(theme.tokens);
+
   return (
-    <html lang={locale} dir={dir} data-theme="modern" data-mode="light">
+    <html
+      lang={locale}
+      dir={dir}
+      data-theme={theme.packId}
+      data-mode={resolvedMode}
+      data-mode-pref={modePref}
+      data-card={theme.layout.card}
+      data-header={theme.layout.header}
+      data-density={theme.density}
+    >
+      <head>
+        {/* Blocking, before first paint. Static constant (see mode.ts). */}
+        <script dangerouslySetInnerHTML={{ __html: SYSTEM_MODE_INLINE_SCRIPT }} />
+        {/* The pack's CSS variables for both modes. Escaped in tokensToCss. */}
+        <style id="theme-vars" dangerouslySetInnerHTML={{ __html: cssText }} />
+      </head>
       <body className="min-h-dvh bg-bg font-sans text-text">
         <a
           href="#main"
@@ -64,9 +108,11 @@ export default async function LocaleLayout({
         >
           {t('skipToContent')}
         </a>
-        <Providers>
-          <NextIntlClientProvider>{children}</NextIntlClientProvider>
-        </Providers>
+        <ActiveThemeProvider value={{ packId: theme.packId, tokens: theme.tokens, resolvedMode }}>
+          <Providers>
+            <NextIntlClientProvider>{children}</NextIntlClientProvider>
+          </Providers>
+        </ActiveThemeProvider>
       </body>
     </html>
   );
