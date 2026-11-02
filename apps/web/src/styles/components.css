@@ -1,0 +1,60 @@
+/*
+ * Component styles that depend on pack tokens (F1.3).
+ *
+ * Most component look comes from semantic Tailwind utilities (bg-surface,
+ * text-muted, …), but a few rules need raw CSS: the `[data-card]` pack-driven
+ * card look (DESIGN.md section 8), the reduced-motion skeleton shimmer and the
+ * rating star clip. These read the runtime `--tok-*` / `--shadow-*` variables
+ * injected by the inline `<style id="theme-vars">` block, so they follow the
+ * active pack and mode with no re-render.
+ */
+
+/* Card look follows the pack's `data-card` attribute on the card root. */
+[data-card='outlined'] {
+  border: 1px solid var(--tok-border-subtle);
+  box-shadow: var(--shadow-sm);
+}
+[data-card='elevated'] {
+  border: 1px solid var(--tok-border-subtle);
+  box-shadow: var(--shadow-md);
+}
+[data-card='bordered'] {
+  border: 1px solid var(--tok-border);
+  box-shadow: var(--shadow-sm);
+}
+
+/*
+ * Skeleton shimmer. Honors `prefers-reduced-motion`: the pulse becomes a
+ * static surface-alt so there is no motion at all (DESIGN.md section 12).
+ */
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--tok-surface-alt) 0%,
+    var(--tok-surface) 50%,
+    var(--tok-surface-alt) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-pulse 1.5s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+    background: var(--tok-surface-alt);
+  }
+}
+@keyframes skeleton-pulse {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* Rating half-star clip overlay (uses logical inset so RTL just works). */
+.rating-half {
+  inset-inline-start: 0;
+  width: 50%;
+  overflow: hidden;
+}

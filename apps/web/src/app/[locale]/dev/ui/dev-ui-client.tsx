@@ -5,22 +5,21 @@ import type { ThemePackId } from '@app/contracts';
 import { tokensToCss } from '../../../../lib/theme/tokens-to-css';
 import { getBundledPack } from '../../../../lib/theme/server';
 import { useThemeMode } from '../../../../lib/theme/use-theme-mode';
+import { DevUiShowcase } from './showcase';
 
 interface DevUiClientProps {
   packs: Array<{ id: ThemePackId; name: string }>;
   initialPack: ThemePackId;
   initialMode: 'light' | 'dark';
-  colorKeys: string[];
 }
 
 /**
- * Client half of /dev/ui (F1.2). The toolbar picks a pack and a mode; the
- * override is honored ONLY on this dev route by rewriting the `<style
+ * Client half of /dev/ui (F1.2 + F1.3). The toolbar picks a pack and a mode;
+ * the override is honored ONLY on this dev route by rewriting the `<style
  * id="theme-vars">` contents and the `<html data-*>` attributes client-side.
- * Leaving the route restores the server-rendered active theme on next
- * navigation.
+ * The body is the component gallery (DevUiShowcase).
  */
-export function DevUiClient({ packs, initialPack, initialMode, colorKeys }: DevUiClientProps) {
+export function DevUiClient({ packs, initialPack, initialMode }: DevUiClientProps) {
   const [packId, setPackId] = useState<ThemePackId>(initialPack);
   const { mode, resolvedMode, setMode } = useThemeMode({
     pref: initialMode,
@@ -48,12 +47,9 @@ export function DevUiClient({ packs, initialPack, initialMode, colorKeys }: DevU
     window.history.replaceState({}, '', url.toString());
   }, [packId, resolvedMode]);
 
-  const activeTokens = getBundledPack(packId).tokens;
-  const modeColors = resolvedMode === 'dark' ? activeTokens.dark : activeTokens.light;
-
   return (
     <main id="main" className="min-h-dvh bg-bg px-6 py-8 text-text">
-      <h1 className="mb-2 text-3xl font-bold">/dev/ui — پیش‌نمایش تم</h1>
+      <h1 className="mb-2 text-3xl font-bold">/dev/ui — پیش‌نمایش تم و کامپوننت‌ها</h1>
       <p className="mb-6 text-muted">
         این صفحه فقط در توسعه در دسترس است. پک و حالت را از نوار ابزار عوض کنید.
       </p>
@@ -93,86 +89,7 @@ export function DevUiClient({ packs, initialPack, initialMode, colorKeys }: DevU
         <span className="ms-auto text-xs text-muted">resolved: {resolvedMode}</span>
       </div>
 
-      {/* Color swatches */}
-      <section className="mb-8">
-        <h2 className="mb-3 text-xl font-semibold">رنگ‌ها ({resolvedMode})</h2>
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-          {colorKeys.map((key) => {
-            const value = (modeColors as Record<string, string>)[key];
-            return (
-              <div
-                key={key}
-                className="overflow-hidden rounded-md border border-border-subtle bg-surface"
-              >
-                <div className="h-16 w-full" style={{ background: value }} aria-hidden />
-                <div className="p-2">
-                  <div className="text-xs font-semibold">{key}</div>
-                  <div className="font-mono text-[10px] text-muted">{value}</div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {/* Type scale */}
-      <section className="mb-8">
-        <h2 className="mb-3 text-xl font-semibold">مقیاس تایپوگرافی</h2>
-        <div className="space-y-1 rounded-md border border-border-subtle bg-surface p-4">
-          <p className="text-xs">xs 12px — متن کمکی</p>
-          <p className="text-sm">sm 14px — متن ثانویه</p>
-          <p className="text-base">base 16px — متن اصلی بدنه</p>
-          <p className="text-lg">lg 18px — زیرعنوان</p>
-          <p className="text-xl">xl 20px — عنوان بخش</p>
-          <p className="text-2xl">2xl 24px — عنوان کارت</p>
-          <p className="text-3xl">3xl 30px — عنوان صفحه</p>
-          <p className="text-4xl">4xl 36px — عنوان اصلی</p>
-          <p className="text-5xl">5xl 48px — قهرمان (hero)</p>
-        </div>
-      </section>
-
-      {/* Radii */}
-      <section className="mb-8">
-        <h2 className="mb-3 text-xl font-semibold">شعاع‌ها</h2>
-        <div className="flex flex-wrap gap-4 rounded-md border border-border-subtle bg-surface p-4">
-          {(['sm', 'md', 'lg', 'full'] as const).map((r) => (
-            <div key={r} className="text-center">
-              <div
-                className="mx-auto mb-1 h-16 w-16 bg-primary"
-                style={{
-                  borderRadius: r === 'full' ? '9999px' : `${activeTokens.radius[r]}px`,
-                }}
-                aria-hidden
-              />
-              <div className="text-xs text-muted">
-                {r}: {activeTokens.radius[r]}px
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Shadows */}
-      <section>
-        <h2 className="mb-3 text-xl font-semibold">سایه‌ها ({resolvedMode})</h2>
-        <div className="flex flex-wrap gap-6 rounded-md border border-border-subtle bg-surface p-6">
-          {(['sm', 'md', 'lg'] as const).map((s) => (
-            <div key={s} className="text-center">
-              <div
-                className="mx-auto mb-2 h-16 w-16 rounded-md bg-surface"
-                style={{
-                  boxShadow:
-                    resolvedMode === 'dark'
-                      ? activeTokens.shadow.dark[s]
-                      : activeTokens.shadow.light[s],
-                }}
-                aria-hidden
-              />
-              <div className="text-xs text-muted">{s}</div>
-            </div>
-          ))}
-        </div>
-      </section>
+      <DevUiShowcase />
     </main>
   );
 }

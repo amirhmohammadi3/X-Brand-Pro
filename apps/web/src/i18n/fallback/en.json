@@ -168,5 +168,17 @@
       "subtitle": "Map-based search, real user reviews and online reservations — all in one place"
     },
     "cta": "Get started"
+  },
+  "ui": {
+    "loading": "Loading",
+    "retry": "Retry",
+    "close": "Close",
+    "error": "Something went wrong",
+    "requestId": "Request id: {id}",
+    "rating": {
+      "label": "Rating {value} of {max}",
+      "inputLabel": "Your rating",
+      "star": "{value} stars"
+    }
   }
 }

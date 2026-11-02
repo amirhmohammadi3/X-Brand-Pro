@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '../styles/components.css';
 
 /*
  * Semantic token model (DESIGN.md section 1). The actual --tok-* values are
@@ -45,7 +46,8 @@
 
 /*
  * color-scheme so native controls (scrollbars, form controls) match the mode
- * (DESIGN.md section 10). Set per-mode by attribute.
+ * (DESIGN.md section 10). Set per-mode by attribute. The `[data-card]` pack
+ * look lives in src/styles/components.css.
  */
 :root,
 [data-mode='light'] {
@@ -53,24 +55,6 @@
 }
 [data-mode='dark'] {
   color-scheme: dark;
-}
-
-/*
- * Card style follows the pack's `data-card` attribute (DESIGN.md section 8):
- * outlined (hairline border, no shadow), elevated (soft shadow), bordered
- * (hairline gold border, generous whitespace).
- */
-[data-card='outlined'] {
-  border: 1px solid var(--tok-border-subtle);
-  box-shadow: var(--shadow-sm);
-}
-[data-card='elevated'] {
-  border: 1px solid var(--tok-border-subtle);
-  box-shadow: var(--shadow-md);
-}
-[data-card='bordered'] {
-  border: 1px solid var(--tok-border);
-  box-shadow: var(--shadow-sm);
 }
 
 /*

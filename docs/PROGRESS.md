@@ -38,7 +38,7 @@
 - [x] B1.14 🟡 API مدیریت کاربران (لیست، مسدود، تغییر نقش) (2026-11-01)
 - [x] F1.1 🟡 i18n فرانت (next-intl با پیام‌ها از API، جهت هر زبان، ارقام فارسی، تقویم شمسی) (2026-11-01)
 - [x] F1.2 🔴 موتور توکن طراحی: تم‌های ۳‌گانه + روشن/تیره، بدون پرش در SSR (2026-11-02)
-- [ ] F1.3 🟡 UI Kit پایه (Button، Card، Badge، Avatar، Rating، Skeleton، EmptyState…)
+- [x] F1.3 🟡 UI Kit پایه (Button، Card، Badge، Avatar، Rating، Skeleton، EmptyState…) (2026-11-02)
 - [ ] F1.4 🟡 UI Kit فرم‌ها (Input، Select، Checkbox، Switch، Textarea، اعتبارسنجی)
 - [ ] F1.5 🟡 UI Kit همپوشان و داده (Modal، Drawer، Toast، Tabs، Dropdown، Tooltip، Table، Pagination)
 - [ ] F1.6 🟡 کامپوننت‌های تقویم شمسی و ورودی عدد فارسی
