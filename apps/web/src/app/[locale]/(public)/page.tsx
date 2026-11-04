@@ -1,5 +1,5 @@
 import { getLocale, getTranslations } from 'next-intl/server';
-import { createFormatters } from '../../lib/format';
+import { createFormatters } from '../../../lib/format';
 
 /**
  * Home placeholder (F0.1, keys reworked in F1.1 to `home.hero.*`). Proves the

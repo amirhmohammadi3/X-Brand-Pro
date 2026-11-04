@@ -1,5 +1,6 @@
 import { defineConfig } from 'vitest/config';
 import swc from 'unplugin-swc';
+import { fileURLToPath } from 'node:url';
 
 // Two test environments coexist (F1.3):
 //  - `node` (default) for pure-logic specs under test (any .spec.ts);
@@ -16,6 +17,13 @@ export default defineConfig({
     testTimeout: 30000,
     include: ['test/**/*.spec.ts', 'test/**/*.test.ts', 'test/**/*.test.tsx'],
     setupFiles: ['./test/setup.ts'],
+  },
+  resolve: {
+    alias: {
+      // Mirror the tsconfig `@/*` → `./src/*` path so component specs that
+      // import via `@/…` resolve at runtime (F1.7).
+      '@/': fileURLToPath(new URL('./src/', import.meta.url)).replace(/\/+$/, '/'),
+    },
   },
   plugins: [
     // TSX/components need emitDecoratorMetadata-free JSX; SWC keeps transforms

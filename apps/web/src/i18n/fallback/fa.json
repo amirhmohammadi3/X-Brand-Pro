@@ -381,5 +381,74 @@
       "second": "ثانیه",
       "time": "زمان"
     }
+  },
+  "brand": {
+    "name": "ایکس‌برند",
+    "tagline": "رزرو خدمات محلی معتبر"
+  },
+  "nav": {
+    "home": "خانه",
+    "search": "جستجو",
+    "dashboard": "داشبورد",
+    "businesses": "کسب‌وکارها",
+    "bookings": "رزروها",
+    "admin": "مدیریت",
+    "account": "حساب",
+    "login": "ورود",
+    "register": "ثبت‌نام",
+    "menu": "منو",
+    "openMenu": "باز کردن منو",
+    "closeMenu": "بستن منو"
+  },
+  "footer": {
+    "explore": "کاوش",
+    "account": "حساب",
+    "legal": "قوانین",
+    "terms": "قوانین و مقررات",
+    "privacy": "حریم خصوصی",
+    "copyright": "© {year} {brand}. تمام حقوق محفوظ است.",
+    "language": "زبان"
+  },
+  "layout": {
+    "skipToContent": "پرش به محتوا",
+    "mainContent": "محتوای اصلی",
+    "back": "بازگشت",
+    "backToHome": "بازگشت به خانه",
+    "loading": "در حال بارگذاری…",
+    "retry": "تلاش دوباره",
+    "errorTitle": "خطایی رخ داد",
+    "errorDescription": "خطای غیرمنتظره‌ای رخ داد. لطفاً دوباره تلاش کنید.",
+    "forbiddenTitle": "دسترسی مجاز نیست",
+    "forbiddenDescription": "شما اجازه مشاهده این صفحه را ندارید.",
+    "notFoundTitle": "صفحه پیدا نشد",
+    "notFoundDescription": "صفحه‌ای که دنبال آن بودید وجود ندارد.",
+    "loginRequired": "برای ادامه وارد شوید",
+    "loginRequiredDescription": "برای دسترسی به این صفحه باید وارد شوید."
+  },
+  "auth": {
+    "menu": {
+      "account": "حساب",
+      "profile": "پروفایل",
+      "sessions": "نشست‌ها",
+      "dashboard": "داشبورد",
+      "admin": "پنل مدیریت",
+      "logout": "خروج",
+      "login": "ورود",
+      "register": "ثبت‌نام"
+    }
+  },
+  "theme": {
+    "mode": {
+      "light": "روشن",
+      "dark": "تاریک",
+      "system": "سیستم",
+      "toggle": "تغییر تم"
+    }
+  },
+  "language": {
+    "switcher": {
+      "label": "زبان",
+      "current": "زبان فعلی"
+    }
   }
 }

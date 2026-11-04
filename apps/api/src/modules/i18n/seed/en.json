@@ -381,5 +381,74 @@
       "second": "Second",
       "time": "Time"
     }
+  },
+  "brand": {
+    "name": "X-Brand",
+    "tagline": "Book trusted local services"
+  },
+  "nav": {
+    "home": "Home",
+    "search": "Search",
+    "dashboard": "Dashboard",
+    "businesses": "Businesses",
+    "bookings": "Bookings",
+    "admin": "Admin",
+    "account": "Account",
+    "login": "Log in",
+    "register": "Register",
+    "menu": "Menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
+  },
+  "footer": {
+    "explore": "Explore",
+    "account": "Account",
+    "legal": "Legal",
+    "terms": "Terms",
+    "privacy": "Privacy",
+    "copyright": "© {year} {brand}. All rights reserved.",
+    "language": "Language"
+  },
+  "layout": {
+    "skipToContent": "Skip to content",
+    "mainContent": "Main content",
+    "back": "Back",
+    "backToHome": "Back to home",
+    "loading": "Loading…",
+    "retry": "Retry",
+    "errorTitle": "Something went wrong",
+    "errorDescription": "An unexpected error occurred. Please try again.",
+    "forbiddenTitle": "Access denied",
+    "forbiddenDescription": "You don't have permission to view this page.",
+    "notFoundTitle": "Page not found",
+    "notFoundDescription": "The page you were looking for doesn't exist.",
+    "loginRequired": "Log in to continue",
+    "loginRequiredDescription": "You need to be logged in to access this page."
+  },
+  "auth": {
+    "menu": {
+      "account": "Account",
+      "profile": "Profile",
+      "sessions": "Sessions",
+      "dashboard": "Dashboard",
+      "admin": "Admin panel",
+      "logout": "Log out",
+      "login": "Log in",
+      "register": "Register"
+    }
+  },
+  "theme": {
+    "mode": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "toggle": "Toggle theme"
+    }
+  },
+  "language": {
+    "switcher": {
+      "label": "Language",
+      "current": "Current language"
+    }
   }
 }

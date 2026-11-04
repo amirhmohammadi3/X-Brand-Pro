@@ -90,6 +90,12 @@ export async function apiFetch<TData, TBody = unknown>(
     if (response.status === 204) {
       return { data: undefined as TData };
     }
+    // A 401 means the access token expired — notify the auth provider so it
+    // flips to anonymous immediately (F1.7). Server-side (no `window`) is a
+    // no-op; server callers handle 401 via their own try/catch.
+    if (response.status === 401 && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('auth:expired'));
+    }
     const raw: unknown = await safeJson(response);
     const parsed = errorEnvelopeSchema.safeParse(raw);
     if (parsed.success) {
