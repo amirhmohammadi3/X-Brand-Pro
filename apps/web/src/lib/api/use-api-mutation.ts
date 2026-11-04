@@ -13,7 +13,7 @@ import { isApiRequestError, type ApiRequestError } from './errors';
  * for parametric messages (`validation.min` with `{ min: 8 }`).
  *
  * `useApiMutation().fieldErrors(error)` extracts this map so form hooks
- * (`useZodForm.setServerErrors`) can stamp the errors onto the right fields.
+ * (`useZodForm.setServerErrors`) can stamp the errors onto the right fields. // rtl-ok
  */
 export type FieldIssue = string | { key: string; params?: Record<string, unknown> };
 

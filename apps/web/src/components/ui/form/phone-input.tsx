@@ -19,7 +19,7 @@ export interface PhoneInputProps
  *  - stores a canonical E.164 value (`+989123456789`);
  *  - displays the national form (`0912 345 6789`) with Persian digits in the
  *    `fa` locale and ASCII digits elsewhere;
- *  - always renders `dir="ltr"` so the number reads left-to-right even inside
+ *  - always renders `dir="ltr"` so the number reads left-to-right even inside // rtl-ok
  *    an RTL page;
  *  - accepts pasted Persian/Arabic digits and normalizes them on change and
  *    on blur (so a half-typed value can be edited before committing).
@@ -78,7 +78,7 @@ export const PhoneInput = forwardRef<HTMLInputElement, PhoneInputProps>(function
       onBlur={handleBlur}
       className={cn(
         'w-full rounded-md border border-border bg-surface px-3 text-sm text-text',
-        'h-[var(--control-h)] placeholder:text-text-subtle text-left',
+        'h-[var(--control-h)] placeholder:text-text-subtle text-start',
         'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
         'disabled:opacity-50 disabled:cursor-not-allowed',
         'aria-[invalid=true]:border-danger',

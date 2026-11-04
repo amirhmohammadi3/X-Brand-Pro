@@ -26,3 +26,33 @@ export * as Icons from './icons';
 
 // Form UI Kit (F1.4) — form components + the Zod form hook.
 export * from './form';
+
+// Overlay + data UI Kit (F1.5).
+export { Modal, useModalState, type ModalProps, type ModalSize } from './modal';
+export { Drawer, type DrawerProps, type DrawerSide } from './drawer';
+export { BottomSheet, type BottomSheetProps, type BottomSheetSnap } from './bottom-sheet';
+export {
+  ConfirmDialog,
+  useConfirm,
+  type ConfirmDialogProps,
+  type ConfirmOptions,
+} from './confirm-dialog';
+export { Popover, type PopoverProps } from './popover';
+export {
+  DropdownMenu,
+  DropdownItem,
+  DropdownSeparator,
+  DropdownCheckboxItem,
+  DropdownSub,
+  DropdownLabel,
+} from './dropdown-menu';
+export { Tooltip, type TooltipProps } from './tooltip';
+export { Tabs, type TabsProps } from './tabs';
+export { Accordion, type AccordionProps, type AccordionItem } from './accordion';
+export { ToastProvider, useToast, type ToastVariant, type ToastOptions } from './toast';
+export { DataTable, type DataTableColumn, type DataTableProps, type SortDir } from './data-table';
+export { Pagination, type PaginationProps } from './pagination';
+export { Breadcrumbs, type BreadcrumbsProps, type BreadcrumbItem } from './breadcrumbs';
+export { Stat, type StatProps } from './stat';
+export { Timeline, type TimelineProps, type TimelineItem } from './timeline';
+export { CopyButton, type CopyButtonProps } from './copy-button';

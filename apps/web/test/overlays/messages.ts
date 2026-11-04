@@ -1,0 +1,78 @@
+// F1.5 test messages — en + fa with overlay/confirm/toast/table/pagination/stat.
+export const en = {
+  validation: { required: 'required', email: 'email', phone: 'phone' },
+  ui: {
+    loading: 'Loading',
+    retry: 'Retry',
+    close: 'Close',
+    error: 'Something went wrong',
+    requestId: 'Request id: {id}',
+  },
+  errors: { validation_failed: 'Invalid' },
+  form: {
+    overlay: { close: 'Close', cancel: 'Cancel', confirm: 'Confirm', dragHandle: 'Drag handle' },
+    confirm: { title: 'Are you sure?', description: 'This action cannot be undone.' },
+    toast: { close: 'Close notification', success: 'Success', error: 'Error', info: 'Information' },
+    table: {
+      empty: 'No results found.',
+      loading: 'Loading…',
+      error: 'Failed to load data.',
+      retry: 'Retry',
+      sortAscending: 'Sort ascending',
+      sortDescending: 'Sort descending',
+      unsort: 'Clear sort',
+      rowsSelected: '{count} row(s) selected',
+      selectRow: 'Select row',
+      selectAll: 'Select all rows',
+    },
+    pagination: {
+      previous: 'Previous page',
+      next: 'Next page',
+      page: 'Page {page} of {total}',
+      pageLabel: 'Page {page}',
+      current: 'Current page',
+    },
+    stat: { increase: 'Increased', decrease: 'Decreased' },
+    copy: { copy: 'Copy', copied: 'Copied' },
+  },
+  common: { save: 'Save' },
+};
+
+export const fa = {
+  validation: { required: 'الزامی', email: 'ایمیل', phone: 'تلفن' },
+  ui: {
+    loading: 'بارگذاری',
+    retry: 'تلاش',
+    close: 'بستن',
+    error: 'خطا',
+    requestId: 'درخواست: {id}',
+  },
+  errors: { validation_failed: 'نامعتبر' },
+  form: {
+    overlay: { close: 'بستن', cancel: 'انصراف', confirm: 'تأیید', dragHandle: 'دسته' },
+    confirm: { title: 'مطمئن هستید؟', description: 'این عمل قابل بازگشت نیست.' },
+    toast: { close: 'بستن اعلان', success: 'موفق', error: 'خطا', info: 'اطلاعات' },
+    table: {
+      empty: 'نتیجه‌ای نیست.',
+      loading: 'در حال بارگذاری…',
+      error: 'خطا در بارگذاری.',
+      retry: 'تلاش دوباره',
+      sortAscending: 'صعودی',
+      sortDescending: 'نزولی',
+      unsort: 'حذف مرتب',
+      rowsSelected: '{count} ردیف انتخاب شد',
+      selectRow: 'انتخاب ردیف',
+      selectAll: 'انتخاب همه',
+    },
+    pagination: {
+      previous: 'صفحه قبل',
+      next: 'صفحه بعد',
+      page: 'صفحه {page} از {total}',
+      pageLabel: 'صفحه {page}',
+      current: 'صفحه فعلی',
+    },
+    stat: { increase: 'افزایش', decrease: 'کاهش' },
+    copy: { copy: 'کپی', copied: 'کپی شد' },
+  },
+  common: { save: 'ذخیره' },
+};

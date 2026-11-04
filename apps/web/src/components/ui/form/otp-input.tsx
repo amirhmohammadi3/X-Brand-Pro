@@ -34,7 +34,7 @@ export interface OtpInputProps {
  *  - pasting a full code fills as many cells as it can and focuses the cell
  *    after the last filled one;
  *  - Persian/Arabic digits are normalized to ASCII on input;
- *  - cells are always laid out left-to-right (`dir="ltr"`) so the digit
+ *  - cells are always laid out left-to-right (`dir="ltr"`) so the digit // rtl-ok
  *    order matches the code regardless of page direction;
  *  - errors are announced via an `aria-live="polite"` region and each cell is
  *    `aria-invalid` when an error is present;
