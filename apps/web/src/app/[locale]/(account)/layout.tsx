@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { headers } from 'next/headers';
 import { requireUser } from '../../../lib/auth/guard';
+import { VerificationBanner } from '../../../components/auth/verification-banner';
 import { AccountShell } from './account-shell';
 import { Forbidden } from '../../../components/layout/forbidden';
 
@@ -40,6 +41,9 @@ export default async function AccountLayout({ children }: { children: ReactNode 
   const user = decision.kind === 'allow' ? decision.user : null;
   return (
     <AccountShell initialUser={user} initialApiError={false}>
+      {/* F1.8: nudge while email AND phone are both unverified. Rendered
+          inside AccountShell so it can read the AuthProvider state. */}
+      <VerificationBanner />
       {children}
     </AccountShell>
   );

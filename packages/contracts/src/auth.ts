@@ -175,6 +175,10 @@ export const forgotPasswordBodySchema = z
   .strict();
 export type ForgotPasswordBody = z.infer<typeof forgotPasswordBodySchema>;
 
+/** Response of POST /auth/password/forgot — deliberately opaque (anti-enumeration). */
+export const forgotPasswordResultSchema = z.object({ ok: z.literal(true) }).strict();
+export type ForgotPasswordResult = z.infer<typeof forgotPasswordResultSchema>;
+
 /** Body of POST /auth/password/reset. */
 export const resetPasswordBodySchema = z
   .object({

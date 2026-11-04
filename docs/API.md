@@ -224,7 +224,7 @@ All under `/api/v1/auth`. Tokens travel in httpOnly cookies (`at` access JWT, `r
 - Module: auth (B1.7) - Prompt: B1.7
 - Auth: public
 - Request: ForgotPasswordBody (body; strict) — `identifier` (username, email or phone)
-- Response: `{ ok: true }` (status 200) — ALWAYS, regardless of account existence
+- Response: ForgotPasswordResult — `{ ok: true }` (status 200) — ALWAYS, regardless of account existence
 - Errors: 400 VALIDATION_FAILED, 422 OTP_RESEND_TOO_SOON (per-identifier 3/h cap), 429 RATE_LIMITED
 - Rate limit: 5 req / 1 h per ip (key `auth.password.forgot`, failClosed)
 - Notes: when the identifier matches a VERIFIED email (preferred) or VERIFIED phone, a `reset_password` code is sent (email template `reset-password`, SMS plain code); otherwise nothing is delivered with the same response

@@ -3,12 +3,15 @@ import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { BRAND } from '../../../lib/brand';
 import { Container } from '../../../components/layout/container';
+import { ToastProvider } from '../../../components/ui/toast';
 import { ArrowLeft } from 'lucide-react';
 
 /**
- * `(auth)` route group (F1.7). Centered card layout for login/register/
- * forgot/verify. A minimal header (brand mark only) and a back link; no
- * footer or mobile tab bar (keeps the auth focus tight).
+ * `(auth)` route group (F1.7, extended by F1.8). Centered card layout for
+ * login/register/forgot/verify. A minimal header (brand mark only) and a
+ * back link; no footer or mobile tab bar (keeps the auth focus tight). A
+ * ToastProvider is mounted here so auth flows can show success/failure
+ * toasts (e.g. reset-password completion).
  */
 export default async function AuthLayout({ children }: { children: ReactNode }) {
   const tBrand = await getTranslations('brand');
@@ -34,7 +37,9 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
         </Container>
       </header>
       <main id="main" className="flex flex-1 items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md">{children}</div>
+        <div className="w-full max-w-md">
+          <ToastProvider>{children}</ToastProvider>
+        </div>
       </main>
     </div>
   );

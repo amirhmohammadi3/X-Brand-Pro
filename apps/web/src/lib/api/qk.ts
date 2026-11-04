@@ -11,4 +11,8 @@ export const qk = {
   auth: {
     me: () => ['auth', 'me'] as const,
   },
+  /** Public settings blob (`GET /settings/public`), e.g. OAuth flags (F1.8). */
+  settings: {
+    public: () => ['settings', 'public'] as const,
+  },
 };
