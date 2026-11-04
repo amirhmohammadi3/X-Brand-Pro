@@ -9,7 +9,7 @@ export interface DropdownMenuProps {
   trigger: ReactNode;
   children: ReactNode;
   align?: 'start' | 'center' | 'end';
-  side?: 'top' | 'right' | 'bottom' | 'left';
+  side?: 'top' | 'right' | 'bottom' | 'left'; // rtl-ok
   className?: string;
 }
 

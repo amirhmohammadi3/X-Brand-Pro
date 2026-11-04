@@ -41,7 +41,7 @@
 - [x] F1.3 🟡 UI Kit پایه (Button، Card، Badge، Avatar، Rating، Skeleton، EmptyState…) (2026-11-02)
 - [x] F1.4 🟡 UI Kit فرم‌ها (Input، Select، Checkbox، Switch، Textarea، اعتبارسنجی) (2026-11-02)
 - [x] F1.5 🟡 UI Kit همپوشان و داده (Modal، Drawer، Toast، Tabs، Dropdown، Tooltip، Table، Pagination) (2026-11-04)
-- [ ] F1.6 🟡 کامپوننت‌های تقویم شمسی و ورودی عدد فارسی
+- [x] F1.6 🟡 کامپوننت‌های تقویم شمسی و ورودی عدد فارسی (2026-11-04)
 - [ ] F1.7 🟡 قالب اپ (هدر، فوتر، ناوبری موبایل، تغییر زبان/تم/حالت، layout هر route group)
 - [ ] F1.8 🟡 صفحات احراز هویت (ورود رمز/OTP، ثبت‌نام، فراموشی رمز، گوگل) + guard
 - [ ] F1.9 🟡 صفحات حساب (پروفایل، تنظیمات، نشست‌ها)

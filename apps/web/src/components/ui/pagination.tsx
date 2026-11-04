@@ -18,7 +18,7 @@ export interface PaginationProps {
 /**
  * `Pagination` (F1.5). Page buttons with Persian digits in the `fa` locale,
  * previous/next buttons whose icons follow the reading direction (in RTL the
- * "previous" chevron points right), `aria-current="page"` on the active
+ * "previous" chevron points right), `aria-current="page"` on the active  // rtl-ok
  * button, and a compact mobile layout.
  */
 export function Pagination({

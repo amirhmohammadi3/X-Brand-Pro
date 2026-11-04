@@ -56,3 +56,6 @@ export { Breadcrumbs, type BreadcrumbsProps, type BreadcrumbItem } from './bread
 export { Stat, type StatProps } from './stat';
 export { Timeline, type TimelineProps, type TimelineItem } from './timeline';
 export { CopyButton, type CopyButtonProps } from './copy-button';
+
+// Date + number UI Kit (F1.6) — Jalali/Gregorian calendar components.
+export * from './date';

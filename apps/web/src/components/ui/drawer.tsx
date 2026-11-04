@@ -25,7 +25,7 @@ export interface DrawerProps {
 
 /**
  * `Drawer` (F1.5). A side panel that slides in from the logical `end` edge by
- * default — right in LTR, left in RTL — so it always opens from the side the
+ * default — right in LTR, left in RTL — so it always opens from the side the  // rtl-ok
  * reading flow ends on. Use `side="start"` for the opposite edge.
  *
  * Built on Radix Dialog, so it inherits focus trap, ESC, scroll-lock and focus

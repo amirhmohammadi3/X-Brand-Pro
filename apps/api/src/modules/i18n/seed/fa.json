@@ -307,7 +307,8 @@
       "tl2Body": "پرداخت دریافت شد.",
       "tl3Time": "۲ روز پیش",
       "tl3Body": "حساب ایجاد شد.",
-      "copyDemo": "این کد را کپی کنید:"
+      "copyDemo": "این کد را کپی کنید:",
+      "dateTitle": "تاریخ و عدد"
     },
     "overlay": {
       "close": "بستن",
@@ -347,6 +348,38 @@
     "stat": {
       "increase": "افزایش",
       "decrease": "کاهش"
+    },
+    "number": {
+      "currencyUnit": "تومان",
+      "invalid": "یک عدد معتبر وارد کنید."
+    },
+    "date": {
+      "placeholder": "سال/ماه/روز",
+      "openCalendar": "باز کردن تقویم",
+      "prevMonth": "ماه قبل",
+      "nextMonth": "ماه بعد",
+      "today": "امروز",
+      "clear": "پاک کردن",
+      "selectDate": "انتخاب تاریخ",
+      "selected": "انتخاب شده",
+      "disabledDate": "غیرقابل انتخاب",
+      "weekdaysNarrow": ["ش", "ی", "د", "س", "چ", "پ", "ج"],
+      "weekStart": "شروع هفته: {day}",
+      "invalid": "یک تاریخ معتبر وارد کنید.",
+      "outOfRange": "تاریخ خارج از بازه است.",
+      "apply": "اعمال",
+      "cancel": "انصراف",
+      "startTime": "ساعت شروع",
+      "endTime": "ساعت پایان",
+      "startDate": "تاریخ شروع",
+      "endDate": "تاریخ پایان",
+      "year": "سال",
+      "month": "ماه",
+      "jumpToMonth": "رفتن به ماه",
+      "hour": "ساعت",
+      "minute": "دقیقه",
+      "second": "ثانیه",
+      "time": "زمان"
     }
   }
 }

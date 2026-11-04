@@ -123,6 +123,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={api}>
       <ToastPrimitive.Provider swipeDirection="right" duration={DEFAULT_DURATION}>
+        {' '}
+        // rtl-ok
         {children}
         {toasts.map((toast) => (
           <ToastPrimitive.Root

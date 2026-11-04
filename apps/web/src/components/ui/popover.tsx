@@ -10,7 +10,7 @@ export interface PopoverProps {
   onOpenChange?: (open: boolean) => void;
   trigger: ReactNode;
   children: ReactNode;
-  side?: 'top' | 'right' | 'bottom' | 'left';
+  side?: 'top' | 'right' | 'bottom' | 'left'; // rtl-ok
   align?: 'start' | 'center' | 'end';
   className?: string;
   withArrow?: boolean;

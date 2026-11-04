@@ -29,6 +29,7 @@ import { Inbox, RefreshCw, Plus, Star, AlertTriangle } from '../../../../compone
 import { ToastProvider } from '../../../../components/ui';
 import { FormPlayground } from './form-playground';
 import { OverlayPlayground } from './overlay-playground';
+import { DatePlayground } from './date-playground';
 
 /**
  * The component gallery rendered inside /dev/ui (F1.3). Every base UI Kit
@@ -294,6 +295,11 @@ export function DevUiShowcase() {
         {/* Overlays + data (F1.5) */}
         <section>
           <OverlayPlayground />
+        </section>
+
+        {/* Date + number (F1.6) */}
+        <section>
+          <DatePlayground />
         </section>
       </div>
     </ToastProvider>

@@ -78,11 +78,11 @@ export function Modal({
           }}
           className={cn(
             'fixed z-50 flex flex-col bg-surface text-text shadow-lg',
-            'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2',
+            'left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2', // rtl-ok
             'w-[calc(100%-2rem)] rounded-lg',
             SIZE_CLASS[size],
             'max-h-[85vh]',
-            'max-md:left-0 max-md:right-0 max-md:top-auto max-md:bottom-0',
+            'max-md:left-0 max-md:right-0 max-md:top-auto max-md:bottom-0', // rtl-ok
             'max-md:translate-x-0 max-md:translate-y-0',
             'max-md:w-full max-md:max-h-[90vh] max-md:rounded-b-none',
             'max-md:rounded-t-xl max-md:pb-[env(safe-area-inset-bottom)]',

@@ -7,7 +7,7 @@ import { cn } from '../../lib/cn';
 export interface TooltipProps {
   children: ReactNode;
   content: ReactNode;
-  side?: 'top' | 'right' | 'bottom' | 'left';
+  side?: 'top' | 'right' | 'bottom' | 'left'; // rtl-ok
   align?: 'start' | 'center' | 'end';
   delayMs?: number;
 }

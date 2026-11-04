@@ -307,7 +307,8 @@
       "tl2Body": "Payment received.",
       "tl3Time": "2 days ago",
       "tl3Body": "Account created.",
-      "copyDemo": "Copy this code:"
+      "copyDemo": "Copy this code:",
+      "dateTitle": "Date & number"
     },
     "overlay": {
       "close": "Close",
@@ -347,6 +348,38 @@
     "stat": {
       "increase": "Increased",
       "decrease": "Decreased"
+    },
+    "number": {
+      "currencyUnit": "Toman",
+      "invalid": "Enter a valid number."
+    },
+    "date": {
+      "placeholder": "yyyy/MM/dd",
+      "openCalendar": "Open calendar",
+      "prevMonth": "Previous month",
+      "nextMonth": "Next month",
+      "today": "Today",
+      "clear": "Clear",
+      "selectDate": "Select date",
+      "selected": "Selected",
+      "disabledDate": "Not selectable",
+      "weekdaysNarrow": ["S", "M", "T", "W", "T", "F", "S"],
+      "weekStart": "Week starts on {day}",
+      "invalid": "Enter a valid date.",
+      "outOfRange": "Date is out of range.",
+      "apply": "Apply",
+      "cancel": "Cancel",
+      "startTime": "Start time",
+      "endTime": "End time",
+      "startDate": "Start date",
+      "endDate": "End date",
+      "year": "Year",
+      "month": "Month",
+      "jumpToMonth": "Jump to month",
+      "hour": "Hour",
+      "minute": "Minute",
+      "second": "Second",
+      "time": "Time"
     }
   }
 }
