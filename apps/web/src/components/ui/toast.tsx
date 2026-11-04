@@ -122,9 +122,12 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 
   return (
     <ToastContext.Provider value={api}>
-      <ToastPrimitive.Provider swipeDirection="right" duration={DEFAULT_DURATION}>
-        {' '}
-        {/* rtl-ok */} {children}
+      <ToastPrimitive.Provider
+        // Radix's swipe gesture API takes a physical direction; the viewport itself uses logical placement.
+        swipeDirection="right" // rtl-ok
+        duration={DEFAULT_DURATION}
+      >
+        {children}
         {toasts.map((toast) => (
           <ToastPrimitive.Root
             key={toast.id}

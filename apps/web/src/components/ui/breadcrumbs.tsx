@@ -26,7 +26,8 @@ export function Breadcrumbs({ items, jsonLd = false, className }: BreadcrumbsPro
   const ld =
     jsonLd && items.length > 0
       ? {
-          '@context': 'https://schema.org',
+          // JSON-LD vocabulary IRI: structured data, never a runtime request.
+          '@context': 'https://schema.org', // external-ok
           '@type': 'BreadcrumbList',
           itemListElement: items.map((item, i) => ({
             '@type': 'ListItem',

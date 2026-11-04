@@ -6,7 +6,7 @@ import { Forbidden } from '../../../components/layout/forbidden';
 
 /** Extract the request pathname from headers (referer fallback). F1.8's
  * middleware will set `x-pathname` explicitly; until then we best-effort
- * parse the referer so the `next` redirect lands close to the right page. */
+ * parse the referer so the `next` redirect lands close to the correct page. */
 async function readPathname(): Promise<string> {
   const h = await headers();
   const explicit = h.get('x-pathname');
