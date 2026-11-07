@@ -12,24 +12,26 @@ The product name is defined in exactly one place — `packages/config/src/brand.
 
 This repository is **work in progress**, built phase-by-phase from the [prompt pack](https://github.com/amirhmohammadi3/X-Brand-Pro) (176 small prompts across 13 phases, 0→12). Progress is tracked in [`docs/PROGRESS.md`](./docs/PROGRESS.md) and the phase state machine in `scripts/orchestrator.mjs`.
 
-**Current phase:** 0 — skeleton & infrastructure ✅ **completed** (13/13 prompts). Next: phase 1 (settings, auth, i18n, theme engine, UI Kit). See [`docs/PROGRESS.md`](./docs/PROGRESS.md) for the prompt-by-prompt tracker.
+**Current phase:** 1 — base (settings, RBAC, auth, i18n, theme engine, UI Kit, account area) ✅ **completed** (25/25 prompts). Next: phase 2 (geography, business catalog, admin panel skeleton). The phase-1 e2e gate + live-DB "Done when" verification are deferred to a Docker machine (see [`docs/PROGRESS.md`](./docs/PROGRESS.md) Follow-ups). See [`docs/PROGRESS.md`](./docs/PROGRESS.md) for the prompt-by-prompt tracker.
 
-| Area                                                                                                                                            | State          |
-| ----------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Monorepo (pnpm workspaces + Turborepo, shared TS/ESLint/Prettier, Husky hooks)                                                                  | ✅ done (P0.1) |
-| Foundation files + brand.ts + guard scripts (`check:foundation`, `check:brand`)                                                                 | ✅ done (P0.2) |
-| `packages/contracts` (Zod, response envelope, error codes, pagination, Persian text utils)                                                      | ✅ done (P0.3) |
-| Dev Docker Compose (Postgres+PostGIS, Redis, Mailpit) + cross-platform `services.mjs`                                                           | ✅ done (I0.1) |
-| NestJS skeleton (config, health, logging, error filter, OpenAPI)                                                                                | ✅ done (B0.1) |
-| Drizzle ORM + migration runner + PostGIS extensions + test database                                                                             | ✅ done (B0.2) |
-| Redis module (ioredis), JSON cache, Redis-backed rate limiter + global guard                                                                    | ✅ done (B0.3) |
-| BullMQ queues + dedicated worker process + graceful shutdown                                                                                    | ✅ done (B0.4) |
-| Next.js 16 skeleton (Tailwind 4 tokens, RTL, locale routing, self-hosted variable fonts)                                                        | ✅ done (F0.1) |
-| Typed API client (contract-validated) + TanStack Query provider                                                                                 | ✅ done (F0.2) |
-| Test infrastructure (Vitest, Supertest, Playwright + axe — 198 tests green)                                                                     | ✅ done (Q0.1) |
-| GitHub Actions CI (verify chain + e2e job)                                                                                                      | ✅ done (I0.2) |
-| Phase 0 gate                                                                                                                                    | ✅ done (Q0.2) |
-| Phases 1–12 (auth, geography, search/map, reviews, messaging, reservations, owner dashboard, payments, AI, admin panel, video, security/deploy) | ⏳ queued      |
+| Area                                                                                                                                                    | State                     |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| Monorepo (pnpm workspaces + Turborepo, shared TS/ESLint/Prettier, Husky hooks)                                                                          | ✅ done (P0.1)            |
+| Foundation files + brand.ts + guard scripts (`check:foundation`, `check:brand`)                                                                         | ✅ done (P0.2)            |
+| `packages/contracts` (Zod, response envelope, error codes, pagination, Persian text utils)                                                              | ✅ done (P0.3)            |
+| Dev Docker Compose (Postgres+PostGIS, Redis, Mailpit) + cross-platform `services.mjs`                                                                   | ✅ done (I0.1)            |
+| NestJS skeleton (config, health, logging, error filter, OpenAPI)                                                                                        | ✅ done (B0.1)            |
+| Drizzle ORM + migration runner + PostGIS extensions + test database                                                                                     | ✅ done (B0.2)            |
+| Redis module (ioredis), JSON cache, Redis-backed rate limiter + global guard                                                                            | ✅ done (B0.3)            |
+| BullMQ queues + dedicated worker process + graceful shutdown                                                                                            | ✅ done (B0.4)            |
+| Next.js 16 skeleton (Tailwind 4 tokens, RTL, locale routing, self-hosted variable fonts)                                                                | ✅ done (F0.1)            |
+| Typed API client (contract-validated) + TanStack Query provider                                                                                         | ✅ done (F0.2)            |
+| Test infrastructure (Vitest, Supertest, Playwright + axe — 198 tests green)                                                                             | ✅ done (Q0.1)            |
+| GitHub Actions CI (verify chain + e2e job)                                                                                                              | ✅ done (I0.2)            |
+| Phase 0 gate                                                                                                                                            | ✅ done (Q0.2)            |
+| Phase 1 — settings, RBAC, password/OTP/Google auth, media, audit, i18n backend, theme packs, admin users, frontend i18n/theme/UI Kit/auth/account pages | ✅ done (B1.1–F1.9, I1.1) |
+| Phase 1 gate (lint/typecheck/build + 397 web tests green; e2e + live-DB verification deferred to Docker)                                                | ✅ done (Q1.1)            |
+| Phases 2–12 (geography, search/map, reviews, messaging, reservations, owner dashboard, payments, AI, admin panel, video, security/deploy)               | ⏳ queued                 |
 
 ---
 
