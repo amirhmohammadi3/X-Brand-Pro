@@ -44,7 +44,7 @@
 - [x] F1.6 🟡 کامپوننت‌های تقویم شمسی و ورودی عدد فارسی (2026-11-04)
 - [x] F1.7 🟡 قالب اپ (هدر، فوتر، ناوبری موبایل، تغییر زبان/تم/حالت، layout هر route group) (2026-11-04)
 - [x] F1.8 🟡 صفحات احراز هویت (ورود رمز/OTP، ثبت‌نام، فراموشی رمز، گوگل) + guard (2026-11-04)
-- [ ] F1.9 🟡 صفحات حساب (پروفایل، تنظیمات، نشست‌ها)
+- [x] F1.9 🟡 صفحات حساب (پروفایل، تنظیمات، نشست‌ها) (2026-11-07)
 - [x] I1.1 🟢 مدیریت env و secret + مستند (2026-11-01)
 - [ ] Q1.1 🟢 جمع‌بندی فاز ۱
 
@@ -221,11 +221,11 @@
 
 ## Follow-ups
 
-- [ ] (F1.9) `/account/settings` page not yet built — sections: «رمز عبور» (change or set password; behaves differently when `hasPassword` is false), «ورود با گوگل» (linked state, unlink with `LAST_LOGIN_METHOD` mapped to a friendly message), «نشست‌ها» (list with device/masked IP/created/last-used via `formatRelative`, current marked; revoke one, revoke all others), «حذف حساب» (danger Modal, type `DELETE` + password when the user has one; on success clear state + redirect to `/` with a toast). The 12 account hooks (`account.ts`), `qk.auth.sessions/oauth`, `auth.menu.settings` and the `account.*` namespace are already in place, so this is UI work. Add the `settings` entry to the account sidebar once the page lands.
+- [x] (F1.9) `/account/settings` page — ✅ Built (settings-form.tsx): «رمز عبور» (change when `hasPassword`, set first password otherwise; client-side weak + mismatch guards), «ورود با گوگل» (linked state from `useOAuthAccounts`, unlink with `LAST_LOGIN_METHOD` → friendly «set a password first» message), «نشست‌ها» (device summary, masked IP, created via `formatDate`, last-used via `formatRelative`, current marked; revoke one + revoke-all-others with confirm modals), «حذف حساب» (danger modal, type `DELETE` + password when `hasPassword`; on success `logout()` clears the cache and `router.replace('/')`). The `settings` sidebar entry is wired in account-shell.tsx.
 - [ ] (F1.9) Language-preference select on `/account/profile` (the prompt's field) — deferred; needs the active-languages hook/contract from `GET /i18n/languages` and a `useSwitchLocale`-style call after save.
 - [ ] (F1.9) Playwright `account.spec.ts` (update name, upload an avatar from a fixture image, change password, see the sessions list, revoke another session created via API) — write + run in a Docker environment with `DEV_TOOLS=true` and `PUBLIC_WEB_URL=:3100` (CSRF origin). Not runnable in this sandbox.
-- [ ] (F1.9) axe in both locales × light/dark for `/account/profile` (and the settings page once built).
-- [ ] (F1.9) `settings-form` component tests: password-section variants (with/without existing password), sessions revoke flow with confirmation, delete-account typing guard.
+- [ ] (F1.9) axe in both locales × light/dark for `/account/profile` and `/account/settings` (settings page is now built) — needs a browser (Playwright + axe); not runnable in this sandbox.
+- [x] (F1.9) `settings-form` component tests — ✅ Done (test/account/settings-form.test.tsx, 7 tests): password change (has-password) success, weak-password guard, mismatch guard, set-first-password (passwordless) variant, sessions revoke flow with confirm modal, delete typing guard (wrong text rejected), delete success (DELETE + password → toast + `router.replace('/')`).
 - [ ] (F1.9) Avatar upload `XMLHttpRequest` is cross-origin (web :3000 → API :4000, `withCredentials: true`) until the `/media/*` proxy rewrite (F0.1 follow-up) lands; verify end-to-end avatar upload + cookie/CORS once the proxy exists. Unit logic (envelope parse, progress, abort) is covered by mirroring `apiFetch`.
 - [ ] (F1.9) The username-cooldown error shape (`details.retryAt`) is assumed and carried on `ErrorCode.CONFLICT` for the test; confirm against B1.10 `changeUsername` on a live DB and align the contract/code if the real shape differs.
 - [ ] (F1.9) `pnpm verify` (the combined turbo run) OOMs in a 4 GB sandbox — run lint/typecheck/test/build piecewise. Consider lowering turbo concurrency or adding a `--concurrency=1` flag to `verify` for memory-constrained CI.

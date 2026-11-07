@@ -36,6 +36,7 @@
     "payload_too_large": "The submitted data is too large.",
     "unsupported_media_type": "This file format is not supported.",
     "unprocessable": "This request conflicts with the platform rules.",
+    "last_login_method": "This is your only sign-in method. Set a password or verify an email/phone before unlinking it.",
     "service_unavailable": "The service is temporarily unavailable — please try again later.",
     "internal_error": "Something went wrong on our side — please try again.",
     "csrf": "The request came from an untrusted origin."
@@ -584,6 +585,63 @@
       "emailUnverified": "Email unverified",
       "phoneUnverified": "Phone unverified",
       "verifyAction": "Verify email / phone"
+    },
+    "settings": {
+      "title": "Settings",
+      "serverError": "Something went wrong. Please try again.",
+      "password": {
+        "title": "Password",
+        "hasPasswordIntro": "Enter your current and new password to change it.",
+        "setIntro": "Your account has no password. Set one to sign in with it.",
+        "currentLabel": "Current password",
+        "newLabel": "New password",
+        "confirmLabel": "Confirm new password",
+        "submit": "Change password",
+        "submitSet": "Set password",
+        "changed": "Password changed.",
+        "set": "Password set.",
+        "weak": "Password must be at least 8 characters and include a letter and a digit.",
+        "mismatch": "Confirmation does not match the new password."
+      },
+      "google": {
+        "title": "Google sign-in",
+        "linked": "Linked",
+        "linkedAs": "Linked to Google account {email}.",
+        "notLinked": "Not linked",
+        "notLinkedBody": "Link your Google account to sign in faster.",
+        "unlink": "Unlink",
+        "unlinkConfirm": "Unlink Google?",
+        "unlinkBody": "After unlinking, you will no longer be able to sign in with Google.",
+        "lastMethodError": "This is your only sign-in method. Set a password first.",
+        "unlinked": "Google unlinked."
+      },
+      "sessions": {
+        "title": "Sessions",
+        "current": "Current",
+        "device": "Device",
+        "ip": "IP",
+        "created": "Created",
+        "lastUsed": "Last used",
+        "revoke": "Sign out",
+        "revokeAll": "Sign out of all other sessions",
+        "revokeConfirm": "Revoke this session?",
+        "revokeConfirmBody": "If this session belongs to another device, it will be signed out.",
+        "revoked": "Session revoked.",
+        "revokedAll": "Other sessions revoked.",
+        "empty": "No active sessions.",
+        "unknownDevice": "Unknown device"
+      },
+      "delete": {
+        "title": "Delete account",
+        "intro": "Your account and all its data will be permanently deleted. This cannot be undone.",
+        "confirmLabel": "Type DELETE to confirm",
+        "passwordLabel": "Password",
+        "submit": "Delete account",
+        "confirmTitle": "Permanently delete account?",
+        "confirmBody": "All your information — profile, reviews, bookmarks and sessions — will be removed.",
+        "deleted": "Account deleted.",
+        "typeMismatch": "The typed text does not match DELETE."
+      }
     }
   }
 }

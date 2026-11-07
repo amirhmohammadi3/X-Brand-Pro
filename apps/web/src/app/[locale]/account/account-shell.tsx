@@ -11,11 +11,13 @@ import { ToastProvider } from '../../../components/ui/toast';
 import type { CurrentUser } from '@app/contracts';
 import { cn } from '../../../lib/cn';
 
-// F1.9: the account sidebar currently exposes the profile tab. The settings
-// tab (password / Google / sessions / delete) is added by the second half of
-// F1.9 alongside /account/settings; later prompts append reviews, bookmarks,
-// following, messages, notifications and reservations.
-const SIDEBAR_ITEMS = [{ key: 'profile', href: '/account/profile' }] as const;
+// F1.9: the account sidebar exposes the profile and settings tabs. Later
+// prompts append reviews, bookmarks, following, messages, notifications and
+// reservations.
+const SIDEBAR_ITEMS = [
+  { key: 'profile', href: '/account/profile' },
+  { key: 'settings', href: '/account/settings' },
+] as const;
 
 /**
  * `(account)` route group shell (F1.7). Header + a desktop sidebar
