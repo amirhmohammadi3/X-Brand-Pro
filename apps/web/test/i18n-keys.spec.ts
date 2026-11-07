@@ -66,6 +66,7 @@ function extractKeysFromFile(source: string): string[] {
     /const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:useTranslations|getTranslations)\(\s*(?:'([^']*)'|"([^"]*)")?\s*\)/g;
   for (let m: RegExpExecArray | null = nsRe.exec(source); m !== null; m = nsRe.exec(source)) {
     const varName = m[1];
+    if (!varName) continue; // no capture group 1 — shouldn't happen, skip defensively
     const ns = m[2] ?? m[3] ?? ''; // undefined arg → root namespace
     nsByVar.set(varName, ns);
   }

@@ -518,3 +518,36 @@ All routes require authentication (JWT access cookie or bearer). Responses use t
 - Ban: an actor can never ban a user whose role rank is EQUAL or HIGHER (user < owner < moderator < admin < super_admin).
 - The last remaining active `super_admin` can never be demoted or banned.
 - Role change requires an ACTIVE target.
+
+## /api/v1/cities (B2.1)
+
+- Auth: public (anonymous) — Rate limit `geo.cities` / `geo.city` / `geo.neighborhoods` 120/min per IP
+- The list is cached 60 s server-side (Redis) + `Cache-Control: public, max-age=60` + ETag (304 on `If-None-Match` match)
+
+| Method | Path                        | Notes                                                                                                                                                                                                    |
+| ------ | --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | /cities                     | active cities sorted by `sort_order` then `name->>'fa'`; each carries `isDefault` (matches the `geo.defaultCitySlug` public setting); returns the FULL localized name map so the client picks the locale |
+| GET    | /cities/:slug               | single active city (`publicCitySchema`); 404 if inactive or unknown                                                                                                                                      |
+| GET    | /cities/:slug/neighborhoods | active neighborhoods of an active city, sorted by `sort_order` then `name->>'fa'`                                                                                                                        |
+
+- Errors: 404 (unknown/inactive city)
+
+## /api/v1/admin/cities (B2.1)
+
+- Auth: `catalog.manage` permission (admin, super_admin); audit-logged (`geo.city.create/update/delete/set_active/reorder`, `geo.neighborhood.create/update/delete/reorder`); rate limit `admin.geo.read` / `admin.geo.write` 60/min per user
+
+| Method | Path                                        | Body                                          | Notes                                                                                                                 |
+| ------ | ------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| GET    | /admin/cities                               | —                                             | all cities (active + inactive) with `neighborhoodCount` + `businessCount` (0 until B2.4 registers `BUSINESS_COUNTER`) |
+| POST   | /admin/cities                               | `createCityBodySchema`                        | `slug` optional (derived from `name.en`/`name.fa` via `slugify` + `-2` collision suffix); 409 on duplicate slug       |
+| PATCH  | /admin/cities/:id                           | `updateCityBodySchema`                        | partial; 409 on slug collision                                                                                        |
+| DELETE | /admin/cities/:id                           | —                                             | 422 `details.businessCount` when the city has businesses (deactivate instead)                                         |
+| PUT    | /admin/cities/:id/active                    | `setActiveCityBodySchema` (`{ isActive }`)    | deactivation emits `geo.city.deactivated`; cache invalidated                                                          |
+| PUT    | /admin/cities/reorder                       | `reorderCitiesBodySchema` (`{ ids: uuid[] }`) | sets `sort_order` by position; all ids must exist (404)                                                               |
+| GET    | /admin/cities/:cityId/neighborhoods         | —                                             | all neighborhoods (active + inactive) of the city                                                                     |
+| POST   | /admin/cities/:cityId/neighborhoods         | `createNeighborhoodBodySchema`                | nested; unique `(city_id, slug)` → 409                                                                                |
+| PATCH  | /admin/cities/:cityId/neighborhoods/:id     | `updateNeighborhoodBodySchema`                | partial                                                                                                               |
+| DELETE | /admin/cities/:cityId/neighborhoods/:id     | —                                             |                                                                                                                       |
+| PUT    | /admin/cities/:cityId/neighborhoods/reorder | `reorderNeighborhoodsBodySchema` (`{ ids }`)  | scoped to the city                                                                                                    |
+
+- Errors: 400 (validation — bbox, timezone, coordinates), 401, 403 (permission), 404 (unknown city/neighborhood), 409 (slug conflict), 422 (delete with businesses)

@@ -196,3 +196,21 @@ Block format (one per table):
 - New column: `banned_reason text` (3-500 chars, set by POST /:id/ban, cleared on unban/expire)
 - New indexes: `users_username_trgm_idx` GIN on `lower(username) gin_trgm_ops`, `users_email_trgm_idx` GIN on `lower(email)`, `users_display_name_trgm_idx` GIN on `lower(display_name)` (admin q search); `users_status_idx` + `users_created_at_idx` btree (admin list filters/sort)
 - Sorting note: admin list always appends `id` as the stable tiebreaker (AGENTS.md 6)
+
+### cities
+
+- Module: geo - Prompt: B2.1
+- Purpose: the cities catalog; translatable names (`{ fa, en, … }`), PostGIS center point + optional bbox, per-city IANA timezone, activation flag, manual sort order. Public reads see active rows only; admin sees all + neighborhood/business counts.
+- Columns of note: `id uuid pk default gen_random_uuid()`, `slug text unique`, `name jsonb` (localizedText; CHECK `name ? 'fa'`), `center geography(Point, 4326)` (GiST indexed), `bbox jsonb` nullable (`{ west, south, east, north }`), `timezone text default 'Asia/Tehran'`, `is_active boolean default false`, `sort_order int default 0`, `created_at`/`updated_at` timestamptz
+- Indexes: `cities_center_idx` GiST on center; unique on slug
+- Constraints: `cities_name_has_fa` CHECK (`name ? 'fa'`); bbox east>west, north>south, center-in-bbox enforced at the API boundary (`createCityBodySchema`)
+- Retention: keep forever (deactivate instead of delete when businesses exist)
+
+### neighborhoods
+
+- Module: geo - Prompt: B2.1
+- Purpose: neighborhoods scoped to a city; same localized-name + PostGIS-center pattern; `(city_id, slug)` is unique so two cities may reuse a slug.
+- Columns of note: `id uuid pk`, `city_id uuid` FK cities ON DELETE CASCADE, `slug text`, `name jsonb` (CHECK `name ? 'fa'`), `center geography(Point, 4326)` (GiST indexed), `is_active boolean default true`, `sort_order int default 0`, `created_at`/`updated_at` timestamptz
+- Indexes: `neighborhoods_center_idx` GiST on center; `neighborhoods_city_slug_unique` unique on (city_id, slug)
+- Constraints: `neighborhoods_name_has_fa` CHECK (`name ? 'fa'`)
+- Retention: cascade-deleted with the parent city

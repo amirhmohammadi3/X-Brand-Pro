@@ -85,6 +85,28 @@ export function slugify(s: string): string {
 }
 
 /**
+ * Pick the best display string from a localized text map (B2.1).
+ *
+ * Order: the requested `locale`, then `fallbackLocale`, then `fa` (always
+ * present per `localizedTextSchema`). Empty/whitespace values are skipped so a
+ * half-filled map never returns a blank string. Returns `''` only when no key
+ * has non-empty text (unreachable for validated `LocalizedText`, kept for
+ * unvalidated input).
+ */
+export function pickLocalized(
+  text: Record<string, string>,
+  locale: string,
+  fallbackLocale?: string,
+): string {
+  for (const loc of [locale, fallbackLocale, 'fa']) {
+    if (loc && typeof text[loc] === 'string' && text[loc].trim().length > 0) {
+      return text[loc];
+    }
+  }
+  return '';
+}
+
+/**
  * Mask a delivery target for UI display (B1.4): phones keep the country
  * prefix and the last 4 digits (`+98912***6789`), emails keep the first
  * character and the domain (`a***@example.com`). Unknown shapes are fully

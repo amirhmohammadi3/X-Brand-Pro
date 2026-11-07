@@ -19,4 +19,5 @@ export * from './media.js';
 export * from './users.js';
 export * from './oauth.js';
 export * from './i18n.js';
+export * from './geo.js';
 export * from './theme.js';

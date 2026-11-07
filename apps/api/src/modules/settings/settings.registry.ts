@@ -275,6 +275,18 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     isSecret: false,
     description: 'Which builtin theme pack is active (modern, warm, luxe).',
   },
+  // --- Geo catalog (B2.1). The default city slug; GET /cities flags the
+  // matching active city with `isDefault`. ---
+  'geo.defaultCitySlug': {
+    key: 'geo.defaultCitySlug',
+    schema: z.string().min(1).max(80),
+    default: 'tehran',
+    group: 'general',
+    public: true,
+    isSecret: false,
+    description:
+      'Default city slug; the public cities list flags the matching active city with isDefault.',
+  },
 };
 
 export function getSettingDefinition(key: string): SettingDefinition<unknown> | undefined {

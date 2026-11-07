@@ -18,7 +18,7 @@ import {
 } from '../pagination.js';
 
 describe('errors', () => {
-  it('has exactly the 20 expected codes', () => {
+  it('has exactly the 21 expected codes', () => {
     expect([...ERROR_CODES]).toEqual([
       'VALIDATION_FAILED',
       'UNAUTHENTICATED',
@@ -40,6 +40,8 @@ describe('errors', () => {
       'PAYLOAD_TOO_LARGE',
       'UNSUPPORTED_MEDIA_TYPE',
       'UNPROCESSABLE',
+      // B1.8 OAuth unlink guard (declared in the contract in F1.9):
+      'LAST_LOGIN_METHOD',
       'SERVICE_UNAVAILABLE',
       'INTERNAL_ERROR',
     ]);
@@ -65,6 +67,7 @@ describe('errors', () => {
       PAYLOAD_TOO_LARGE: 413,
       UNSUPPORTED_MEDIA_TYPE: 415,
       UNPROCESSABLE: 422,
+      LAST_LOGIN_METHOD: 422,
       SERVICE_UNAVAILABLE: 503,
       INTERNAL_ERROR: 500,
     };

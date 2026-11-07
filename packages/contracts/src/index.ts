@@ -14,4 +14,5 @@ export * from './media.js';
 export * from './text.js';
 export * from './users.js';
 export * from './i18n.js';
+export * from './catalog.js';
 export * from './theme/index.js';

@@ -44,6 +44,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<UserRole, readonly string[]>> = {
     'audit.read',
     'i18n.manage',
     'theme.manage',
+    'catalog.manage',
     'users.read',
     'users.manage',
   ],
