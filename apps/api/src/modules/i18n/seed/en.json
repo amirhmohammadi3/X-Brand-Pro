@@ -196,12 +196,12 @@
     "showPassword": "Show password",
     "hidePassword": "Hide password",
     "passwordStrength": {
-      "label": "Password strength",
       "0": "Very weak",
       "1": "Weak",
       "2": "Fair",
       "3": "Good",
-      "4": "Strong"
+      "4": "Strong",
+      "label": "Password strength"
     },
     "characterCount": "{count} of {max} characters",
     "otp": {
@@ -434,7 +434,8 @@
       "admin": "Admin panel",
       "logout": "Log out",
       "login": "Log in",
-      "register": "Register"
+      "register": "Register",
+      "settings": "Settings"
     },
     "lockedFor": "Because of repeated failed attempts, sign-in is unavailable for {seconds} seconds.",
     "rateLimitedFor": "Too many requests; try again in {seconds} seconds.",
@@ -534,7 +535,8 @@
       "description": "This area is only available to signed-in users.",
       "login": "Log in",
       "register": "Register"
-    }
+    },
+    "rateLimited": "Too many requests. Please try again later."
   },
   "theme": {
     "mode": {
@@ -548,6 +550,40 @@
     "switcher": {
       "label": "Language",
       "current": "Current language"
+    }
+  },
+  "account": {
+    "profile": {
+      "title": "Profile",
+      "avatarTitle": "Profile picture",
+      "avatarUploading": "Uploading… {percent}%",
+      "avatarTypeError": "Only an image (JPEG, PNG, WebP, AVIF) can be uploaded.",
+      "avatarTooLarge": "Image exceeds the 2 MB limit.",
+      "avatarError": "Upload failed.",
+      "avatarUpdated": "Profile picture updated.",
+      "avatarRemoved": "Profile picture removed.",
+      "avatarRemove": "Remove picture",
+      "avatarRemoveConfirm": "Remove profile picture?",
+      "avatarRemoveBody": "The current picture will be removed; you can upload a new one later.",
+      "nameLabel": "Display name",
+      "bioLabel": "About me",
+      "save": "Save changes",
+      "saved": "Profile updated.",
+      "serverError": "Something went wrong. Please try again.",
+      "usernameLabel": "Username",
+      "usernameChange": "Change",
+      "usernameModalTitle": "Change username",
+      "usernameModalBody": "Your username can be changed once every 30 days.",
+      "usernameCooldown": "You changed your username recently. Next change available after {date}.",
+      "usernameSubmit": "Change username",
+      "usernameChanged": "Username changed.",
+      "contactTitle": "Contact",
+      "noEmail": "No email on file",
+      "noPhone": "No phone on file",
+      "verified": "Verified",
+      "emailUnverified": "Email unverified",
+      "phoneUnverified": "Phone unverified",
+      "verifyAction": "Verify email / phone"
     }
   }
 }

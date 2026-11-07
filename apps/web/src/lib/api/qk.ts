@@ -10,6 +10,10 @@ export const qk = {
   /** Current user (`GET /auth/me`), kept fresh by the auth provider (F1.7). */
   auth: {
     me: () => ['auth', 'me'] as const,
+    /** Active sessions of the current user (`GET /auth/sessions`, F1.9). */
+    sessions: () => ['auth', 'sessions'] as const,
+    /** Linked OAuth accounts (`GET /auth/oauth/accounts`, F1.9). */
+    oauth: () => ['auth', 'oauth'] as const,
   },
   /** Public settings blob (`GET /settings/public`), e.g. OAuth flags (F1.8). */
   settings: {

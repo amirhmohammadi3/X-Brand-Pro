@@ -196,12 +196,12 @@
     "showPassword": "نمایش رمز",
     "hidePassword": "پنهان کردن رمز",
     "passwordStrength": {
-      "label": "قدرت رمز",
       "0": "بسیار ضعیف",
       "1": "ضعیف",
       "2": "متوسط",
       "3": "خوب",
-      "4": "قوی"
+      "4": "قوی",
+      "label": "قدرت رمز"
     },
     "characterCount": "{count} از {max} نویسه",
     "otp": {
@@ -434,7 +434,8 @@
       "admin": "پنل مدیریت",
       "logout": "خروج",
       "login": "ورود",
-      "register": "ثبت‌نام"
+      "register": "ثبت‌نام",
+      "settings": "تنظیمات"
     },
     "lockedFor": "به دلیل تلاش‌های ناموفق، ورود برای {seconds} ثانیه در دسترس نیست.",
     "rateLimitedFor": "درخواست‌های شما زیاد است؛ {seconds} ثانیه دیگر دوباره تلاش کنید.",
@@ -534,7 +535,8 @@
       "description": "این بخش فقط برای کاربران واردشده فعال است.",
       "login": "ورود",
       "register": "ثبت‌نام"
-    }
+    },
+    "rateLimited": "درخواست بیش از حد. بعداً دوباره تلاش کنید."
   },
   "theme": {
     "mode": {
@@ -548,6 +550,40 @@
     "switcher": {
       "label": "زبان",
       "current": "زبان فعلی"
+    }
+  },
+  "account": {
+    "profile": {
+      "title": "پروفایل",
+      "avatarTitle": "تصویر پروفایل",
+      "avatarUploading": "در حال بارگذاری… {percent}٪",
+      "avatarTypeError": "فقط تصویر (JPEG، PNG، WebP، AVIF) قابل بارگذاری است.",
+      "avatarTooLarge": "حجم تصویر بیش از حد مجاز (۲ مگابایت) است.",
+      "avatarError": "بارگذاری تصویر ناموفق بود.",
+      "avatarUpdated": "تصویر پروفایل به‌روز شد.",
+      "avatarRemoved": "تصویر پروفایل حذف شد.",
+      "avatarRemove": "حذف تصویر",
+      "avatarRemoveConfirm": "حذف تصویر پروفایل؟",
+      "avatarRemoveBody": "تصویر فعلی حذف می‌شود؛ می‌توانید بعداً تصویر جدیدی بارگذاری کنید.",
+      "nameLabel": "نام نمایشی",
+      "bioLabel": "دربارهٔ من",
+      "save": "ذخیرهٔ تغییرات",
+      "saved": "پروفایل به‌روز شد.",
+      "serverError": "خطایی رخ داد. دوباره تلاش کنید.",
+      "usernameLabel": "نام کاربری",
+      "usernameChange": "تغییر",
+      "usernameModalTitle": "تغییر نام کاربری",
+      "usernameModalBody": "نام کاربری هر ۳۰ روز یک‌بار قابل تغییر است.",
+      "usernameCooldown": "نام کاربری را تازه تغییر داده‌اید. امکان تغییر مجدد تا {date} نیست.",
+      "usernameSubmit": "تغییر نام کاربری",
+      "usernameChanged": "نام کاربری تغییر کرد.",
+      "contactTitle": "راه‌های ارتباطی",
+      "noEmail": "ایمیل ثبت نشده",
+      "noPhone": "شماره موبایل ثبت نشده",
+      "verified": "تأییدشده",
+      "emailUnverified": "ایمیل تأیید نشده",
+      "phoneUnverified": "موبایل تأیید نشده",
+      "verifyAction": "تأیید ایمیل/موبایل"
     }
   }
 }
