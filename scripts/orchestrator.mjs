@@ -2,8 +2,7 @@
 // scripts/orchestrator.mjs — phase state machine for the X-Brand-Pro build.
 //
 // The orchestrator is the single source of truth for "which phase are we on,
-// is it still running, what should the next cron-fired agent do?". It is
-// invoked by the hourly cron and by hand.
+// is it still running, what should the next run do?". It is invoked by hand.
 //
 // State file: .phase-state.json (gitignored, lives in the repo root)
 // Lock file:  .phase-lock (gitignored, contains pid + timestamp)
@@ -29,10 +28,9 @@ const STATE_FILE = path.join(REPO_ROOT, '.phase-state.json');
 const LOCK_FILE = path.join(REPO_ROOT, '.phase-lock');
 const PROMPTS_ROOT = path.resolve(REPO_ROOT, '..', 'xbrand-pack', 'pack', 'prompts');
 
-// A lock is "stale" after this many ms. The cron fires every hour, so a phase
-// that has been "running" for more than 2 hours is almost certainly abandoned
-// (the previous agent session ended without calling `release`). 2h gives the
-// previous agent one extra hour of slack beyond the cron interval.
+// A lock is "stale" after this many ms. A phase that has been "running" for
+// more than 2 hours is almost certainly abandoned (the previous session ended
+// without calling `release`). 2h is a generous window for a single prompt.
 const STALE_AFTER_MS = 2 * 60 * 60 * 1000;
 
 // ─── phase definitions (from 00-START-HERE.md) ────────────────────────────
@@ -444,7 +442,7 @@ function cmdStatus() {
           ? { pid: lock.pid, phase: lock.phase, acquired_at: lock.acquired_at, fresh }
           : null,
         overlaps_guard: fresh
-          ? 'BUSY — previous run still active, cron should skip'
+          ? 'BUSY — previous run still active, skip this turn'
           : 'FREE — safe to acquire',
       },
       null,
@@ -567,15 +565,15 @@ function cmdRelease(flag) {
     s.status = 'failed';
     appendLog(s, `phase ${s.current_phase} marked failed`);
   } else {
-    // --pause: the cron-fired agent ran out of time mid-phase. Drop the lock
-    // so the next cron can pick the phase up, but keep status='pending' and
+    // --pause: the previous run ran out of time mid-phase. Drop the lock
+    // so the next run can pick the phase up, but keep status='pending' and
     // prompts_done intact so work resumes where it left off (no restart).
     s.status = 'pending';
     appendLog(
       s,
       `phase ${s.current_phase} paused mid-phase (${(s.prompts_done ?? []).length}/${
         currentPhaseDef(s)?.prompts.length ?? '?'
-      } prompts done); lock released for next cron`,
+      } prompts done); lock released for next run`,
     );
   }
   if (pause) s.started_at = null;

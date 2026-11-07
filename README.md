@@ -124,7 +124,7 @@ External services (SMS, email, payment, storage, AI, geocoding) are always behin
 │   ├── docker-compose.dev.yml # db (PostGIS 16-3.4-alpine), redis (7.4-alpine), mailpit (1.20)
 │   └── db/init/               # 01-extensions.sql, 02-test-db.sql (auto-run on first boot)
 ├── scripts/                   # cross-platform Node (.mjs) scripts only — no bash/powershell
-│   ├── orchestrator.mjs       # phase state machine + overlap guard (cron-driven)
+│   ├── orchestrator.mjs       # phase state machine + overlap guard
 │   ├── services.mjs           # up/down/reset/logs/status for dev Docker services
 │   ├── dev.mjs                # pnpm dev → api watch + worker watch (+ web when present)
 │   ├── check-foundation.mjs   # verifies AGENTS.md + 7 docs/ files are present, no duplicate prompt IDs
@@ -233,20 +233,20 @@ The `docs/` folder is the **living source of truth** — code comments are "what
 
 ---
 
-## Phase orchestration (cron-driven)
+## Phase orchestration
 
-This repo is advanced phase-by-phase by an **hourly cron**. The state machine lives in [`scripts/orchestrator.mjs`](./scripts/orchestrator.mjs) and keeps its state in `.phase-state.json` (gitignored).
+This repo is advanced phase-by-phase via the orchestrator. The state machine lives in [`scripts/orchestrator.mjs`](./scripts/orchestrator.mjs) and keeps its state in `.phase-state.json` (gitignored).
 
-| Command                                         | Action                                                                                  |
-| ----------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `node scripts/orchestrator.mjs status`          | print current phase, lock, overlap-guard state                                          |
-| `node scripts/orchestrator.mjs acquire`         | take the lock, mark the phase running, print the brief                                  |
-| `node scripts/orchestrator.mjs log "P0.1 done"` | record a prompt as done                                                                 |
-| `node scripts/orchestrator.mjs release --ok`    | release the lock, mark phase completed, advance to next phase                           |
-| `node scripts/orchestrator.mjs release --fail`  | release the lock, mark phase failed (will retry next cron; `prompts_done` is preserved) |
-| `node scripts/orchestrator.mjs next`            | advance to the next phase (only if current is completed)                                |
+| Command                                         | Action                                                                                        |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| `node scripts/orchestrator.mjs status`          | print current phase, lock, overlap-guard state                                                |
+| `node scripts/orchestrator.mjs acquire`         | take the lock, mark the phase running, print the brief                                        |
+| `node scripts/orchestrator.mjs log "P0.1 done"` | record a prompt as done                                                                       |
+| `node scripts/orchestrator.mjs release --ok`    | release the lock, mark phase completed, advance to next phase                                 |
+| `node scripts/orchestrator.mjs release --fail`  | release the lock, mark phase failed (will retry on the next run; `prompts_done` is preserved) |
+| `node scripts/orchestrator.mjs next`            | advance to the next phase (only if current is completed)                                      |
 
-**Overlap guard:** `acquire` refuses to take the lock if a fresh lock exists (< 2 hours old, or pid still alive). A stale lock (> 2 hours, or pid no longer alive) is overridden. This prevents two cron-fired agents from working on the same phase simultaneously.
+**Overlap guard:** `acquire` refuses to take the lock if a fresh lock exists (< 2 hours old, or pid still alive). A stale lock (> 2 hours, or pid no longer alive) is overridden. This prevents two concurrent runs from working on the same phase simultaneously.
 
 The 13 phases (0→12) are defined in [`scripts/orchestrator.mjs`](./scripts/orchestrator.mjs); the full plan with dependencies and phase gates is in [`00-START-HERE.md`](https://github.com/amirhmohammadi3/X-Brand-Pro) (in the prompt pack).
 
