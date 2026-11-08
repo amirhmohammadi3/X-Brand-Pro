@@ -13,6 +13,7 @@ import { EmailModule } from './modules/email/email.module.js';
 import { SmtpHealthIndicator } from './modules/email/smtp.health.js';
 import { GeoModule } from './modules/geo/geo.module.js';
 import { CatalogModule } from './modules/catalog/categories/categories.module.js';
+import { AmenitiesModule } from './modules/catalog/amenities/amenities.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
 import { PostgresHealthIndicator } from './modules/health/postgres.health.js';
@@ -78,6 +79,7 @@ import { RedisModule } from './redis/redis.module.js';
     MediaModule,
     GeoModule,
     CatalogModule,
+    AmenitiesModule,
     // Dev-only raw outbox (B1.5): never registered in production — loadEnv
     // additionally rejects DEV_TOOLS=true with NODE_ENV=production at boot.
     ...(devSmsEnabled(process.env.NODE_ENV, process.env.DEV_TOOLS === 'true')

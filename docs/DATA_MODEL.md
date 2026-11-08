@@ -223,3 +223,20 @@ Block format (one per table):
 - Indexes: `categories_parent_sort_idx` btree on (parent_id, sort_order); unique on slug
 - Constraints: `categories_name_has_fa` CHECK (`name ? 'fa'`); `categories_kind_enum` CHECK (`kind in ('menu','services','none')`); self-FK `categories_parent_id_categories_id_fk` ON DELETE RESTRICT (a parent with children cannot be deleted at the DB level either)
 - Retention: keep forever (deactivate instead of delete when children/businesses exist)
+
+### amenities
+
+- Module: catalog - Prompt: B2.3
+- Purpose: features such as Wi-Fi, parking, outdoor seating — flat catalog (no hierarchy) with translations, an icon and a group. Linked to categories through `category_amenities`.
+- Columns of note: `id uuid pk default gen_random_uuid()`, `slug text unique`, `name jsonb` (localizedText; CHECK `name ? 'fa'`), `icon text not null default 'wifi'` (validated against `AMENITY_ICONS` at the API boundary), `group text not null default 'general'` CHECK in (`general`,`food`,`payment`,`accessibility`,`family`,`comfort`), `is_active boolean not null default true`, `sort_order int not null default 0`, `created_at`/`updated_at` timestamptz
+- Indexes: unique on slug
+- Constraints: `amenities_name_has_fa` CHECK (`name ? 'fa'`); `amenities_group_enum` CHECK (`group in (...)`)
+- Retention: keep forever (deactivate instead of delete when businesses use it)
+
+### category_amenities
+
+- Module: catalog - Prompt: B2.3
+- Purpose: many-to-many mapping between categories and amenities. A category inherits its parent's amenities in the public endpoint (computed in the service, de-duplicated with the child mapping winning).
+- Columns of note: `category_id uuid` FK categories ON DELETE CASCADE, `amenity_id uuid` FK amenities ON DELETE CASCADE, `sort_order int not null default 0` (orders amenities within a category), `created_at` timestamptz
+- Indexes: composite PRIMARY KEY (category_id, amenity_id); `category_amenities_category_sort_idx` btree on (category_id, sort_order)
+- Retention: cascade-deleted with either parent

@@ -15,15 +15,18 @@ Format: one row per permission string, one column per role (`user`, `owner`, `mo
 
 Format: one row per limited endpoint group.
 
-| Key                                                                   | Endpoint(s)                                              | Limit | Window | Scope (ip, user, ip+identifier) | Prompt |
-| --------------------------------------------------------------------- | -------------------------------------------------------- | ----- | ------ | ------------------------------- | ------ |
-| (per-endpoint rows are added by the prompts that own those endpoints) |                                                          |       |        |                                 |        |
-| `geo.cities` / `geo.city` / `geo.neighborhoods`                       | GET /cities, /cities/:slug, /cities/:slug/neighborhoods  | 120   | 60s    | ip                              | B2.1   |
-| `admin.geo.read`                                                      | GET /admin/cities\*, /admin/cities/:cityId/neighborhoods | 60    | 60s    | user                            | B2.1   |
-| `admin.geo.write`                                                     | POST/PATCH/DELETE/PUT /admin/cities\*                    | 60    | 60s    | user                            | B2.1   |
-| `catalog.categories` / `catalog.category`                             | GET /categories, /categories/:slug                       | 120   | 60s    | ip                              | B2.2   |
-| `admin.catalog.read`                                                  | GET /admin/categories\*                                  | 60    | 60s    | user                            | B2.2   |
-| `admin.catalog.write`                                                 | POST/PATCH/DELETE/PUT /admin/categories\*                | 60    | 60s    | user                            | B2.2   |
+| Key                                                                   | Endpoint(s)                                                                 | Limit | Window | Scope (ip, user, ip+identifier) | Prompt |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------- | ----- | ------ | ------------------------------- | ------ |
+| (per-endpoint rows are added by the prompts that own those endpoints) |                                                                             |       |        |                                 |        |
+| `geo.cities` / `geo.city` / `geo.neighborhoods`                       | GET /cities, /cities/:slug, /cities/:slug/neighborhoods                     | 120   | 60s    | ip                              | B2.1   |
+| `admin.geo.read`                                                      | GET /admin/cities\*, /admin/cities/:cityId/neighborhoods                    | 60    | 60s    | user                            | B2.1   |
+| `admin.geo.write`                                                     | POST/PATCH/DELETE/PUT /admin/cities\*                                       | 60    | 60s    | user                            | B2.1   |
+| `catalog.categories` / `catalog.category`                             | GET /categories, /categories/:slug                                          | 120   | 60s    | ip                              | B2.2   |
+| `admin.catalog.read`                                                  | GET /admin/categories\*                                                     | 60    | 60s    | user                            | B2.2   |
+| `admin.catalog.write`                                                 | POST/PATCH/DELETE/PUT /admin/categories\*                                   | 60    | 60s    | user                            | B2.2   |
+| `catalog.amenities`                                                   | GET /amenities                                                              | 120   | 60s    | ip                              | B2.3   |
+| `admin.catalog.read` (B2.3)                                           | GET /admin/amenities, /admin/categories/:id/amenities                       | 60    | 60s    | user                            | B2.3   |
+| `admin.catalog.write` (B2.3)                                          | POST/PATCH/PUT/DELETE /admin/amenities, PUT /admin/categories/:id/amenities | 60    | 60s    | user                            | B2.3   |
 
 Mechanism (B0.3): fixed-window counter in Redis (`INCR` + `EXPIRE NX`, key `rl:<name>:<identity>:<epoch bucket>`), enforced by the global `RateLimitGuard` on routes annotated with `@RateLimit({ name, limit, windowSec, scope })`. Rejections are HTTP 429 with the `RATE_LIMITED` error envelope and a `Retry-After` header. Scope `ip` until the auth module lands; `user` falls back to ip for unauthenticated requests.
 

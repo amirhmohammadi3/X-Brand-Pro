@@ -578,3 +578,30 @@ All routes require authentication (JWT access cookie or bearer). Responses use t
 | PUT    | /admin/categories/reorder    | `reorderCategoriesBodySchema` (`{ parentId, ids }`) | sets `sort_order` by position; all ids must share the given `parentId` (422 otherwise)                                                                                                |
 
 - Errors: 400 (validation — icon allow-list, accent, kind, name fa), 401, 403 (permission), 404 (unknown category/parent), 409 (slug conflict), 422 (depth/move/delete refusals)
+
+## /api/v1/amenities (B2.3)
+
+- Auth: public (anonymous) — Rate limit `catalog.amenities` 120/min per IP
+- Cached 60 s (Redis) + `Cache-Control: public, max-age=60` + ETag (304 on `If-None-Match`)
+
+| Method | Path       | Query            | Notes                                                                                                                                                                                                                                            |
+| ------ | ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | /amenities | `?categorySlug=` | active amenities; when `categorySlug` is given, returns those mapped to the category AND its parent (de-duplicated, the child mapping wins), ordered by mapping `sort_order` then group; a root with no mapping returns its own mapped amenities |
+
+- Errors: 404 (unknown/inactive category when `categorySlug` is given)
+
+## /api/v1/admin/amenities + /api/v1/admin/categories/:id/amenities (B2.3)
+
+- Auth: `catalog.manage` permission (admin, super_admin); audit-logged; rate limit `admin.catalog.read` / `admin.catalog.write` 60/min per user
+
+| Method | Path                            | Body                                                                | Notes                                                                                                                                     |
+| ------ | ------------------------------- | ------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | /admin/amenities                | —                                                                   | all amenities (active + inactive)                                                                                                         |
+| POST   | /admin/amenities                | `createAmenityBodySchema`                                           | slug optional (derived from name.en/fa); 409 on duplicate slug                                                                            |
+| PATCH  | /admin/amenities/:id            | `updateAmenityBodySchema`                                           | partial; 409 on slug conflict                                                                                                             |
+| PUT    | /admin/amenities/:id/active     | `setActiveCityBodySchema` (`{ isActive }`)                          | inactive amenities are hidden from the public list                                                                                        |
+| DELETE | /admin/amenities/:id            | —                                                                   | 422 `details.businessCount` when used by businesses (`AMENITY_USAGE_COUNTER` stub returns 0 until B2.4); category mappings cascade-delete |
+| GET    | /admin/categories/:id/amenities | —                                                                   | the amenity ids mapped to the category, in mapping order                                                                                  |
+| PUT    | /admin/categories/:id/amenities | `setCategoryAmenitiesBodySchema` (`{ amenityIds: uuid[] max 100 }`) | replaces the mapping (delete + insert, sort_order by position); 404 if any amenity id is unknown                                          |
+
+- Errors: 400 (validation — icon allow-list, group, name fa), 401, 403 (permission), 404 (unknown amenity), 409 (slug conflict), 422 (delete with business usage)

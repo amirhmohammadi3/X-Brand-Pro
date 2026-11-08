@@ -415,3 +415,109 @@ export const adminCategorySchema = categorySchema.extend({
   businessCount: z.number().int().min(0),
 });
 export type AdminCategory = z.infer<typeof adminCategorySchema>;
+
+// ─── Amenities (B2.3) ────────────────────────────────────────────────────
+// Features such as Wi-Fi, parking, outdoor seating. Flat catalog (no tree) +
+// a many-to-many mapping to categories (`category_amenities`). A category
+// inherits its parent's amenities in the public endpoint.
+
+/** Lucide icon names for amenities (≥30). Overlaps CATEGORY_ICONS by design
+ * (a coffee amenity uses the same icon as a cafe category); amenity-specific
+ * icons (wifi, parking, accessibility, baby, snowflake, …) are added here. */
+export const AMENITY_ICONS = [
+  'wifi',
+  'plug',
+  'parking-square',
+  'car',
+  'bus',
+  'bike',
+  'accessibility',
+  'baby',
+  'stroller',
+  'dog',
+  'cat',
+  'snowflake',
+  'wind',
+  'sun',
+  'umbrella',
+  'tree-pine',
+  'trees',
+  'utensils',
+  'coffee',
+  'wine',
+  'beer',
+  'pizza',
+  'music',
+  'volume-2',
+  'headphones',
+  'tv',
+  'microwave',
+  'refrigerator',
+  'washing-machine',
+  'sofa',
+  'lamp',
+  'credit-card',
+  'wallet',
+  'banknote',
+  'receipt',
+  'air-vent',
+  'fan',
+  'shower-head',
+  'bath',
+  'no-smoking',
+] as const;
+export const amenityIconSchema = z.enum(AMENITY_ICONS);
+export type AmenityIcon = (typeof AMENITY_ICONS)[number];
+
+export const AMENITY_GROUPS = [
+  'general',
+  'food',
+  'payment',
+  'accessibility',
+  'family',
+  'comfort',
+] as const;
+export const amenityGroupSchema = z.enum(AMENITY_GROUPS);
+export type AmenityGroup = (typeof AMENITY_GROUPS)[number];
+
+export const amenitySchema = z
+  .object({
+    id: uuidSchema,
+    slug: slugSchema,
+    name: localizedTextSchema,
+    icon: amenityIconSchema,
+    group: amenityGroupSchema,
+    isActive: z.boolean(),
+    sortOrder: sortOrderSchema,
+  })
+  .strict();
+export type Amenity = z.infer<typeof amenitySchema>;
+
+export const createAmenityBodySchema = z
+  .object({
+    slug: slugSchema.optional(),
+    name: localizedTextSchema,
+    icon: amenityIconSchema,
+    group: amenityGroupSchema.optional(),
+    isActive: z.boolean().optional(),
+    sortOrder: sortOrderSchema.optional(),
+  })
+  .strict();
+export type CreateAmenityBody = z.infer<typeof createAmenityBodySchema>;
+
+export const updateAmenityBodySchema = z
+  .object({
+    slug: slugSchema.optional(),
+    name: localizedTextSchema.optional(),
+    icon: amenityIconSchema.optional(),
+    group: amenityGroupSchema.optional(),
+    isActive: z.boolean().optional(),
+    sortOrder: sortOrderSchema.optional(),
+  })
+  .strict();
+export type UpdateAmenityBody = z.infer<typeof updateAmenityBodySchema>;
+
+export const setCategoryAmenitiesBodySchema = z
+  .object({ amenityIds: z.array(uuidSchema).min(0).max(100) })
+  .strict();
+export type SetCategoryAmenitiesBody = z.infer<typeof setCategoryAmenitiesBodySchema>;

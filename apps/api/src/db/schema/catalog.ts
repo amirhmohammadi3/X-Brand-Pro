@@ -6,6 +6,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
@@ -58,3 +59,60 @@ export const categories = pgTable(
 
 export type CategoryRow = typeof categories.$inferSelect;
 export type NewCategoryRow = typeof categories.$inferInsert;
+
+/**
+ * Amenities (B2.3) — features such as Wi-Fi, parking, outdoor seating. Flat
+ * catalog (no hierarchy) with translations + an icon + a group. `name` is a
+ * localized map with CHECK `name ? 'fa'`. Linked to categories through
+ * `category_amenities` (a category inherits its parent's amenities in the
+ * public endpoint, computed in the service).
+ */
+export const amenities = pgTable(
+  'amenities',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    slug: text('slug').notNull().unique(),
+    name: jsonb('name').notNull().$type<Record<string, string>>(),
+    icon: text('icon').notNull().default('wifi'),
+    group: text('group').notNull().default('general'),
+    isActive: boolean('is_active').notNull().default(true),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check('amenities_name_has_fa', sql`${table.name} ? 'fa'`),
+    check(
+      'amenities_group_enum',
+      sql`${table.group} in ('general','food','payment','accessibility','family','comfort')`,
+    ),
+  ],
+);
+
+/**
+ * Category ↔ amenity mapping (B2.3). Composite PK (category_id, amenity_id);
+ * both FKs cascade. `sort_order` orders amenities within a category for the
+ * public endpoint (then by group).
+ */
+export const categoryAmenities = pgTable(
+  'category_amenities',
+  {
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' }),
+    amenityId: uuid('amenity_id')
+      .notNull()
+      .references(() => amenities.id, { onDelete: 'cascade' }),
+    sortOrder: integer('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // composite primary key (category_id, amenity_id)
+    primaryKey({ columns: [table.categoryId, table.amenityId], name: 'category_amenities_pk' }),
+    index('category_amenities_category_sort_idx').on(table.categoryId, table.sortOrder),
+  ],
+);
+
+export type AmenityRow = typeof amenities.$inferSelect;
+export type NewAmenityRow = typeof amenities.$inferInsert;
+export type CategoryAmenityRow = typeof categoryAmenities.$inferSelect;
