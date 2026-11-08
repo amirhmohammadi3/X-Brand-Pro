@@ -294,3 +294,21 @@ Block format (one per table):
 - Indexes: `business_photos_media_unq` UNIQUE btree (media_id); `business_photos_biz_sort_idx` btree (business_id, sort_order)
 - Constraints: media_id UNIQUE (one media row hangs on at most one gallery); both FKs CASCADE. The attach-time rules (kind, ownership, cap 10, not-already-attached) are validated in `PhotosService` at the edge.
 - Retention: cascade-deleted with the business; the media row is soft-deleted when a photo is removed (physical files removed by the `media` worker queue); an inserted-but-never-attached media row is swept by the hourly orphan cleanup and its gallery row cascades away.
+
+### business_menu_sections
+
+- Module: business - Prompt: B2.8
+- Purpose: named sections of a business menu / services list ("غذاهای اصلی", "خدمات"). Ordered manually; the whole menu is replaced atomically (B2.5-style full replace), so array order in the payload becomes `sort_order`.
+- Columns of note: `id uuid pk`, `business_id uuid` FK businesses ON DELETE CASCADE, `name text not null` (≤120 validated at the edge), `sort_order smallint not null` (0-based), `created_at`/`updated_at timestamptz`
+- Indexes: `business_menu_sections_biz_sort_idx` btree (business_id, sort_order)
+- Constraints: FK business_id CASCADE. Name length, section cap (20) and item cap (50/section) are validated in `replaceMenuBodySchema` at the edge.
+- Retention: cascade-deleted with the business; recreated on every full-menu replace.
+
+### business_menu_items
+
+- Module: business - Prompt: B2.8
+- Purpose: items of a menu section (a dish, a service) with an optional price in RIALS (integer, no float money — DECISIONS B2.8) and an optional photo (`media_files` kind `menu_photo`). `business_id` is denormalised from the section so the replace flow wipes one business's menu with scoped deletes and "does this item belong to this business" is a single indexed check.
+- Columns of note: `id uuid pk`, `business_id uuid` FK businesses CASCADE, `section_id uuid` FK business_menu_sections CASCADE, `name text not null` (≤200), `description text` nullable (≤1000), `price bigint` nullable (rials, CHECK ≥ 0, ≤ 1e12 at the edge; null = not priced), `photo_media_id uuid` FK media_files ON DELETE SET NULL (the item survives a media hard-delete with its photo nulled), `is_available boolean not null` default true, `sort_order smallint not null`, `created_at`/`updated_at timestamptz`
+- Indexes: `business_menu_items_section_sort_idx` btree (section_id, sort_order); `business_menu_items_biz_idx` btree (business_id)
+- Constraints: `business_menu_items_price_nonneg` CHECK (price ≥ 0); both cascade FKs; photo SET NULL. Kind/ownership/attachment rules of the photo are validated in `MenuService` at the edge.
+- Retention: cascade-deleted with the business or its section; rows are RECREATED on every full-menu replace (no stable client-side identity — nothing references item ids yet; reviews reference the business, B4.x).
