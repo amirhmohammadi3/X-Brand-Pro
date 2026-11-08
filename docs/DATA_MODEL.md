@@ -285,3 +285,12 @@ Block format (one per table):
 - Indexes: `business_special_days_biz_date_unq` UNIQUE btree (business_id, date); `business_special_days_biz_date_idx` btree (business_id, date)
 - Constraints: unique (business_id, date); FK business_id CASCADE. The closed+intervals conflict is validated in `upsertSpecialDayBodySchema` at the edge.
 - Retention: cascade-deleted with the business; upserted via `onConflictDoUpdate` on (business_id, date)
+
+### business_photos
+
+- Module: business - Prompt: B2.7
+- Purpose: the ordered photo gallery of a business. Every row points at an already-uploaded `media_files` row (kind `business_photo`) that the attach flow marks attached; the cover is NOT a flag here — `businesses.cover_media_id` points at the media of one of these rows, so cover and gallery can never disagree.
+- Columns of note: `id uuid pk`, `business_id uuid` FK businesses ON DELETE CASCADE, `media_id uuid` FK media_files ON DELETE CASCADE, `sort_order smallint not null` (0-based; the owner sets it via the full-permutation reorder), `created_at timestamptz`
+- Indexes: `business_photos_media_unq` UNIQUE btree (media_id); `business_photos_biz_sort_idx` btree (business_id, sort_order)
+- Constraints: media_id UNIQUE (one media row hangs on at most one gallery); both FKs CASCADE. The attach-time rules (kind, ownership, cap 10, not-already-attached) are validated in `PhotosService` at the edge.
+- Retention: cascade-deleted with the business; the media row is soft-deleted when a photo is removed (physical files removed by the `media` worker queue); an inserted-but-never-attached media row is swept by the hourly orphan cleanup and its gallery row cascades away.
