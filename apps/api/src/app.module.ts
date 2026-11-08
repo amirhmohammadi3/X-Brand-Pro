@@ -16,6 +16,7 @@ import { CatalogModule } from './modules/catalog/categories/categories.module.js
 import { AmenitiesModule } from './modules/catalog/amenities/amenities.module.js';
 import { HealthModule } from './modules/health/health.module.js';
 import { AuditModule } from './modules/audit/audit.module.js';
+import { BusinessModule } from './modules/business/businesses.module.js';
 import { PostgresHealthIndicator } from './modules/health/postgres.health.js';
 import { I18nModule } from './modules/i18n/i18n.module.js';
 import { MediaModule } from './modules/media/media.module.js';
@@ -80,6 +81,7 @@ import { RedisModule } from './redis/redis.module.js';
     GeoModule,
     CatalogModule,
     AmenitiesModule,
+    BusinessModule,
     // Dev-only raw outbox (B1.5): never registered in production — loadEnv
     // additionally rejects DEV_TOOLS=true with NODE_ENV=production at boot.
     ...(devSmsEnabled(process.env.NODE_ENV, process.env.DEV_TOOLS === 'true')

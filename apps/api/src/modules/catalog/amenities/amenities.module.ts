@@ -1,11 +1,8 @@
 import { Module, type Provider } from '@nestjs/common';
 import { AuditModule } from '../../audit/audit.module.js';
+import { BusinessModule } from '../../business/businesses.module.js';
 import { AMENITIES_REPOSITORY, AmenitiesRepository } from './amenities.repository.js';
-import {
-  AMENITY_USAGE_COUNTER,
-  AmenitiesService,
-  type AmenityUsageCounter,
-} from './amenities.service.js';
+import { AmenitiesService } from './amenities.service.js';
 import { AmenitiesController } from './amenities.controller.js';
 import { AmenitiesAdminController } from './amenities-admin.controller.js';
 
@@ -14,23 +11,16 @@ const repositoryProvider: Provider = {
   useClass: AmenitiesRepository,
 };
 
-/** Stub usage counter: returns 0 until B2.4 registers the real one. */
-const usageCounterStub: Provider = {
-  provide: AMENITY_USAGE_COUNTER,
-  useValue: {
-    countByAmenity: async (_amenityId: string): Promise<number> => 0,
-  } satisfies AmenityUsageCounter,
-};
-
 /**
  * Amenities module (B2.3) — features + a category↔amenity mapping. Public
  * cached reads + admin CRUD (`catalog.manage`, audited). `AMENITY_USAGE_COUNTER`
- * is an optional provider B2.4 overrides with the real business-usage count.
+ * is provided by BusinessModule (B2.4) and resolves to the real business-usage
+ * count; the delete guard now refuses when an amenity is used by businesses.
  */
 @Module({
-  imports: [AuditModule],
+  imports: [AuditModule, BusinessModule],
   controllers: [AmenitiesController, AmenitiesAdminController],
-  providers: [repositoryProvider, usageCounterStub, AmenitiesService],
+  providers: [repositoryProvider, AmenitiesService],
   exports: [AmenitiesService],
 })
 export class AmenitiesModule {}
