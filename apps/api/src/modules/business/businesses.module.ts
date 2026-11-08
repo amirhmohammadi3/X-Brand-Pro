@@ -16,16 +16,20 @@ import {
 } from './photos/business-photos.repository.js';
 import { PhotosService } from './photos/photos.service.js';
 import { PhotosController } from './photos/photos.controller.js';
+import { MENU_REPOSITORY, MenuRepository } from './menu/menu.repository.js';
+import { MenuService } from './menu/menu.service.js';
+import { MenuController } from './menu/menu.controller.js';
 import { BusinessesService } from './businesses.service.js';
 import { BusinessesController } from './businesses.controller.js';
 
 /**
- * Business catalog module (B2.4 + B2.5 + B2.6) — the core business data model:
+ * Business catalog module (B2.4–B2.8) — the core business data model:
  * schema, repository and domain rules (status state machine, location-in-bbox,
- * slug, contact normalisers); the opening-hours sub-module (B2.5); and the CRUD
+ * slug, contact normalisers); the opening-hours sub-module (B2.5); the CRUD
  * HTTP layer (B2.6): registration (owner = caller, status `pending`, Persian
  * slug), owner list, public/owner detail, update, status transitions and soft
- * delete — each write audited via AuditModule's AUDIT_SERVICE.
+ * delete — each write audited via AuditModule's AUDIT_SERVICE; the photo
+ * gallery (B2.7, photos/); and the menu / services (B2.8, menu/).
  *
  * Binds the three counter providers (`BUSINESS_COUNTER`,
  * `CATEGORY_BUSINESS_COUNTER`, `AMENITY_USAGE_COUNTER`) that B2.1–B2.3 declared
@@ -50,6 +54,11 @@ const photosRepositoryProvider: Provider = {
   useClass: BusinessPhotosRepository,
 };
 
+const menuRepositoryProvider: Provider = {
+  provide: MENU_REPOSITORY,
+  useClass: MenuRepository,
+};
+
 // One @Injectable class implements all three counter interfaces; bound to each
 // token via useExisting so a single instance serves every consumer.
 const counterProviders: Provider[] = [
@@ -60,16 +69,18 @@ const counterProviders: Provider[] = [
 
 @Module({
   imports: [AuditModule, MediaModule],
-  controllers: [BusinessesController, HoursController, PhotosController],
+  controllers: [BusinessesController, HoursController, PhotosController, MenuController],
   providers: [
     repositoryProvider,
     hoursRepositoryProvider,
     photosRepositoryProvider,
+    menuRepositoryProvider,
     BusinessDomainService,
     BusinessCounters,
     BusinessesService,
     HoursService,
     PhotosService,
+    MenuService,
     ...counterProviders,
   ],
   exports: [

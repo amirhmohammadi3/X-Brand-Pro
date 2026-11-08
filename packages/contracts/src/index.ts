@@ -17,4 +17,5 @@ export * from './i18n.js';
 export * from './catalog.js';
 export * from './business.js';
 export * from './hours.js';
+export * from './menu.js';
 export * from './theme/index.js';
