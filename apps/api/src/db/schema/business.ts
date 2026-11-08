@@ -163,3 +163,37 @@ export const businessAmenities = pgTable(
 );
 
 export type BusinessAmenityRow = typeof businessAmenities.$inferSelect;
+
+/**
+ * Business photos (B2.7). An ordered gallery per business; every row points at
+ * an already-uploaded `media_files` row (kind `business_photo`) that the
+ * upload flow marked attached — see photos.service (attach = markAttached +
+ * insert in one request). `media_id` is UNIQUE so a file can hang on exactly
+ * one business; both FKs cascade (deleting the business or the media row
+ * removes the gallery entry). `sort_order` is the manual gallery order the
+ * owner sets through PUT /businesses/:id/photos/order; the cover is NOT a flag
+ * here — `businesses.cover_media_id` (B2.4) points at the media of one of
+ * these rows, so cover and gallery can never disagree.
+ */
+export const businessPhotos = pgTable(
+  'business_photos',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    businessId: uuid('business_id')
+      .notNull()
+      .references(() => businesses.id, { onDelete: 'cascade' }),
+    mediaId: uuid('media_id')
+      .notNull()
+      .references(() => mediaFiles.id, { onDelete: 'cascade' }),
+    sortOrder: smallint('sort_order').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // One media row can appear in at most one gallery.
+    uniqueIndex('business_photos_media_unq').on(table.mediaId),
+    index('business_photos_biz_sort_idx').on(table.businessId, table.sortOrder),
+  ],
+);
+
+export type BusinessPhotoRow = typeof businessPhotos.$inferSelect;
+export type NewBusinessPhotoRow = typeof businessPhotos.$inferInsert;

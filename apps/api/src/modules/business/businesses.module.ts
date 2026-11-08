@@ -10,6 +10,12 @@ import { AMENITY_USAGE_COUNTER } from '../catalog/amenities/amenities.service.js
 import { HOURS_REPOSITORY, HoursRepository } from './hours/hours.repository.js';
 import { HoursService } from './hours/hours.service.js';
 import { HoursController } from './hours/hours.controller.js';
+import {
+  BUSINESS_PHOTOS_REPOSITORY,
+  BusinessPhotosRepository,
+} from './photos/business-photos.repository.js';
+import { PhotosService } from './photos/photos.service.js';
+import { PhotosController } from './photos/photos.controller.js';
 import { BusinessesService } from './businesses.service.js';
 import { BusinessesController } from './businesses.controller.js';
 
@@ -39,6 +45,11 @@ const hoursRepositoryProvider: Provider = {
   useClass: HoursRepository,
 };
 
+const photosRepositoryProvider: Provider = {
+  provide: BUSINESS_PHOTOS_REPOSITORY,
+  useClass: BusinessPhotosRepository,
+};
+
 // One @Injectable class implements all three counter interfaces; bound to each
 // token via useExisting so a single instance serves every consumer.
 const counterProviders: Provider[] = [
@@ -49,14 +60,16 @@ const counterProviders: Provider[] = [
 
 @Module({
   imports: [AuditModule, MediaModule],
-  controllers: [BusinessesController, HoursController],
+  controllers: [BusinessesController, HoursController, PhotosController],
   providers: [
     repositoryProvider,
     hoursRepositoryProvider,
+    photosRepositoryProvider,
     BusinessDomainService,
     BusinessCounters,
     BusinessesService,
     HoursService,
+    PhotosService,
     ...counterProviders,
   ],
   exports: [

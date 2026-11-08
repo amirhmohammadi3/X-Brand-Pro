@@ -258,3 +258,46 @@ export const businessTransitionBodySchema = z
 export type BusinessTransitionBody = z.infer<typeof businessTransitionBodySchema>;
 
 export type { GeoPoint };
+
+// ─── Business photos (B2.7) ───────────────────────────────────────────────
+//
+// Two-step flow: the owner uploads the file first (POST /media/upload with
+// kind `business_photo`, B1.9) and then attaches the returned media id to a
+// business they manage (POST /businesses/:id/photos). Ordering is a full-array
+// permutation (PUT .../photos/order); the cover references one of the attached
+// photos' media (PUT .../photos/cover) and is stored on businesses.cover_media_id.
+
+/** Hard cap per business — keeps galleries scannable and reorder payloads small. */
+export const BUSINESS_MAX_PHOTOS = 10;
+
+/** One gallery entry: identity + the media URLs + the manual order. */
+export const businessPhotoSchema = z.object({
+  id: uuidSchema,
+  businessId: uuidSchema,
+  mediaId: uuidSchema,
+  url: z.string().min(1),
+  thumbUrl: z.string().min(1).nullable(),
+  width: z.number().int().positive().nullable(),
+  height: z.number().int().positive().nullable(),
+  sortOrder: z.number().int().min(0),
+  createdAt: z.string(),
+});
+export type BusinessPhoto = z.infer<typeof businessPhotoSchema>;
+
+/** Attach body — the media id returned by POST /media/upload. */
+export const attachBusinessPhotoBodySchema = z.object({ mediaId: uuidSchema }).strict();
+export type AttachBusinessPhotoBody = z.infer<typeof attachBusinessPhotoBodySchema>;
+
+/**
+ * Reorder body — the COMPLETE photo id list in the new order. The service
+ * requires an exact permutation of the current gallery (no missing, no
+ * unknown, no duplicate ids) so a stale client can never silently drop photos.
+ */
+export const reorderBusinessPhotosBodySchema = z
+  .object({ photoIds: z.array(uuidSchema).min(1).max(BUSINESS_MAX_PHOTOS) })
+  .strict();
+export type ReorderBusinessPhotosBody = z.infer<typeof reorderBusinessPhotosBodySchema>;
+
+/** Cover body — must reference a media id already attached to THIS business. */
+export const setBusinessCoverBodySchema = z.object({ mediaId: uuidSchema }).strict();
+export type SetBusinessCoverBody = z.infer<typeof setBusinessCoverBodySchema>;

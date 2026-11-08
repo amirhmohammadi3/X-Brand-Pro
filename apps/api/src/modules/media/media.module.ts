@@ -40,6 +40,8 @@ export class MediaJobsInit implements OnModuleInit {
     MediaUrlService,
     MediaJobsInit,
   ],
-  exports: [MEDIA_SERVICE, MediaUrlService],
+  // MEDIA_REPOSITORY exported for B2.7/B2.8 attach flows (kind/owner checks
+  // before the gallery/menu row is written).
+  exports: [MEDIA_SERVICE, MEDIA_REPOSITORY, MediaUrlService],
 })
 export class MediaModule {}
