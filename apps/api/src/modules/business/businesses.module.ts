@@ -6,11 +6,15 @@ import { BusinessCounters } from './businesses.counters.js';
 import { BUSINESS_COUNTER } from '../geo/geo.service.js';
 import { CATEGORY_BUSINESS_COUNTER } from '../catalog/categories/categories.service.js';
 import { AMENITY_USAGE_COUNTER } from '../catalog/amenities/amenities.service.js';
+import { HOURS_REPOSITORY, HoursRepository } from './hours/hours.repository.js';
+import { HoursService } from './hours/hours.service.js';
+import { HoursController } from './hours/hours.controller.js';
 
 /**
- * Business catalog module (B2.4) — the core business data model: schema,
+ * Business catalog module (B2.4 + B2.5) — the core business data model: schema,
  * repository and domain rules (status state machine, location-in-bbox, slug,
- * contact normalisers). No HTTP here (B2.6 owns the CRUD endpoints).
+ * contact normalisers), plus the opening-hours sub-module (B2.5): weekly
+ * schedule, special days, and the pure `computeOpenStatus` "open now" logic.
  *
  * Binds the three counter providers (`BUSINESS_COUNTER`, `CATEGORY_BUSINESS_COUNTER`,
  * `AMENITY_USAGE_COUNTER`) that B2.1–B2.3 declared as stubs and EXPORTS them so
@@ -20,6 +24,11 @@ import { AMENITY_USAGE_COUNTER } from '../catalog/amenities/amenities.service.js
 const repositoryProvider: Provider = {
   provide: BUSINESSES_REPOSITORY,
   useClass: BusinessesRepository,
+};
+
+const hoursRepositoryProvider: Provider = {
+  provide: HOURS_REPOSITORY,
+  useClass: HoursRepository,
 };
 
 // One @Injectable class implements all three counter interfaces; bound to each
@@ -32,7 +41,15 @@ const counterProviders: Provider[] = [
 
 @Module({
   imports: [MediaModule],
-  providers: [repositoryProvider, BusinessDomainService, BusinessCounters, ...counterProviders],
+  controllers: [HoursController],
+  providers: [
+    repositoryProvider,
+    hoursRepositoryProvider,
+    BusinessDomainService,
+    BusinessCounters,
+    HoursService,
+    ...counterProviders,
+  ],
   exports: [
     BUSINESSES_REPOSITORY,
     BusinessDomainService,

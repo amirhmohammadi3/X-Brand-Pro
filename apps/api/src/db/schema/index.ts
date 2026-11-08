@@ -22,4 +22,5 @@ export * from './i18n.js';
 export * from './geo.js';
 export * from './catalog.js';
 export * from './business.js';
+export * from './hours.js';
 export * from './theme.js';
