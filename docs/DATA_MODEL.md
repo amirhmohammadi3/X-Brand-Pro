@@ -214,3 +214,12 @@ Block format (one per table):
 - Indexes: `neighborhoods_center_idx` GiST on center; `neighborhoods_city_slug_unique` unique on (city_id, slug)
 - Constraints: `neighborhoods_name_has_fa` CHECK (`name ? 'fa'`)
 - Retention: cascade-deleted with the parent city
+
+### categories
+
+- Module: catalog - Prompt: B2.2
+- Purpose: hierarchical business categories, two levels (a root has `parent_id = null`; a child points at its parent). The depth rule (a child may not have children) is enforced in the service, not by a DB constraint.
+- Columns of note: `id uuid pk default gen_random_uuid()`, `parent_id uuid` self-FK `categories(id)` ON DELETE RESTRICT (nullable — null = root), `slug text unique` (globally unique), `name jsonb` (localizedText; CHECK `name ? 'fa'`), `description jsonb` nullable (localized map, `fa` optional), `icon text not null default 'store'` (validated against `CATEGORY_ICONS` at the API boundary), `color text` (semantic accent `accent-1..8`, never raw hex), `kind text not null default 'none'` CHECK in (`menu`,`services`,`none`), `supports_reservation boolean not null default false`, `is_active boolean not null default true`, `sort_order int not null default 0`, `created_at`/`updated_at` timestamptz
+- Indexes: `categories_parent_sort_idx` btree on (parent_id, sort_order); unique on slug
+- Constraints: `categories_name_has_fa` CHECK (`name ? 'fa'`); `categories_kind_enum` CHECK (`kind in ('menu','services','none')`); self-FK `categories_parent_id_categories_id_fk` ON DELETE RESTRICT (a parent with children cannot be deleted at the DB level either)
+- Retention: keep forever (deactivate instead of delete when children/businesses exist)

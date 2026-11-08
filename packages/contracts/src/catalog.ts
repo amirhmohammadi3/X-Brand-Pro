@@ -173,3 +173,245 @@ export const adminCitySchema = citySchema.extend({
   businessCount: z.number().int().min(0),
 });
 export type AdminCity = z.infer<typeof adminCitySchema>;
+
+// ─── Categories (B2.2) ───────────────────────────────────────────────────
+// Two-level tree: a root (parentId null) may have children; a child may NOT
+// have children (depth ≤ 2, enforced in the service). Icons are a curated
+// allow-list of Lucide names; colors are semantic accent slots (accent-1..8)
+// so themes stay contrast-safe — never raw hex.
+
+/** Lucide icon names permitted for a category (≥60, covering food/drink,
+ * health/beauty, shopping, services, education, entertainment, travel,
+ * automotive, home, sports, pets, art). The web client renders the Lucide
+ * icon by this exact name. */
+export const CATEGORY_ICONS = [
+  // food & drink
+  'utensils',
+  'coffee',
+  'pizza',
+  'ice-cream',
+  'cake',
+  'wine',
+  'beer',
+  'soup',
+  'salad',
+  'fish',
+  'beef',
+  'drumstick',
+  'cookie',
+  'croissant',
+  'candy',
+  'cup-soda',
+  'sandwich',
+  'egg',
+  'apple',
+  'banana',
+  'carrot',
+  'cherry',
+  'grape',
+  'wheat',
+  'milk',
+  'donut',
+  'popcorn',
+  'chef-hat',
+  // health & beauty
+  'heart-pulse',
+  'stethoscope',
+  'pill',
+  'syringe',
+  'cross',
+  'brain',
+  'bone',
+  'eye',
+  'sparkles',
+  'scissors',
+  'brush',
+  // shopping
+  'shopping-bag',
+  'shopping-cart',
+  'shopping-basket',
+  'store',
+  'tag',
+  'receipt',
+  'credit-card',
+  'wallet',
+  'gift',
+  'package',
+  'percent',
+  // services
+  'wrench',
+  'hammer',
+  'screwdriver',
+  'plug',
+  'zap',
+  'settings',
+  'paintbrush',
+  // education
+  'graduation-cap',
+  'book',
+  'book-open',
+  'library',
+  'pencil',
+  'pen-tool',
+  'lightbulb',
+  'school',
+  'notebook',
+  // entertainment
+  'gamepad-2',
+  'film',
+  'music',
+  'mic',
+  'ticket',
+  'headphones',
+  'drama',
+  // travel & automotive
+  'plane',
+  'car',
+  'bus',
+  'train',
+  'ship',
+  'bike',
+  'map-pin',
+  'compass',
+  'luggage',
+  'mountain',
+  'fuel',
+  'gauge',
+  'tent',
+  // home
+  'home',
+  'sofa',
+  'lamp',
+  'bed',
+  'bath',
+  'refrigerator',
+  'tv',
+  'air-vent',
+  // sports
+  'dumbbell',
+  'trophy',
+  'target',
+  'activity',
+  'bicycle',
+  // pets
+  'paw-print',
+  'cat',
+  'dog',
+  'bird',
+  'rabbit',
+  // art
+  'palette',
+  'image',
+  'camera',
+  'flower',
+] as const;
+export const categoryIconSchema = z.enum(CATEGORY_ICONS);
+
+export const CATEGORY_ACCENTS = [
+  'accent-1',
+  'accent-2',
+  'accent-3',
+  'accent-4',
+  'accent-5',
+  'accent-6',
+  'accent-7',
+  'accent-8',
+] as const;
+export const categoryAccentSchema = z.enum(CATEGORY_ACCENTS);
+
+export const categoryKindSchema = z.enum(['menu', 'services', 'none']);
+
+/** Inferred value types for the category enums (used by the api repository). */
+export type CategoryIcon = (typeof CATEGORY_ICONS)[number];
+export type CategoryAccent = (typeof CATEGORY_ACCENTS)[number];
+export type CategoryKind = 'menu' | 'services' | 'none';
+
+/** Localized text where `fa` is NOT required (category descriptions). */
+export const localizedTextOptionalSchema = z.record(
+  z.string().regex(/^[a-z]{2}(-[A-Z]{2})?$/),
+  z.string(),
+);
+
+export const categorySchema = z
+  .object({
+    id: uuidSchema,
+    parentId: uuidSchema.nullable(),
+    slug: slugSchema,
+    name: localizedTextSchema,
+    description: localizedTextOptionalSchema.nullable(),
+    icon: categoryIconSchema,
+    color: categoryAccentSchema.nullable(),
+    kind: categoryKindSchema,
+    supportsReservation: z.boolean(),
+    isActive: z.boolean(),
+    sortOrder: sortOrderSchema,
+  })
+  .strict();
+export type Category = z.infer<typeof categorySchema>;
+
+/** Public leaf (depth-2 child): no admin fields, no children. */
+export const publicCategoryLeafSchema = z
+  .object({
+    id: uuidSchema,
+    slug: slugSchema,
+    name: localizedTextSchema,
+    description: localizedTextOptionalSchema.nullable(),
+    icon: categoryIconSchema,
+    color: categoryAccentSchema.nullable(),
+    kind: categoryKindSchema,
+    supportsReservation: z.boolean(),
+  })
+  .strict();
+/** Public node (depth-1 root): a leaf plus its active children. */
+export const publicCategoryNodeSchema = publicCategoryLeafSchema.extend({
+  children: z.array(publicCategoryLeafSchema),
+});
+export type PublicCategoryNode = z.infer<typeof publicCategoryNodeSchema>;
+export type PublicCategoryLeaf = z.infer<typeof publicCategoryLeafSchema>;
+
+export const createCategoryBodySchema = z
+  .object({
+    parentId: uuidSchema.nullable().optional(),
+    slug: slugSchema.optional(),
+    name: localizedTextSchema,
+    description: localizedTextOptionalSchema.nullable().optional(),
+    icon: categoryIconSchema,
+    color: categoryAccentSchema.nullable().optional(),
+    kind: categoryKindSchema.optional(),
+    supportsReservation: z.boolean().optional(),
+    isActive: z.boolean().optional(),
+    sortOrder: sortOrderSchema.optional(),
+  })
+  .strict();
+export type CreateCategoryBody = z.infer<typeof createCategoryBodySchema>;
+
+export const updateCategoryBodySchema = z
+  .object({
+    parentId: uuidSchema.nullable().optional(),
+    slug: slugSchema.optional(),
+    name: localizedTextSchema.optional(),
+    description: localizedTextOptionalSchema.nullable().optional(),
+    icon: categoryIconSchema.optional(),
+    color: categoryAccentSchema.nullable().optional(),
+    kind: categoryKindSchema.optional(),
+    supportsReservation: z.boolean().optional(),
+    isActive: z.boolean().optional(),
+    sortOrder: sortOrderSchema.optional(),
+  })
+  .strict();
+export type UpdateCategoryBody = z.infer<typeof updateCategoryBodySchema>;
+
+export const reorderCategoriesBodySchema = z
+  .object({
+    parentId: uuidSchema.nullable(),
+    ids: z.array(uuidSchema).min(1).max(500),
+  })
+  .strict();
+export type ReorderCategoriesBody = z.infer<typeof reorderCategoriesBodySchema>;
+
+/** Admin category list item: flat, with child + business counts. */
+export const adminCategorySchema = categorySchema.extend({
+  childCount: z.number().int().min(0),
+  businessCount: z.number().int().min(0),
+});
+export type AdminCategory = z.infer<typeof adminCategorySchema>;

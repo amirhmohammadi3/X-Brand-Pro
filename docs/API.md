@@ -551,3 +551,30 @@ All routes require authentication (JWT access cookie or bearer). Responses use t
 | PUT    | /admin/cities/:cityId/neighborhoods/reorder | `reorderNeighborhoodsBodySchema` (`{ ids }`)  | scoped to the city                                                                                                    |
 
 - Errors: 400 (validation — bbox, timezone, coordinates), 401, 403 (permission), 404 (unknown city/neighborhood), 409 (slug conflict), 422 (delete with businesses)
+
+## /api/v1/categories (B2.2)
+
+- Auth: public (anonymous) — Rate limit `catalog.categories` / `catalog.category` 120/min per IP
+- The tree is cached 60 s (Redis) + `Cache-Control: public, max-age=60` + ETag (304 on `If-None-Match`)
+
+| Method | Path              | Notes                                                                                                                                                                           |
+| ------ | ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | /categories       | active two-level tree (roots + active children); a root whose children are all inactive still appears with an empty `children` array; sorted by `sort_order` then `name->>'fa'` |
+| GET    | /categories/:slug | active category with its active children (if a root) and a parent summary `{ slug, name }` (if a child); 404 if inactive/unknown                                                |
+
+- Errors: 404 (unknown/inactive category)
+
+## /api/v1/admin/categories (B2.2)
+
+- Auth: `catalog.manage` permission (admin, super_admin); audit-logged (`catalog.category.create/update/delete/set_active/reorder`); rate limit `admin.catalog.read` / `admin.catalog.write` 60/min per user
+
+| Method | Path                         | Body                                                | Notes                                                                                                                                                                                 |
+| ------ | ---------------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | /admin/categories            | —                                                   | flat list (active + inactive) with `parentId`, `childCount`, `businessCount` (0 until B2.4 registers `CATEGORY_BUSINESS_COUNTER`)                                                     |
+| POST   | /admin/categories            | `createCategoryBodySchema`                          | `parentId` optional (null = root); slug optional (derived from name.en/fa); depth rule: a parent must be a root (refused 422 otherwise); 409 on duplicate slug                        |
+| PATCH  | /admin/categories/:id        | `updateCategoryBodySchema`                          | partial; moving to another parent allowed only when the node has no children OR becomes a root (parentId null); the new parent must be a root; cycles impossible under the depth rule |
+| DELETE | /admin/categories/:id        | —                                                   | 422 when the category has children (`details.hasChildren`) or businesses (`details.businessCount`) — deactivate instead                                                               |
+| PUT    | /admin/categories/:id/active | `setActiveCityBodySchema` (`{ isActive }`)          | deactivating a parent does NOT delete children; the public tree hides children of an inactive parent                                                                                  |
+| PUT    | /admin/categories/reorder    | `reorderCategoriesBodySchema` (`{ parentId, ids }`) | sets `sort_order` by position; all ids must share the given `parentId` (422 otherwise)                                                                                                |
+
+- Errors: 400 (validation — icon allow-list, accent, kind, name fa), 401, 403 (permission), 404 (unknown category/parent), 409 (slug conflict), 422 (depth/move/delete refusals)

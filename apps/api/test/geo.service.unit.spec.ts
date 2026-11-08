@@ -153,9 +153,9 @@ function makeService(opts: { businessCount?: number } = {}) {
   };
   const service = new GeoService(
     repo,
-    cache as unknown as Parameters<typeof GeoService>[1],
-    settings as unknown as Parameters<typeof GeoService>[2],
-    events as unknown as Parameters<typeof GeoService>[3],
+    cache as unknown as ConstructorParameters<typeof GeoService>[1],
+    settings as unknown as ConstructorParameters<typeof GeoService>[2],
+    events as unknown as ConstructorParameters<typeof GeoService>[3],
     businessCounter,
   );
   return { service, repo, events, businessCounter };

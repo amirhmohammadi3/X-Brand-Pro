@@ -20,4 +20,5 @@ export * from './users.js';
 export * from './oauth.js';
 export * from './i18n.js';
 export * from './geo.js';
+export * from './catalog.js';
 export * from './theme.js';

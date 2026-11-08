@@ -21,6 +21,9 @@ Format: one row per limited endpoint group.
 | `geo.cities` / `geo.city` / `geo.neighborhoods`                       | GET /cities, /cities/:slug, /cities/:slug/neighborhoods  | 120   | 60s    | ip                              | B2.1   |
 | `admin.geo.read`                                                      | GET /admin/cities\*, /admin/cities/:cityId/neighborhoods | 60    | 60s    | user                            | B2.1   |
 | `admin.geo.write`                                                     | POST/PATCH/DELETE/PUT /admin/cities\*                    | 60    | 60s    | user                            | B2.1   |
+| `catalog.categories` / `catalog.category`                             | GET /categories, /categories/:slug                       | 120   | 60s    | ip                              | B2.2   |
+| `admin.catalog.read`                                                  | GET /admin/categories\*                                  | 60    | 60s    | user                            | B2.2   |
+| `admin.catalog.write`                                                 | POST/PATCH/DELETE/PUT /admin/categories\*                | 60    | 60s    | user                            | B2.2   |
 
 Mechanism (B0.3): fixed-window counter in Redis (`INCR` + `EXPIRE NX`, key `rl:<name>:<identity>:<epoch bucket>`), enforced by the global `RateLimitGuard` on routes annotated with `@RateLimit({ name, limit, windowSec, scope })`. Rejections are HTTP 429 with the `RATE_LIMITED` error envelope and a `Retry-After` header. Scope `ip` until the auth module lands; `user` falls back to ip for unauthenticated requests.
 
