@@ -2,7 +2,7 @@
 
 هر پرامپت بعد از تأیید «Done when» توسط شما و commit، تیک می‌خورد. فرمت تیک: `- [x] ID عنوان (تاریخ)`.
 
-وضعیت فاز جاری: فاز ۲ — در حال اجرا (B2.1، B2.2، B2.3 تکمیل شد)
+وضعیت فاز جاری: فاز ۲ — در حال اجرا (B2.1، B2.2، B2.3، B2.4 تکمیل شد)
 
 ## فاز ۰ — اسکلت و زیرساخت
 
@@ -59,7 +59,7 @@
 - [x] B2.1 🟡 شهر و محله (ترجمه‌پذیر، فعال/غیرفعال، CRUD ادمین) (2026-11-07)
 - [x] B2.2 🟡 دسته‌بندی سلسله‌مراتبی (آیکون، ترجمه، فعال/غیرفعال، CRUD ادمین) (2026-11-08)
 - [x] B2.3 🟡 ویژگی‌ها/امکانات (wifi، پارکینگ…) و ارتباط با دسته (2026-11-08)
-- [ ] B2.4 🔴 اسکیمای کسب‌وکار (PostGIS، slug، وضعیت، قیمت، تماس، شبکه‌ها، ایندکس‌ها)
+- [x] B2.4 🔴 اسکیمای کسب‌وکار (PostGIS، slug، وضعیت، قیمت، تماس، شبکه‌ها، ایندکس‌ها) (2026-11-08)
 - [ ] B2.5 🟡 ساعات کاری و روزهای ویژه + محاسبهٔ «الان باز»
 - [ ] B2.6 🟡 CRUD کسب‌وکار (ثبت توسط owner با وضعیت pending، مجوزها، slug فارسی)
 - [ ] B2.7 🟡 عکس‌های کسب‌وکار (آپلود، ترتیب، کاور)
@@ -227,6 +227,7 @@
 
 ## Follow-ups
 
+- [ ] (B2.4) With a Docker machine: `pnpm services:up` + `pnpm db:migrate` to apply migration `0014_huge_randall` (business_status enum, businesses, business_categories, business_amenities + all indexes/checks) against a live Postgres+PostGIS — the migration SQL is generated and the partial unique indexes / CHECK constraints are verified by the migration file, but were never executed here (no Docker). Then run `pnpm --filter @app/api test test/businesses.repository.spec.ts` (9 DB-requiring integration tests: insert+read round trip with location/categories, only-one-primary via the partial unique index, the three counters making B2.1–B2.3 delete protections trip, soft-deleted exclusion, partial-index existence via `pg_indexes`, avg_rating + active-requires-published CHECK constraints, `setStatus(active)` auto-stamping `published_at`, `softDelete` hiding from `listByOwner`). The suite self-skips in this sandbox; the pure domain rules (transition table, bbox, slug, contacts — 46 tests) run green here.
 - [x] (F1.9) `/account/settings` page — ✅ Built (settings-form.tsx): «رمز عبور» (change when `hasPassword`, set first password otherwise; client-side weak + mismatch guards), «ورود با گوگل» (linked state from `useOAuthAccounts`, unlink with `LAST_LOGIN_METHOD` → friendly «set a password first» message), «نشست‌ها» (device summary, masked IP, created via `formatDate`, last-used via `formatRelative`, current marked; revoke one + revoke-all-others with confirm modals), «حذف حساب» (danger modal, type `DELETE` + password when `hasPassword`; on success `logout()` clears the cache and `router.replace('/')`). The `settings` sidebar entry is wired in account-shell.tsx.
 - [ ] (F1.9) Language-preference select on `/account/profile` (the prompt's field) — deferred; needs the active-languages hook/contract from `GET /i18n/languages` and a `useSwitchLocale`-style call after save.
 - [ ] (F1.9) Playwright `account.spec.ts` (update name, upload an avatar from a fixture image, change password, see the sessions list, revoke another session created via API) — write + run in a Docker environment with `DEV_TOOLS=true` and `PUBLIC_WEB_URL=:3100` (CSRF origin). Not runnable in this sandbox.

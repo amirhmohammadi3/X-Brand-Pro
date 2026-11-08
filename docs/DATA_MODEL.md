@@ -240,3 +240,30 @@ Block format (one per table):
 - Columns of note: `category_id uuid` FK categories ON DELETE CASCADE, `amenity_id uuid` FK amenities ON DELETE CASCADE, `sort_order int not null default 0` (orders amenities within a category), `created_at` timestamptz
 - Indexes: composite PRIMARY KEY (category_id, amenity_id); `category_amenities_category_sort_idx` btree on (category_id, sort_order)
 - Retention: cascade-deleted with either parent
+
+### businesses
+
+- Module: business - Prompt: B2.4
+- Purpose: the core catalog entity — a real-world named place (cafe, clinic, shop) located by a PostGIS point, owned by a user, categorised, amenity-tagged and lifecycle-managed through a status state machine (draft→pending→active|rejected→…; see `BusinessDomainService.canTransition`). `name` is a SINGLE string in the owner's own spelling (any script); `nameAlt` carries the second script — businesses are real-world named entities, not translatable copy.
+- Columns of note: `id uuid pk default gen_random_uuid()`, `slug text unique` (globally unique, includes soft-deleted rows), `name text not null`, `name_alt text` nullable, `description text` nullable (max 5000 enforced in contracts), `city_id uuid` FK cities ON DELETE RESTRICT, `neighborhood_id uuid` FK neighborhoods ON DELETE SET NULL, `primary_category_id uuid` FK categories ON DELETE RESTRICT, `address text not null`, `location geography(Point, 4326)` not null (GiST indexed), `price_level smallint` nullable CHECK 1..4, `phone`/`whatsapp`/`telegram`/`instagram`/`website`/`email text` nullable (normalised at the edge: phones→E.164, handles extracted from URLs, email lowercased), `status business_status` not null default `pending` (pgEnum: draft/pending/active/suspended/rejected/closed), `owner_id`/`created_by uuid` FK users ON DELETE SET NULL, `is_claimed`/`is_featured`/`is_demo boolean default false`, `avg_rating numeric(3,2) not null default 0` (CHECK 0..5), `review_count int not null default 0` (CHECK ≥0), `cover_media_id uuid` FK media_files ON DELETE SET NULL, `tags text[] not null default '{}'`, `source text not null default 'manual'` CHECK in (manual, import), `rejection_reason text` nullable, `published_at timestamptz` nullable, `created_at`/`updated_at`/`deleted_at timestamptz`
+- Indexes: `businesses_location_idx` GiST on location; `businesses_city_status_cat_idx` btree (city_id, status, primary_category_id); `businesses_neighborhood_idx` btree (neighborhood_id); `businesses_owner_idx` btree (owner_id); `businesses_status_created_idx` btree (status, created_at DESC); unique on slug; `businesses_active_city_rating_idx` UNIQUE btree (city_id, avg_rating DESC) WHERE `status='active' and deleted_at is null` (the public per-city rating leaderboard)
+- Constraints: `businesses_avg_rating_range` CHECK (avg_rating between 0 and 5); `businesses_review_count_nonneg` CHECK (review_count ≥ 0); `businesses_active_requires_published` CHECK (status <> 'active' or published_at is not null — an active row must have a publish timestamp); `businesses_source_enum` CHECK (source in (manual, import)); FKs city/primary_category RESTRICT, neighborhood/owner/created_by/cover SET NULL
+- Retention: soft delete (`deleted_at`) — kept for audit + SEO redirect; excluded from public lists, counters and the active-city-rating index
+
+### business_categories
+
+- Module: business - Prompt: B2.4
+- Purpose: many-to-many between businesses and categories, with a primary flag. The repository guarantees exactly one primary category per business; the partial unique index makes a second `is_primary=true` row for the same business impossible at the DB level.
+- Columns of note: `business_id uuid` FK businesses ON DELETE CASCADE, `category_id uuid` FK categories ON DELETE CASCADE, `is_primary boolean not null default false`, `created_at timestamptz`
+- Indexes: composite PRIMARY KEY (business_id, category_id); `business_categories_one_primary` UNIQUE btree (business_id) WHERE `is_primary` (at most one primary per business); `business_categories_category_idx` btree (category_id) (powers `countByCategory`)
+- Constraints: composite PK; both FKs ON DELETE CASCADE
+- Retention: cascade-deleted with either parent
+
+### business_amenities
+
+- Module: business - Prompt: B2.4
+- Purpose: many-to-many between businesses and amenities. Powers the business detail's amenities list and the `AmenityUsageCounter` delete guard (B2.3 now refuses deleting an amenity used by a business).
+- Columns of note: `business_id uuid` FK businesses ON DELETE CASCADE, `amenity_id uuid` FK amenities ON DELETE CASCADE, `created_at timestamptz`
+- Indexes: composite PRIMARY KEY (business_id, amenity_id); `business_amenities_amenity_idx` btree (amenity_id) (powers `countByAmenity`)
+- Constraints: composite PK; both FKs ON DELETE CASCADE
+- Retention: cascade-deleted with either parent
