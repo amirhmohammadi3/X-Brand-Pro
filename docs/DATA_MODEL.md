@@ -267,3 +267,21 @@ Block format (one per table):
 - Indexes: composite PRIMARY KEY (business_id, amenity_id); `business_amenities_amenity_idx` btree (amenity_id) (powers `countByAmenity`)
 - Constraints: composite PK; both FKs ON DELETE CASCADE
 - Retention: cascade-deleted with either parent
+
+### business_hours
+
+- Module: business - Prompt: B2.5
+- Purpose: weekly opening hours — one row per interval per weekday. `all_day` rows store the `{ weekday, allDay: true }` shortcut as a single row (`open_time = 00:00`, `close_time = 24:00`); normal intervals store `open_time`/`close_time` with `crosses_midnight` flagging `close < open` (the interval spills into the next day's early hours). `close = 24:00` is end-of-day and does NOT cross midnight.
+- Columns of note: `id uuid pk`, `business_id uuid` FK businesses ON DELETE CASCADE, `weekday smallint not null` (CHECK 1..7, ISO: 1 Mon .. 7 Sun), `open_time time(0) not null`, `close_time time(0) not null` (PostgreSQL `time` accepts `24:00:00` = midnight at end of day; the repository maps `HH:mm` ↔ `HH:mm:ss`), `crosses_midnight boolean not null default false`, `all_day boolean not null default false`, `sort_order smallint not null default 0`, `created_at`/`updated_at timestamptz`
+- Indexes: `business_hours_biz_weekday_idx` btree (business_id, weekday)
+- Constraints: `business_hours_weekday_range` CHECK (weekday between 1 and 7); FK business_id CASCADE. Overlap, weekday-uniqueness and the allDay/intervals exclusivity are validated in `weeklyHoursSchema` (contracts) at the edge, not at the DB.
+- Retention: cascade-deleted with the business; replaced wholesale by `HoursRepository.replaceWeekly` (delete + insert in one transaction)
+
+### business_special_days
+
+- Module: business - Prompt: B2.5
+- Purpose: per-date overrides of the weekly schedule. `closed = true` cancels the day (and cancels the previous day's midnight-crossing tail — see `computeOpenStatus`); otherwise `intervals` (a JSONB array of `{ open, close }`) replaces the weekly schedule for that date. `unique (business_id, date)` guarantees one override per business per date.
+- Columns of note: `id uuid pk`, `business_id uuid` FK businesses ON DELETE CASCADE, `date date not null` (stored/returned as `YYYY-MM-DD`), `closed boolean not null`, `intervals jsonb` nullable (array of `{ open, close }` validated with `intervalSchema` on read), `note text` nullable (≤200), `created_at`/`updated_at timestamptz`
+- Indexes: `business_special_days_biz_date_unq` UNIQUE btree (business_id, date); `business_special_days_biz_date_idx` btree (business_id, date)
+- Constraints: unique (business_id, date); FK business_id CASCADE. The closed+intervals conflict is validated in `upsertSpecialDayBodySchema` at the edge.
+- Retention: cascade-deleted with the business; upserted via `onConflictDoUpdate` on (business_id, date)

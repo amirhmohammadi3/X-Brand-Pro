@@ -6,10 +6,11 @@ Every executing prompt that adds a permission, a rate limit, a secret, an upload
 
 Format: one row per permission string, one column per role (`user`, `owner`, `moderator`, `admin`, `super_admin`) with `yes` or `no`, plus the endpoints that require it.
 
-| Permission              | user | owner | moderator | admin | super_admin | Endpoints                                                                                    |
-| ----------------------- | ---- | ----- | --------- | ----- | ----------- | -------------------------------------------------------------------------------------------- |
-| (filled by prompt B1.2) |      |       |           |       |             |                                                                                              |
-| `catalog.manage`        | no   | no    | no        | yes   | yes         | `/admin/cities*` (B2.1) — city/neighborhood CRUD; delete refused while a city has businesses |
+| Permission              | user | owner | moderator | admin | super_admin | Endpoints                                                                                                                                                                                                          |
+| ----------------------- | ---- | ----- | --------- | ----- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| (filled by prompt B1.2) |      |       |           |       |             |                                                                                                                                                                                                                    |
+| `catalog.manage`        | no   | no    | no        | yes   | yes         | `/admin/cities*` (B2.1) — city/neighborhood CRUD; delete refused while a city has businesses                                                                                                                       |
+| `businesses.manage`     | no   | no    | no        | yes   | yes         | `/businesses/:id/hours` PUT, `/businesses/:id/special-days/:date` PUT/DELETE (B2.5) — owner-or-manage; an owner may also edit their own business's hours when its status is `draft`/`pending`/`active`/`suspended` |
 
 ## 2. Rate limits
 
@@ -27,6 +28,8 @@ Format: one row per limited endpoint group.
 | `catalog.amenities`                                                   | GET /amenities                                                              | 120   | 60s    | ip                              | B2.3   |
 | `admin.catalog.read` (B2.3)                                           | GET /admin/amenities, /admin/categories/:id/amenities                       | 60    | 60s    | user                            | B2.3   |
 | `admin.catalog.write` (B2.3)                                          | POST/PATCH/PUT/DELETE /admin/amenities, PUT /admin/categories/:id/amenities | 60    | 60s    | user                            | B2.3   |
+| `business.hours.read`                                                 | GET /businesses/:id/hours                                                   | 120   | 60s    | ip                              | B2.5   |
+| `business.hours.write`                                                | PUT /businesses/:id/hours, PUT/DELETE /businesses/:id/special-days/:date    | 60    | 60s    | user                            | B2.5   |
 
 Mechanism (B0.3): fixed-window counter in Redis (`INCR` + `EXPIRE NX`, key `rl:<name>:<identity>:<epoch bucket>`), enforced by the global `RateLimitGuard` on routes annotated with `@RateLimit({ name, limit, windowSec, scope })`. Rejections are HTTP 429 with the `RATE_LIMITED` error envelope and a `Retry-After` header. Scope `ip` until the auth module lands; `user` falls back to ip for unauthenticated requests.
 
