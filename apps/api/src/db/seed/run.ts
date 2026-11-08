@@ -13,6 +13,7 @@ import { listSeeders, runSeeders } from './registry.js';
 import './super-admin.js';
 import './i18n.seed.js';
 import './theme.seed.js';
+import './catalog.seed.js'; // B2.10: tehran geo, categories/amenities, demo businesses
 
 async function main(): Promise<void> {
   loadDotenvIntoProcessEnv();
