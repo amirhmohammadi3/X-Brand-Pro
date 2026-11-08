@@ -312,3 +312,12 @@ Block format (one per table):
 - Indexes: `business_menu_items_section_sort_idx` btree (section_id, sort_order); `business_menu_items_biz_idx` btree (business_id)
 - Constraints: `business_menu_items_price_nonneg` CHECK (price ≥ 0); both cascade FKs; photo SET NULL. Kind/ownership/attachment rules of the photo are validated in `MenuService` at the edge.
 - Retention: cascade-deleted with the business or its section; rows are RECREATED on every full-menu replace (no stable client-side identity — nothing references item ids yet; reviews reference the business, B4.x).
+
+### business_claims
+
+- Module: business - Prompt: B2.9
+- Purpose: ownership claims on unclaimed businesses. A user files evidence (text + optional uploaded `claim_document` media); an admin approves (the claimant becomes the owner — `owner_id` + `is_claimed` in ONE transaction with the claim closing) or rejects (a required note). The claimant may cancel their own pending claim.
+- Columns of note: `id uuid pk`, `business_id uuid` FK businesses CASCADE, `claimant_user_id uuid` FK users CASCADE, `status business_claim_status enum` not null default `pending` (`pending|approved|rejected|cancelled`), `evidence text not null` (20..2000 at the edge), `document_media_id uuid` FK media_files ON DELETE SET NULL (a media hard-delete keeps the claim's audit trail), `reviewed_by uuid` FK users SET NULL (an admin account removal must not erase the decision), `admin_note text` nullable (≤500; required on reject), `decided_at timestamptz` nullable, `created_at`/`updated_at timestamptz`
+- Indexes: `business_claims_one_pending` UNIQUE btree (business_id) WHERE status = 'pending'; `business_claims_claimant_idx` btree (claimant_user_id, created_at desc); `business_claims_status_created_idx` btree (status, created_at desc)
+- Constraints: at most one PENDING claim per business (partial unique index); the approve transaction re-checks `owner_id IS NULL` so a business claimed in the meantime cannot double-own.
+- Retention: cascade-deleted with the business; the claimant user's deletion cascades their claims (evidence is personal data); decided claims are kept for audit.
