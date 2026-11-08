@@ -3,13 +3,23 @@ import { roleHasPermissions } from '../users/users.service.js';
 import type { BusinessStatus } from '@app/contracts';
 
 /**
- * Business access control (B2.5). The single authorization helper reused by
- * the hours endpoints here and by later business prompts (B2.6 CRUD, B2.7
+ * Business access control (B2.5, relaxed in B2.6). The single authorization
+ * helper reused by the hours endpoints and by B2.6's CRUD (and later B2.7
  * photos, B2.8 menu, B2.9 claims): a user may manage a business when they hold
  * the `businesses.manage` permission (admin / super_admin), OR when they are
- * the business's owner (role `owner`) and the business is in an owner-editable
- * status (`draft`, `pending`, `active`, `suspended`). Suspended businesses stay
- * editable by their owner (visibility is unaffected by the edit lock).
+ * the business's owner (matched by `ownerId`, regardless of role tag) and the
+ * business is in an owner-editable status (`draft`, `pending`, `active`,
+ * `suspended`). Suspended businesses stay editable by their owner (visibility
+ * is unaffected by the edit lock).
+ *
+ * B2.6 change: the owner branch no longer requires the `owner` ROLE tag — the
+ * data relationship (`ownerId === user.id`) is what makes someone this
+ * business's owner. A user who registers a business becomes its owner by that
+ * relationship; the `owner` role tag is a separate, admin-granted RBAC flag
+ * (for nav/perks) and is not needed to manage one's own business. This mirrors
+ * `canViewBusinessHours` (B2.5) which already matched owners by id alone, and
+ * avoids a JWT-staleness trap (the access token's `role` claim is minted at
+ * login and would lag a DB-side promotion until the next refresh).
  *
  * `assertCanManageBusiness` throws `ForbiddenException` when the caller is not
  * allowed; `canManageBusiness` returns a boolean for the cases that need a
@@ -39,7 +49,7 @@ export const OWNER_EDITABLE_STATUSES: readonly BusinessStatus[] = [
 
 export function canManageBusiness(user: BusinessActor, business: ManagedBusiness): boolean {
   if (roleHasPermissions(user.role as never, ['businesses.manage'])) return true;
-  if (business.ownerId === user.id && user.role === 'owner') {
+  if (business.ownerId === user.id) {
     return OWNER_EDITABLE_STATUSES.includes(business.status);
   }
   return false;

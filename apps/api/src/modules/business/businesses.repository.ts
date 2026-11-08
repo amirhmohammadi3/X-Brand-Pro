@@ -17,6 +17,7 @@ import type {
   BusinessSource,
   BusinessStatus,
   BusinessSummary,
+  Bbox,
   GeoPoint,
 } from '@app/contracts';
 
@@ -61,6 +62,19 @@ export interface CreateBusinessInput {
 /** Partial scalar update — join tables are touched via replace* methods. */
 export type UpdateBusinessInput = Partial<Omit<CreateBusinessInput, 'categoryIds' | 'amenityIds'>>;
 
+/**
+ * The city fields B2.6 needs to validate a business registration: the bbox for
+ * the location-in-bbox rule and the localized name (slug fallback) for slug
+ * derivation. `isActive` lets the service refuse filing under a hidden city.
+ */
+export interface CityForBusiness {
+  id: string;
+  slug: string;
+  name: Record<string, string>;
+  bbox: Bbox | null;
+  isActive: boolean;
+}
+
 /** The narrow fake-able surface consumed by the service + B2.6's HTTP layer. */
 export interface BusinessesRepositoryLike {
   existsSlug(slug: string, exceptId?: string): Promise<boolean>;
@@ -77,6 +91,18 @@ export interface BusinessesRepositoryLike {
   setStatus(id: string, status: BusinessStatus, publishedAt?: Date | null): Promise<void>;
   softDelete(id: string): Promise<void>;
   listByOwner(ownerId: string): Promise<BusinessSummary[]>;
+  /* --- B2.6 existence/bbox lookups (the service validates create/update input).
+   * These query the already-joined cities/neighborhoods/categories/amenities
+   * tables directly so the business module stays self-contained (no circular
+   * import of the geo/catalog modules, which import BusinessModule for their
+   * counters). */
+  findCityForBusiness(cityId: string): Promise<CityForBusiness | null>;
+  /** True iff the neighborhood exists, is active and belongs to `cityId`. */
+  findNeighborhoodInCity(neighborhoodId: string, cityId: string): Promise<boolean>;
+  /** The subset of `categoryIds` that exist and are active (assignable). */
+  categoriesExistAndActive(categoryIds: string[]): Promise<string[]>;
+  /** The subset of `amenityIds` that exist and are active. */
+  amenitiesExistAndActive(amenityIds: string[]): Promise<string[]>;
 }
 
 // ─── PostGIS point helpers (mirror geo.repository) ────────────────────────
@@ -358,6 +384,59 @@ export class BusinessesRepository implements BusinessesRepositoryLike {
       .where(eq(businesses.id, id));
   }
 
+  // ─── B2.6 existence/bbox lookups ────────────────────────────────────────
+
+  async findCityForBusiness(cityId: string): Promise<CityForBusiness | null> {
+    const rows = await this.client.db
+      .select({
+        id: cities.id,
+        slug: cities.slug,
+        name: cities.name,
+        bbox: cities.bbox,
+        isActive: cities.isActive,
+      })
+      .from(cities)
+      .where(eq(cities.id, cityId))
+      .limit(1);
+    const r = rows[0];
+    return r ? { id: r.id, slug: r.slug, name: r.name, bbox: r.bbox, isActive: r.isActive } : null;
+  }
+
+  async findNeighborhoodInCity(neighborhoodId: string, cityId: string): Promise<boolean> {
+    const rows = await this.client.db
+      .select({ id: neighborhoods.id })
+      .from(neighborhoods)
+      .where(
+        and(
+          eq(neighborhoods.id, neighborhoodId),
+          eq(neighborhoods.cityId, cityId),
+          eq(neighborhoods.isActive, true),
+        ),
+      )
+      .limit(1);
+    return rows.length > 0;
+  }
+
+  async categoriesExistAndActive(categoryIds: string[]): Promise<string[]> {
+    if (categoryIds.length === 0) return [];
+    const unique = Array.from(new Set(categoryIds));
+    const rows = await this.client.db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(and(sql`${categories.id} = any(${unique})`, eq(categories.isActive, true)));
+    return rows.map((r) => r.id);
+  }
+
+  async amenitiesExistAndActive(amenityIds: string[]): Promise<string[]> {
+    if (amenityIds.length === 0) return [];
+    const unique = Array.from(new Set(amenityIds));
+    const rows = await this.client.db
+      .select({ id: amenities.id })
+      .from(amenities)
+      .where(and(sql`${amenities.id} = any(${unique})`, eq(amenities.isActive, true)));
+    return rows.map((r) => r.id);
+  }
+
   // ─── private helpers ────────────────────────────────────────────────────
 
   private async fetchDetail(where: unknown): Promise<BusinessDetail | null> {
@@ -447,6 +526,7 @@ export class BusinessesRepository implements BusinessesRepositoryLike {
   ): BusinessDetail {
     return {
       ...this.toSummary(r),
+      ownerId: r.ownerId,
       description: r.description,
       phone: r.phone,
       whatsapp: r.whatsapp,

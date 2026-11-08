@@ -1,4 +1,5 @@
 import { Module, type Provider } from '@nestjs/common';
+import { AuditModule } from '../audit/audit.module.js';
 import { MediaModule } from '../media/media.module.js';
 import { BUSINESSES_REPOSITORY, BusinessesRepository } from './businesses.repository.js';
 import { BusinessDomainService } from './businesses.domain.js';
@@ -9,17 +10,24 @@ import { AMENITY_USAGE_COUNTER } from '../catalog/amenities/amenities.service.js
 import { HOURS_REPOSITORY, HoursRepository } from './hours/hours.repository.js';
 import { HoursService } from './hours/hours.service.js';
 import { HoursController } from './hours/hours.controller.js';
+import { BusinessesService } from './businesses.service.js';
+import { BusinessesController } from './businesses.controller.js';
 
 /**
- * Business catalog module (B2.4 + B2.5) — the core business data model: schema,
- * repository and domain rules (status state machine, location-in-bbox, slug,
- * contact normalisers), plus the opening-hours sub-module (B2.5): weekly
- * schedule, special days, and the pure `computeOpenStatus` "open now" logic.
+ * Business catalog module (B2.4 + B2.5 + B2.6) — the core business data model:
+ * schema, repository and domain rules (status state machine, location-in-bbox,
+ * slug, contact normalisers); the opening-hours sub-module (B2.5); and the CRUD
+ * HTTP layer (B2.6): registration (owner = caller, status `pending`, Persian
+ * slug), owner list, public/owner detail, update, status transitions and soft
+ * delete — each write audited via AuditModule's AUDIT_SERVICE.
  *
- * Binds the three counter providers (`BUSINESS_COUNTER`, `CATEGORY_BUSINESS_COUNTER`,
- * `AMENITY_USAGE_COUNTER`) that B2.1–B2.3 declared as stubs and EXPORTS them so
- * the geo/catalog/amenities modules pick up the real counts by importing this
- * module. CacheService, DrizzleClient and EventEmitter2 are @Global.
+ * Binds the three counter providers (`BUSINESS_COUNTER`,
+ * `CATEGORY_BUSINESS_COUNTER`, `AMENITY_USAGE_COUNTER`) that B2.1–B2.3 declared
+ * as stubs and EXPORTS them so the geo/catalog/amenities modules pick up the real
+ * counts by importing this module. CacheService, DrizzleClient and
+ * EventEmitter2 are @Global. AuditModule is imported (not @Global) so the
+ * controller can inject AUDIT_SERVICE; it does not import BusinessModule, so
+ * there is no circular dependency.
  */
 const repositoryProvider: Provider = {
   provide: BUSINESSES_REPOSITORY,
@@ -40,19 +48,21 @@ const counterProviders: Provider[] = [
 ];
 
 @Module({
-  imports: [MediaModule],
-  controllers: [HoursController],
+  imports: [AuditModule, MediaModule],
+  controllers: [BusinessesController, HoursController],
   providers: [
     repositoryProvider,
     hoursRepositoryProvider,
     BusinessDomainService,
     BusinessCounters,
+    BusinessesService,
     HoursService,
     ...counterProviders,
   ],
   exports: [
     BUSINESSES_REPOSITORY,
     BusinessDomainService,
+    BusinessesService,
     BUSINESS_COUNTER,
     CATEGORY_BUSINESS_COUNTER,
     AMENITY_USAGE_COUNTER,

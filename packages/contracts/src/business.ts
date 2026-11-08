@@ -162,6 +162,10 @@ export const businessSummarySchema = z
 export type BusinessSummary = z.infer<typeof businessSummarySchema>;
 
 export const businessDetailSchema = businessSummarySchema.extend({
+  /** The owning user's id (null when unclaimed). Exposed so a client can tell
+   * "this is mine" and show manage controls; a UUID is not guessable PII and
+   * management still requires the owner's session. */
+  ownerId: uuidSchema.nullable(),
   description: z.string().max(5000).nullable(),
   phone: z.string().nullable(),
   whatsapp: z.string().nullable(),
@@ -194,5 +198,63 @@ export const businessContactsSchema = z
   })
   .strict();
 export type BusinessContacts = z.infer<typeof businessContactsSchema>;
+
+// ─── CRUD bodies (B2.6) ───────────────────────────────────────────────────
+//
+// B2.6 owns the HTTP layer over the B2.4 repository + domain rules. A business
+// is registered by its owner (any authenticated user becomes the owner of what
+// they create; the `ownerId` relationship — not the `owner` role tag — drives
+// manage access, see business-access.ts). New businesses start `pending`; the
+// status state machine (businesses.domain.ts) governs every later transition.
+
+/** The editable scalar fields of a business, shared by create + update. */
+const businessEditableFields = {
+  name: z.string().min(1).max(200),
+  nameAlt: z.string().max(200).nullable().optional(),
+  description: z.string().max(5000).nullable().optional(),
+  cityId: uuidSchema,
+  neighborhoodId: uuidSchema.nullable().optional(),
+  primaryCategoryId: uuidSchema,
+  /** Secondary categories (the primary is always linked). `categoryIds` need
+   * not repeat `primaryCategoryId`; the repository merges it in. */
+  categoryIds: z.array(uuidSchema).max(20).optional(),
+  amenityIds: z.array(uuidSchema).max(100).optional(),
+  address: z.string().min(1).max(500),
+  location: geoPointSchema,
+  priceLevel: priceLevelSchema.nullable().optional(),
+  tags: z.array(z.string().min(1).max(60)).max(50).optional(),
+  phone: iranPhoneSchema.nullable().optional(),
+  whatsapp: whatsappSchema.nullable().optional(),
+  telegram: telegramHandleSchema.nullable().optional(),
+  instagram: instagramHandleSchema.nullable().optional(),
+  website: websiteSchema.nullable().optional(),
+  email: emailSchema.nullable().optional(),
+};
+
+/** Create body — the owner registers a business; it starts `pending`. */
+export const createBusinessBodySchema = z.object(businessEditableFields).strict();
+export type CreateBusinessBody = z.infer<typeof createBusinessBodySchema>;
+
+/** Update body — every field optional; join tables replaced when present. */
+export const updateBusinessBodySchema = z.object(businessEditableFields).partial().strict();
+export type UpdateBusinessBody = z.infer<typeof updateBusinessBodySchema>;
+
+/**
+ * Status transition body. `rejectionReason` is REQUIRED when the target is
+ * `rejected` (the only admin moderation that carries a reason) and forbidden
+ * otherwise — enforced by the refine so a stray reason on another transition
+ * is rejected at the edge.
+ */
+export const businessTransitionBodySchema = z
+  .object({
+    status: businessStatusSchema,
+    rejectionReason: z.string().min(1).max(500).optional(),
+  })
+  .strict()
+  .refine((b) => (b.status === 'rejected') === !!b.rejectionReason, {
+    message: 'rejectionReason is required when rejecting and forbidden otherwise',
+    path: ['rejectionReason'],
+  });
+export type BusinessTransitionBody = z.infer<typeof businessTransitionBodySchema>;
 
 export type { GeoPoint };
