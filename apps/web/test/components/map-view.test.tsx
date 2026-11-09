@@ -89,6 +89,10 @@ class FakeMap {
   getZoom(): number {
     return this.zoomValue;
   }
+  getCenter(): { lat: number; lng: number } {
+    return { lat: 35.6892, lng: 51.389 };
+  }
+  flyTo(): void {}
   easeTo(): void {}
   setStyle(url: string): void {
     this.style.setStyleCalls.push(url);

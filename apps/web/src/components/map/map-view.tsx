@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, useRef } from 'react';
 // maplibre-gl v6 ships named exports only (no default export).
 import {
   Map as MLMap,
@@ -65,19 +65,33 @@ export interface MapViewProps {
   data: MapResult | null;
   /** Fires on load and after every move end — the parent refetches with it. */
   onViewportChange?: (viewport: MapViewport) => void;
+  /** Fires alongside onViewportChange with the exact map center (F3.2's
+   * location picker consumes it — the bbox midpoint would round to ~1 m). */
+  onCenterChange?: (center: { lat: number; lng: number }) => void;
   /** [lng, lat]; defaults to Tehran center. */
   initialCenter?: [number, number];
   initialZoom?: number;
   className?: string;
 }
 
-export function MapView({
-  data,
-  onViewportChange,
-  initialCenter = DEFAULT_CENTER,
-  initialZoom = DEFAULT_ZOOM,
-  className,
-}: MapViewProps) {
+export interface MapViewHandle {
+  /** Fly (animated) to a position — F3.2's picker drives "use my location". */
+  flyTo: (center: [number, number], zoom?: number) => void;
+  /** The current exact center. */
+  getCenter: () => { lat: number; lng: number };
+}
+
+export const MapView = forwardRef<MapViewHandle, MapViewProps>(function MapViewInner(
+  {
+    data,
+    onViewportChange,
+    onCenterChange,
+    initialCenter = DEFAULT_CENTER,
+    initialZoom = DEFAULT_ZOOM,
+    className,
+  },
+  ref,
+) {
   const t = useTranslations('map');
   const locale = useLocale();
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -85,8 +99,10 @@ export function MapView({
   // Latest props for the load/style handlers (avoid stale closures).
   const dataRef = useRef<MapResult | null>(data);
   const onViewportChangeRef = useRef(onViewportChange);
+  const onCenterChangeRef = useRef(onCenterChange);
   dataRef.current = data;
   onViewportChangeRef.current = onViewportChange;
+  onCenterChangeRef.current = onCenterChange;
 
   // ── mount / unmount: construct + destroy the map once ───────────────────
   useEffect(() => {
@@ -130,6 +146,18 @@ export function MapView({
     // contract is enforced by the component test suite instead.
   }, []);
 
+  // Imperative surface for host components (F3.2's LocationPicker): flyTo
+  // for "use my location", getCenter for the live readout.
+  useImperativeHandle(ref, () => ({
+    flyTo: (center: [number, number], zoom?: number) => {
+      mapRef.current?.flyTo({ center, zoom: zoom ?? mapRef.current.getZoom(), duration: 600 });
+    },
+    getCenter: () => {
+      const c = mapRef.current?.getCenter();
+      return { lat: c?.lat ?? initialCenter[1], lng: c?.lng ?? initialCenter[0] };
+    },
+  }));
+
   // ── data prop → the two GeoJSON sources (after load) ────────────────────
   useEffect(() => {
     const map = mapRef.current;
@@ -158,15 +186,19 @@ export function MapView({
 
   function emitViewport(): void {
     const map = mapRef.current;
-    if (!map || !onViewportChangeRef.current) return;
-    const b = map.getBounds();
-    onViewportChangeRef.current(
-      viewportFromBounds(
-        { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
-        map.getZoom(),
-        MAP_POINT_ZOOM_MIN,
-      ),
-    );
+    const b = map?.getBounds();
+    if (!map) return;
+    if (onViewportChangeRef.current && b) {
+      onViewportChangeRef.current(
+        viewportFromBounds(
+          { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
+          map.getZoom(),
+          MAP_POINT_ZOOM_MIN,
+        ),
+      );
+    }
+    const center = map.getCenter();
+    onCenterChangeRef.current?.({ lat: center.lat, lng: center.lng });
   }
 
   /** Add (or re-add after setStyle) the two sources + three layers, then
@@ -280,7 +312,7 @@ export function MapView({
       data-testid="map-view"
     />
   );
-}
+});
 
 // ── local helpers (kept module-level for testability) ──────────────────────
 

@@ -973,6 +973,15 @@
       "rating": "rating"
     },
     "userLocation": "My location",
-    "loading": "Loading the map…"
+    "loading": "Loading the map…",
+    "picker": {
+      "confirm": "Confirm location",
+      "useMyLocation": "Use my location",
+      "outsideCity": "The selected position is outside the chosen city’s area; continue if you are sure."
+    },
+    "geolocation": {
+      "unavailable": "Geolocation is not available in this browser.",
+      "denied": "Device location access was denied; please allow it from the browser settings."
+    }
   }
 }
