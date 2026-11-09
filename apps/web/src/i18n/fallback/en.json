@@ -1034,5 +1034,19 @@
       "prev": "Previous",
       "next": "Next"
     }
+  },
+  "listing": {
+    "notFound": {
+      "title": "Not found",
+      "body": "This page does not exist or is inactive.",
+      "backHome": "Back to home"
+    },
+    "breadcrumb": "Breadcrumb",
+    "viewOnMap": "View on map",
+    "subcategories": "Subcategories",
+    "businesses": "Businesses",
+    "empty": "No businesses registered yet.",
+    "cityTagline": "Discover the businesses of this city",
+    "neighborhoods": "Neighborhoods"
   }
 }
