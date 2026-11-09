@@ -1,11 +1,18 @@
 import { Controller, Get, Query, type PipeTransform } from '@nestjs/common';
-import { searchQuerySchema, type SearchQuery } from '@app/contracts';
+import {
+  searchQuerySchema,
+  suggestQuerySchema,
+  type SearchQuery,
+  type SuggestQuery,
+} from '@app/contracts';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 // Value import: Nest reads the type at runtime via emitDecoratorMetadata.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { SearchService } from './search.service.js';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { SuggestService } from './suggest.service.js';
 
 /** Array query params that may arrive comma-separated (`?categoryIds=a,b`).
  * Express's qs parser already turns repeat-key (`?categoryIds=a&categoryIds=b`)
@@ -49,7 +56,10 @@ class SplitArrayQueryPipe implements PipeTransform {
  */
 @Controller()
 export class SearchController {
-  constructor(private readonly search: SearchService) {}
+  constructor(
+    private readonly search: SearchService,
+    private readonly suggest: SuggestService,
+  ) {}
 
   @Public()
   @Get('search')
@@ -58,5 +68,19 @@ export class SearchController {
     @Query(new SplitArrayQueryPipe(), new ZodValidationPipe(searchQuerySchema)) query: SearchQuery,
   ) {
     return this.search.search(query);
+  }
+
+  /**
+   * Public auto-suggest (B3.3). `GET /api/v1/search/suggest?q=<prefix>&scope=
+   * business|category|neighborhood|city|all&limit=8` returns a small, ranked
+   * list of matches for a typeahead. Results are Redis-cached (60s TTL) keyed by
+   * the normalised prefix + scope + cityId + limit. Rate-limited per IP at
+   * 120/min (suggest is lighter than full search and bursty with keystrokes).
+   */
+  @Public()
+  @Get('search/suggest')
+  @RateLimit({ name: 'search.suggest', limit: 120, windowSec: 60 })
+  async runSuggest(@Query(new ZodValidationPipe(suggestQuerySchema)) query: SuggestQuery) {
+    return this.suggest.suggest(query);
   }
 }

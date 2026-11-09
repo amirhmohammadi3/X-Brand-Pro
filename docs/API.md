@@ -703,3 +703,21 @@ Query params (all optional unless noted):
 
 - Errors: 400 (validation — bad UUID, `sort=distance` without origin, `lat` without `lng` or vice versa, params beyond max counts/lengths), 429 (rate limited with `Retry-After`).
 - Notes: `openNow` filtering is intentionally NOT supported yet — the weekly-hours + special-days + timezone computation lives in TypeScript (`HoursService.computeOpenStatus`, B2.5) and cannot be expressed in the search SQL without duplicating it; it is recorded as a Follow-up (materialized `currently_open` column or a SQL port). The repository builds one parameterised Drizzle query over the B3.1 `search_vector` GIN + PostGIS `location` GiST + `name_normalized` trigram indexes; `plainto_tsquery` (not `to_tsquery`) is used so bare multi-word user input is AND-joined without throwing. The ORDER BY always appends `id` as the stable tiebreaker (AGENTS.md §6).
+
+## /api/v1/search/suggest (B3.3)
+
+Public auto-suggest typeahead: as the user types a prefix, returns a small, ranked list of matches across one or all of {business, category, neighborhood, city}. Powers the search-box dropdown and the home/explore quick-pickers. Results are Redis-cached (60s TTL) keyed by the normalised prefix + scope + cityId + limit.
+
+| Method | Path            | Auth   | Body/Query                   | Notes                                                                                                                                                                           |
+| ------ | --------------- | ------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | /search/suggest | public | `suggestQuerySchema` (query) | Response: `suggestResultSchema` = `{ items: SuggestHit[] }`. `SuggestHit` = `{ kind, id, slug, label, labelAlt, sublabel, score }`. Rate limit `search.suggest` 120/min per ip. |
+
+Query params:
+
+- `q` — prefix, 1–60 chars; normalised server-side (`normalizePersianText` + `normalizeDigits` + Latin lowercase + SQL-wildcard escape) before the trigram ILIKE / similarity.
+- `scope` — `business` | `category` | `neighborhood` | `city` | `all` (default `all`). `all` fetches the four scopes in parallel, dedupes by `(kind, id)`, sorts by `score` desc, caps to `limit`.
+- `cityId` — optional; scopes business + neighborhood matches to a city (ignored by category/city scopes). Lets a city-scoped typeahead show only that city's neighborhoods.
+- `limit` — default 8, max 20.
+
+- Errors: 400 (validation — empty `q`, `q` > 60 chars, bad `scope`, non-UUID `cityId`, `limit` out of range), 429 (rate limited).
+- Notes: matching uses the B3.1 trigram indexes — `name_normalized ILIKE 'prefix%'` (GIN-indexed prefix match) ORed with the `%` similarity operator; ranking is `similarity(name, prefix)` with a prefix-match tiebreaker, then `avg_rating`/`sort_order`. `label` is the Persian display name (`name_fa` for catalog/geo, `name` for businesses); `labelAlt` is the alternate-script name when present; `sublabel` is a disambiguation hint (a business's city name, a neighborhood's city name). Redis failures degrade to a cache miss (CacheService swallows Redis errors), so suggest stays available during a Redis outage. The 12 pure `SuggestService` specs (normalise/cache-key/scope-merge) run green without a DB/Redis.
