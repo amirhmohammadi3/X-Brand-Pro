@@ -134,6 +134,13 @@
       "when": 1794178234435,
       "tag": "0018_business_claims",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794235580032,
+      "tag": "0019_persian_search_indexes",
+      "breakpoints": true
     }
   ]
 }

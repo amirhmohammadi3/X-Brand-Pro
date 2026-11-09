@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { HttpStatus } from '@nestjs/common';
 import type { BusinessDetail, BusinessStatus, BusinessSummary, GeoPoint } from '@app/contracts';
+import { normalizePersianText } from '@app/contracts';
 import { BusinessesService } from '../src/modules/business/businesses.service.js';
 import { BusinessDomainService } from '../src/modules/business/businesses.domain.js';
 import type {
@@ -211,6 +212,47 @@ describe('BusinessesService.createBusiness (B2.6)', () => {
     const second = await service.createBusiness(owner, { ...VALID_BODY, name: first.name });
     expect(second.slug).not.toBe(first.slug);
     expect(second.slug.startsWith(first.slug)).toBe(true);
+  });
+
+  it('B3.1: persists a Persian-normalized name so the trigram/tsvector indexes see pre-normalized tokens', async () => {
+    const { service, repo } = makeService();
+    const insertSpy = vi.spyOn(repo, 'insert');
+    // Arabic yeh/kaf + tatweel + a diacritic + a ZWNJ at the end — the
+    // normalizer must map all of these to the canonical Persian form before
+    // the row reaches the search indexes.
+    const messy = '\u0643\u0627\u0641\u0647\u0640 \u0631\u062d\u064a\u0645\u064a\u200c';
+    await service.createBusiness(owner, { ...VALID_BODY, name: messy });
+    expect(insertSpy).toHaveBeenCalledTimes(1);
+    const inserted = insertSpy.mock.calls[0]![0];
+    expect(inserted.nameNormalized).toBe(normalizePersianText(messy));
+    // Sanity: the normalized form is the canonical Persian spelling with no
+    // tatweel, no trailing ZWNJ, and Arabic yeh→Farsi yeh.
+    expect(inserted.nameNormalized).toBe('کافه رحیمی');
+  });
+
+  it('B3.1: re-normalizes the name on update when the name changes', async () => {
+    const { service, repo } = makeService();
+    const biz = await service.createBusiness(owner, VALID_BODY);
+    const updateSpy = vi.spyOn(repo, 'update');
+    const messy = 'رِستُوران\u0640 الهام';
+    await service.updateBusiness(owner, biz.id, { name: messy });
+    expect(updateSpy).toHaveBeenCalledTimes(1);
+    // update(id, input) — the input is the SECOND call argument.
+    const input = updateSpy.mock.calls[0]![1];
+    expect(input.name).toBe(messy);
+    expect(input.nameNormalized).toBe(normalizePersianText(messy));
+  });
+
+  it('B3.1: leaves nameNormalized untouched on update when the name is not changed', async () => {
+    const { service, repo } = makeService();
+    const biz = await service.createBusiness(owner, VALID_BODY);
+    const updateSpy = vi.spyOn(repo, 'update');
+    // Only the address changes — name/nameNormalized must not appear in the
+    // update payload at all, so the generated tsvector is not needlessly rebuilt.
+    await service.updateBusiness(owner, biz.id, { address: 'خیابان جدید' });
+    const input = updateSpy.mock.calls[0]![1];
+    expect(input.name).toBeUndefined();
+    expect(input.nameNormalized).toBeUndefined();
   });
 
   it('throws 404 when the city does not exist', async () => {

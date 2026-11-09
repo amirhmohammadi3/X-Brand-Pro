@@ -42,6 +42,10 @@ export const cities = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     slug: text('slug').notNull().unique(),
     name: jsonb('name').notNull().$type<Record<string, string>>(),
+    // B3.1: derived Persian display name for trigram-backed auto-suggest. The
+    // `name ? 'fa'` CHECK guarantees `fa` exists, so `name->>'fa'` never yields
+    // NULL for a valid row.
+    nameFa: text('name_fa').generatedAlwaysAs(sql`name ->> 'fa'`),
     center: geographyPoint('center').notNull(),
     bbox: jsonb('bbox').$type<BboxRow | null>(),
     timezone: text('timezone').notNull().default('Asia/Tehran'),
@@ -52,6 +56,8 @@ export const cities = pgTable(
   },
   (table) => [
     index('cities_center_idx').using('gist', table.center),
+    // B3.1: trigram index on the Persian name for prefix/fuzzy city suggest.
+    index('cities_name_fa_trgm_idx').using('gin', sql`${table.nameFa} gin_trgm_ops`),
     check('cities_name_has_fa', sql`${table.name} ? 'fa'`),
   ],
 );
@@ -70,6 +76,8 @@ export const neighborhoods = pgTable(
       .references(() => cities.id, { onDelete: 'cascade' }),
     slug: text('slug').notNull(),
     name: jsonb('name').notNull().$type<Record<string, string>>(),
+    // B3.1: derived Persian display name for trigram-backed auto-suggest.
+    nameFa: text('name_fa').generatedAlwaysAs(sql`name ->> 'fa'`),
     center: geographyPoint('center').notNull(),
     isActive: boolean('is_active').notNull().default(true),
     sortOrder: integer('sort_order').notNull().default(0),
@@ -79,6 +87,8 @@ export const neighborhoods = pgTable(
   (table) => [
     unique('neighborhoods_city_slug_unique').on(table.cityId, table.slug),
     index('neighborhoods_center_idx').using('gist', table.center),
+    // B3.1: trigram index on the Persian name for prefix/fuzzy neighborhood suggest.
+    index('neighborhoods_name_fa_trgm_idx').using('gin', sql`${table.nameFa} gin_trgm_ops`),
     check('neighborhoods_name_has_fa', sql`${table.name} ? 'fa'`),
   ],
 );

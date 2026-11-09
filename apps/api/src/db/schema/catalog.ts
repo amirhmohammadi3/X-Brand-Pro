@@ -33,6 +33,8 @@ export const categories = pgTable(
     parentId: uuid('parent_id'),
     slug: text('slug').notNull().unique(),
     name: jsonb('name').notNull().$type<Record<string, string>>(),
+    // B3.1: derived Persian display name for trigram-backed auto-suggest.
+    nameFa: text('name_fa').generatedAlwaysAs(sql`name ->> 'fa'`),
     description: jsonb('description').$type<Record<string, string> | null>(),
     icon: text('icon').notNull().default('store'),
     color: text('color'),
@@ -52,6 +54,8 @@ export const categories = pgTable(
       name: 'categories_parent_id_categories_id_fk',
     }).onDelete('restrict'),
     index('categories_parent_sort_idx').on(table.parentId, table.sortOrder),
+    // B3.1: trigram index on the Persian name for prefix/fuzzy category suggest.
+    index('categories_name_fa_trgm_idx').using('gin', sql`${table.nameFa} gin_trgm_ops`),
     check('categories_name_has_fa', sql`${table.name} ? 'fa'`),
     check('categories_kind_enum', sql`${table.kind} in ('menu', 'services', 'none')`),
   ],
@@ -73,6 +77,8 @@ export const amenities = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     slug: text('slug').notNull().unique(),
     name: jsonb('name').notNull().$type<Record<string, string>>(),
+    // B3.1: derived Persian display name for trigram-backed auto-suggest.
+    nameFa: text('name_fa').generatedAlwaysAs(sql`name ->> 'fa'`),
     icon: text('icon').notNull().default('wifi'),
     group: text('group').notNull().default('general'),
     isActive: boolean('is_active').notNull().default(true),
@@ -82,6 +88,8 @@ export const amenities = pgTable(
   },
   (table) => [
     check('amenities_name_has_fa', sql`${table.name} ? 'fa'`),
+    // B3.1: trigram index on the Persian name for prefix/fuzzy amenity suggest.
+    index('amenities_name_fa_trgm_idx').using('gin', sql`${table.nameFa} gin_trgm_ops`),
     check(
       'amenities_group_enum',
       sql`${table.group} in ('general','food','payment','accessibility','family','comfort')`,

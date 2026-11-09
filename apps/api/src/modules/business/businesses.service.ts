@@ -13,6 +13,7 @@ import {
   type CreateBusinessBody,
   type UpdateBusinessBody,
   type BusinessTransitionBody,
+  normalizePersianText,
 } from '@app/contracts';
 import { BUSINESSES_REPOSITORY, type BusinessesRepositoryLike } from './businesses.repository.js';
 // Value import: Nest resolves BusinessDomainService by type via
@@ -129,6 +130,9 @@ export class BusinessesService {
     return this.repo.insert({
       slug,
       name: body.name,
+      // B3.1: persist the Persian-normalized name once at write time so the
+      // trigram index and the generated tsvector see pre-normalized tokens.
+      nameNormalized: normalizePersianText(body.name),
       nameAlt: body.nameAlt ?? null,
       description: body.description ?? null,
       cityId: body.cityId,
@@ -253,7 +257,9 @@ export class BusinessesService {
         : null;
 
     const updated = await this.repo.update(id, {
-      ...(body.name !== undefined ? { name: body.name } : {}),
+      ...(body.name !== undefined
+        ? { name: body.name, nameNormalized: normalizePersianText(body.name) }
+        : {}),
       ...(body.nameAlt !== undefined ? { nameAlt: body.nameAlt } : {}),
       ...(body.description !== undefined ? { description: body.description } : {}),
       ...(body.cityId !== undefined ? { cityId } : {}),

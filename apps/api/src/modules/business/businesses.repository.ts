@@ -30,6 +30,8 @@ export const BUSINESSES_REPOSITORY = Symbol('BUSINESSES_REPOSITORY');
 export interface CreateBusinessInput {
   slug: string;
   name: string;
+  /** B3.1: Persian-normalized name (normalizePersianText) for trigram search. */
+  nameNormalized?: string | null;
   nameAlt?: string | null;
   description?: string | null;
   cityId: string;
@@ -251,6 +253,7 @@ export class BusinessesRepository implements BusinessesRepositoryLike {
         .values({
           slug: input.slug,
           name: input.name,
+          nameNormalized: input.nameNormalized ?? null,
           nameAlt: input.nameAlt ?? null,
           description: input.description ?? null,
           cityId: input.cityId,
@@ -308,6 +311,7 @@ export class BusinessesRepository implements BusinessesRepositoryLike {
     const set: Record<string, unknown> = { updatedAt: new Date() };
     if (input.slug !== undefined) set.slug = input.slug;
     if (input.name !== undefined) set.name = input.name;
+    if (input.nameNormalized !== undefined) set.nameNormalized = input.nameNormalized;
     if (input.nameAlt !== undefined) set.nameAlt = input.nameAlt;
     if (input.description !== undefined) set.description = input.description;
     if (input.cityId !== undefined) set.cityId = input.cityId;

@@ -1,6 +1,7 @@
 import {
   boolean,
   check,
+  customType,
   index,
   integer,
   numeric,
@@ -18,6 +19,19 @@ import { geographyPoint, cities, neighborhoods } from './geo.js';
 import { categories, amenities } from './catalog.js';
 import { mediaFiles } from './media.js';
 import { users } from './users.js';
+
+/**
+ * `tsvector` column type (B3.1). Drizzle has no built-in tsvector type, so
+ * `customType` declares the DDL for drizzle-kit. The column is always written
+ * by Postgres as a STORED generated column from the searchable text fields (see
+ * `businesses.searchVector`); the row's `searchVector` field is therefore
+ * opaque (`unknown`) and never set by the application.
+ */
+export const tsvectorColumn = customType<{ data: unknown; default: undefined }>({
+  dataType() {
+    return 'tsvector';
+  },
+});
 
 /**
  * Businesses (B2.4) — the core catalog entity. A real-world named place
@@ -51,6 +65,12 @@ export const businesses = pgTable(
     slug: text('slug').notNull().unique(),
     name: text('name').notNull(),
     nameAlt: text('name_alt'),
+    // B3.1: normalized name written by the service via `normalizePersianText`
+    // (Arabic ي→ی, ك→ک, تاتویل/تشدید زدایی, یکسان‌سازی فاصله). Stored (not
+    // generated) because the normalizer is TypeScript, not SQL. Powers the
+    // trigram index for fuzzy/prefix ILIKE and is the source the tsvector is
+    // built from, so search tokens are pre-normalized once at write time.
+    nameNormalized: text('name_normalized'),
     description: text('description'),
     cityId: uuid('city_id')
       .notNull()
@@ -85,6 +105,18 @@ export const businesses = pgTable(
     source: text('source').notNull().default('manual'),
     rejectionReason: text('rejection_reason'),
     publishedAt: timestamp('published_at', { withTimezone: true }),
+    // B3.1: weighted full-text vector built from the normalized name (weight A,
+    // so name hits rank highest), the alternate-script name (B), the
+    // description (C) and the address (no weight). Uses the `simple` text-search
+    // config (no Persian stemmer exists in core Postgres); tokens are already
+    // Arabic→Persian-mapped and diacritic-stripped upstream in `name_normalized`
+    // and the application normalizes the query the same way at read time.
+    searchVector: tsvectorColumn('search_vector').generatedAlwaysAs(sql`
+      setweight(to_tsvector('simple', coalesce(name_normalized, name)), 'A')
+      || setweight(to_tsvector('simple', coalesce(name_alt, '')), 'B')
+      || setweight(to_tsvector('simple', coalesce(description, '')), 'C')
+      || to_tsvector('simple', coalesce(address, ''))
+    `),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
@@ -98,6 +130,12 @@ export const businesses = pgTable(
     uniqueIndex('businesses_active_city_rating_idx')
       .on(table.cityId, table.avgRating.desc())
       .where(sql`status = 'active' and deleted_at is null`),
+    // B3.1: full-text + trigram search infrastructure.
+    // GIN on the generated tsvector powers `WHERE search_vector @@ to_tsquery('simple', ...)`.
+    index('businesses_search_vector_idx').using('gin', table.searchVector),
+    // GIN trigram on the normalized name powers `name_normalized ILIKE '%foo%'`
+    // and similarity()/word_similarity() for the B3.3 auto-suggest flow.
+    index('businesses_name_trgm_idx').using('gin', sql`${table.nameNormalized} gin_trgm_ops`),
     check('businesses_avg_rating_range', sql`${table.avgRating} between 0 and 5`),
     check('businesses_review_count_nonneg', sql`${table.reviewCount} >= 0`),
     check(
