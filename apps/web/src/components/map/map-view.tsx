@@ -20,6 +20,7 @@ import {
   type PointProps,
 } from '@/lib/map/geojson';
 import { DEFAULT_CENTER, DEFAULT_ZOOM, styleUrl } from '@/lib/map/style-urls';
+import { buildLocaleHref } from '@/lib/search/links';
 import { registerPmtilesProtocol } from './map-protocol';
 import 'maplibre-gl/dist/maplibre-gl.css';
 
@@ -353,7 +354,7 @@ export function popupHtml(props: PointProps, locale: string, ratingLabel: string
   const reviews = typeof props.reviewCount === 'number' ? props.reviewCount : 0;
   const featured = props.isFeatured ? `<span class="xbrand-map-popup-featured">★</span>` : '';
   return `<div dir="${dir}" class="xbrand-map-popup">
-    <a href="/${locale}/business/${props.slug}" class="xbrand-map-popup-link">${escapeHtml(props.name)}${featured}</a>
+    <a href="${buildLocaleHref(locale, `/business/${props.slug}`)}" class="xbrand-map-popup-link">${escapeHtml(props.name)}${featured}</a>
     ${rating ? `<span class="xbrand-map-popup-rating">${rating} · ${ratingLabel} (${reviews})</span>` : ''}
   </div>`;
 }

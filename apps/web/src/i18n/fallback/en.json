@@ -983,5 +983,26 @@
       "unavailable": "Geolocation is not available in this browser.",
       "denied": "Device location access was denied; please allow it from the browser settings."
     }
+  },
+  "search": {
+    "label": "Search businesses",
+    "placeholder": "Cafe, restaurant, salon…",
+    "loading": "Searching…",
+    "noResults": "No results found",
+    "submit": "Search",
+    "groups": {
+      "business": "Businesses",
+      "category": "Categories",
+      "neighborhood": "Neighborhoods",
+      "city": "Cities"
+    },
+    "recent": {
+      "title": "Recent searches",
+      "clear": "Clear all",
+      "removeOne": "Remove search “{query}”"
+    },
+    "popular": {
+      "title": "Popular searches"
+    }
   }
 }

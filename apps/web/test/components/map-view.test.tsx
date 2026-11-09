@@ -349,7 +349,8 @@ describe('MapView viewport + interactions (F3.1)', () => {
     expect(popupInstances).toHaveLength(1);
     const popup = popupInstances[0]!.html;
     expect(popup).toContain('dir="rtl"');
-    expect(popup).toContain('/fa/business/cafe-azadi');
+    // fa is UNPREFIXED (as-needed routing, lib/search/links)
+    expect(popup).toContain('href="/business/cafe-azadi"');
     expect(popup).toContain('کافه آزادی');
     expect(popup).toContain('★');
     unmount();

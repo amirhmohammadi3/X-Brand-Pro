@@ -51,4 +51,15 @@ export const qk = {
       detail: (id: string) => ['admin', 'users', 'detail', id] as const,
     },
   },
+  /** Public search surfaces (F3.6): suggest typeahead, per-user history,
+   *  popular queries. `suggest` is keyed by the exact typed prefix so every
+   *  keystroke has its own cache entry (B3.3's server cache dedupes the rest). */
+  search: {
+    suggest: (q: string, cityId?: string, limit: number = 8) =>
+      ['search', 'suggest', q, cityId ?? 'all', limit] as const,
+    historyAll: () => ['search', 'history'] as const,
+    history: (limit: number = 10) => ['search', 'history', limit] as const,
+    popular: (cityId?: string, limit: number = 10) =>
+      ['search', 'popular', cityId ?? 'all', limit] as const,
+  },
 };
