@@ -881,6 +881,42 @@
       "saveDirty": "Save {count} changes",
       "saved": "{count} translations saved.",
       "tooLong": "The search query is too long."
+    },
+    "theme": {
+      "page": {
+        "title": "Theme & appearance",
+        "description": "Switch the site-wide active theme pack; each pack previews in light and dark."
+      },
+      "activeBadge": "Active",
+      "activate": "Activate",
+      "activateTitle": "Switch the active theme?",
+      "activateBody": "The theme pack “{name}” will go live for the whole site.",
+      "activated": "Theme “{name}” activated.",
+      "activateFailed": "Switching the theme failed.",
+      "previewLight": "Light mode",
+      "previewDark": "Dark mode",
+      "previewAlt": "{mode} color preview",
+      "cancel": "Cancel"
+    },
+    "settings": {
+      "page": {
+        "title": "Settings",
+        "description": "The platform's registered keys; secret values are write-only and always masked."
+      },
+      "searchPlaceholder": "Search keys or groups…",
+      "empty": "No keys found.",
+      "keyCount": "{count} keys",
+      "secretBadge": "Secret",
+      "defaultBadge": "Default",
+      "editLabel": "Edit",
+      "valueLabel": "Value",
+      "secretHint": "Leave empty to keep the current value; the secret is never displayed.",
+      "jsonHint": "Enter valid JSON.",
+      "invalidJson": "Invalid JSON.",
+      "invalidNumber": "Invalid number.",
+      "clearOverride": "Clear override",
+      "clearOverrideHint": "Fall back to the registered default.",
+      "saved": "“{key}” saved."
     }
   }
 }

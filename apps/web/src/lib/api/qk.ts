@@ -37,5 +37,12 @@ export const qk = {
       translations: (locale: string, filter: unknown) =>
         ['admin', 'i18n', 'translations', locale, filter] as const,
     },
+    /** Admin theme switch + settings registry (F2.4). */
+    theme: {
+      packs: () => ['admin', 'theme', 'packs'] as const,
+    },
+    settings: {
+      all: () => ['admin', 'settings', 'all'] as const,
+    },
   },
 };

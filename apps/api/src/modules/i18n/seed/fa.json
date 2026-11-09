@@ -881,6 +881,42 @@
       "saveDirty": "ذخیره {count} تغییر",
       "saved": "{count} ترجمه ذخیره شد.",
       "tooLong": "عبارت جست‌وجو بیش از حد بلند است."
+    },
+    "theme": {
+      "page": {
+        "title": "تم و ظاهر",
+        "description": "بستهٔ تم فعال کل سایت را عوض کنید؛ پیش‌نمایش هر بسته در دو حالت روشن و تیره."
+      },
+      "activeBadge": "فعال",
+      "activate": "فعال‌سازی",
+      "activateTitle": "تغییر تم فعال؟",
+      "activateBody": "بستهٔ تم «{name}» برای کل سایت فعال می‌شود.",
+      "activated": "تم «{name}» فعال شد.",
+      "activateFailed": "تغییر تم ناموفق بود.",
+      "previewLight": "حالت روشن",
+      "previewDark": "حالت تیره",
+      "previewAlt": "پیش‌نمایش رنگ‌های {mode}",
+      "cancel": "انصراف"
+    },
+    "settings": {
+      "page": {
+        "title": "تنظیمات",
+        "description": "کلیدهای ثبت‌شدهٔ پلتفرم؛ مقادیر محرمانه فقط نوشتنی هستند و همیشه ماسک می‌شوند."
+      },
+      "searchPlaceholder": "جست‌وجوی کلید یا گروه…",
+      "empty": "کلیدی یافت نشد.",
+      "keyCount": "{count} کلید",
+      "secretBadge": "محرمانه",
+      "defaultBadge": "پیش‌فرض",
+      "editLabel": "ویرایش",
+      "valueLabel": "مقدار",
+      "secretHint": "برای حفظ مقدار فعلی خالی بگذارید؛ مقدار محرمانه هرگز نمایش داده نمی‌شود.",
+      "jsonHint": "JSON معتبر وارد کنید.",
+      "invalidJson": "JSON نامعتبر است.",
+      "invalidNumber": "عدد نامعتبر است.",
+      "clearOverride": "حذف بازنویسی",
+      "clearOverrideHint": "بازگشت به مقدار پیش‌فرض ثبت‌شده.",
+      "saved": "«{key}» ذخیره شد."
     }
   }
 }

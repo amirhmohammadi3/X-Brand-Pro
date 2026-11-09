@@ -90,7 +90,7 @@ export const ADMIN_NAV_GROUPS: ReadonlyArray<AdminNavGroup> = [
         href: '/admin/theme',
         labelKey: 'theme',
         permissions: ['theme.manage'],
-        available: false, // F2.4
+        available: true, // F2.4
       },
     ],
   },
@@ -114,7 +114,7 @@ export const ADMIN_NAV_GROUPS: ReadonlyArray<AdminNavGroup> = [
         href: '/admin/settings',
         labelKey: 'settings',
         permissions: ['settings.manage'],
-        available: false, // F2.4
+        available: true, // F2.4
       },
       {
         key: 'audit',
