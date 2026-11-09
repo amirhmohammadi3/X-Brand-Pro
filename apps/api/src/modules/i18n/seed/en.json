@@ -966,5 +966,13 @@
       "revokeBody": "All active sessions are revoked; the user must sign in again.",
       "revoked": "Sessions of {name} revoked."
     }
+  },
+  "map": {
+    "aria": "Business map",
+    "popup": {
+      "rating": "rating"
+    },
+    "userLocation": "My location",
+    "loading": "Loading the map…"
   }
 }
