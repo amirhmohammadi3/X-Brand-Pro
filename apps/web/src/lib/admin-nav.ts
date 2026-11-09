@@ -52,21 +52,21 @@ export const ADMIN_NAV_GROUPS: ReadonlyArray<AdminNavGroup> = [
         href: '/admin/cities',
         labelKey: 'cities',
         permissions: ['catalog.manage'],
-        available: false, // F2.2
+        available: true, // F2.2
       },
       {
         key: 'categories',
         href: '/admin/categories',
         labelKey: 'categories',
         permissions: ['catalog.manage'],
-        available: false, // F2.2
+        available: true, // F2.2
       },
       {
         key: 'amenities',
         href: '/admin/amenities',
         labelKey: 'amenities',
         permissions: ['catalog.manage'],
-        available: false, // F2.2
+        available: true, // F2.2
       },
     ],
   },

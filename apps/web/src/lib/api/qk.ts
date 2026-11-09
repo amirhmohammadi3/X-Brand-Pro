@@ -19,4 +19,16 @@ export const qk = {
   settings: {
     public: () => ['settings', 'public'] as const,
   },
+  /** Admin catalog lists (F2.2). Hierarchical so one invalidation refreshes
+   *  every view of a domain. */
+  admin: {
+    catalog: {
+      cities: () => ['admin', 'catalog', 'cities'] as const,
+      neighborhoods: (cityId: string) => ['admin', 'catalog', 'neighborhoods', cityId] as const,
+      categories: () => ['admin', 'catalog', 'categories'] as const,
+      amenities: () => ['admin', 'catalog', 'amenities'] as const,
+      categoryAmenities: (categoryId: string) =>
+        ['admin', 'catalog', 'category-amenities', categoryId] as const,
+    },
+  },
 };
