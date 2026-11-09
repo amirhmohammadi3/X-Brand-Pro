@@ -643,5 +643,54 @@
         "typeMismatch": "The typed text does not match DELETE."
       }
     }
+  },
+  "admin": {
+    "title": "Admin panel",
+    "role": {
+      "user": "User",
+      "owner": "Business owner",
+      "moderator": "Moderator",
+      "admin": "Admin",
+      "super_admin": "Super admin"
+    },
+    "nav": {
+      "dashboard": "Dashboard",
+      "cities": "Cities & neighborhoods",
+      "categories": "Categories",
+      "amenities": "Amenities",
+      "languages": "Languages & translations",
+      "theme": "Theme & appearance",
+      "users": "Users",
+      "settings": "Settings",
+      "audit": "Audit log",
+      "soon": "Soon"
+    },
+    "hint": {
+      "dashboard": "Admin panel overview",
+      "cities": "Manage cities and their neighborhoods",
+      "categories": "The business category tree",
+      "amenities": "Amenities and their category mapping",
+      "languages": "Active languages and the translation editor",
+      "theme": "Active theme and appearance customization",
+      "users": "Search, roles and bans",
+      "settings": "General settings and integrations",
+      "audit": "Sensitive platform events"
+    },
+    "group": {
+      "overview": "Overview",
+      "catalog": "Catalog",
+      "localization": "Localization",
+      "appearance": "Appearance",
+      "access": "Access",
+      "platform": "Platform"
+    },
+    "overview": {
+      "title": "Admin panel",
+      "description": "Welcome, {role}. The sections your role may open are listed below.",
+      "emptyHint": "No section is enabled for your role yet."
+    },
+    "table": {
+      "total": "{count} items"
+    }
   }
 }
