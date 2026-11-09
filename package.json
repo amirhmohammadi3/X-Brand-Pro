@@ -16,7 +16,7 @@
     "test": "turbo test",
     "test:e2e": "turbo test:e2e",
     "test:scripts": "node --test --test-name-pattern '.*' 'scripts/lib/__tests__/*.test.mjs'",
-    "verify": "pnpm check:foundation && pnpm check:brand && pnpm check:env && pnpm check:secrets && pnpm check:rtl && pnpm check:no-external && turbo lint typecheck test build",
+    "verify": "pnpm check:foundation && pnpm check:brand && pnpm check:env && pnpm check:secrets && pnpm check:rtl && pnpm check:no-external && pnpm check:tiles && turbo lint typecheck test build",
     "check:foundation": "node scripts/check-foundation.mjs",
     "check:brand": "node scripts/check-brand.mjs",
     "check:rtl": "node scripts/check-rtl.mjs",
@@ -32,18 +32,25 @@
     "db:generate": "turbo db:generate",
     "db:migrate": "turbo db:migrate",
     "db:seed": "turbo db:seed",
-    "prepare": "husky"
+    "prepare": "husky",
+    "build:map:style": "node scripts/build-map-style.mjs",
+    "build:map:glyphs": "node scripts/build-map-glyphs.mjs",
+    "build:map:sprite": "node scripts/build-map-sprite.mjs",
+    "build:map": "pnpm build:map:style && pnpm build:map:glyphs && pnpm build:map:sprite",
+    "check:tiles": "node scripts/check-tiles.mjs"
   },
   "devDependencies": {
     "@app/config": "workspace:*",
-    "@types/node": "22.10.2",
-    "eslint": "9.16.0",
-    "typescript-eslint": "8.18.0",
-    "husky": "9.1.7",
-    "lint-staged": "15.2.10",
     "@commitlint/cli": "19.5.0",
     "@commitlint/config-conventional": "19.5.0",
+    "@types/node": "22.10.2",
+    "eslint": "9.16.0",
+    "husky": "9.1.7",
+    "lint-staged": "15.2.10",
+    "maplibre-font-maker-node": "0.5.0",
     "prettier": "3.3.3",
-    "turbo": "2.3.3"
+    "sharp": "0.35.5",
+    "turbo": "2.3.3",
+    "typescript-eslint": "8.18.0"
   }
 }

@@ -1,0 +1,16 @@
+{
+  "marker-active@2x": {
+    "width": 52,
+    "height": 72,
+    "x": 0,
+    "y": 0,
+    "pixelRatio": 2
+  },
+  "marker@2x": {
+    "width": 44,
+    "height": 60,
+    "x": 52,
+    "y": 0,
+    "pixelRatio": 2
+  }
+}

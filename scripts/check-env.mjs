@@ -17,7 +17,7 @@ const examplePath = path.join(root, '.env.example');
 const envTsPath = path.join(root, 'apps', 'api', 'src', 'config', 'env.ts');
 
 /** NEXT_PUBLIC_* keys the web app validates itself (build-time, apps/web). */
-const WEB_KEYS = new Set(['NEXT_PUBLIC_API_URL']);
+const WEB_KEYS = new Set(['NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_TILES_URL']);
 
 function main() {
   const problems = [];

@@ -1,0 +1,16 @@
+{
+  "marker-active": {
+    "width": 26,
+    "height": 36,
+    "x": 0,
+    "y": 0,
+    "pixelRatio": 1
+  },
+  "marker": {
+    "width": 22,
+    "height": 30,
+    "x": 26,
+    "y": 0,
+    "pixelRatio": 1
+  }
+}

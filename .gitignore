@@ -44,3 +44,7 @@ yarn-error.log*
 
 # phase runner logs (local only)
 .phase-logs/
+
+# tiles (I3.1): the basemap PMTiles archive is machine-local (hundreds of MB,
+# pinned provenance in infra/tiles/README.md); styles/fonts/sprites ARE committed
+infra/tiles/data/

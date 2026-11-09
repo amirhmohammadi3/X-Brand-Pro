@@ -43,6 +43,14 @@ Rotation: see docs/SECURITY.md section 3 (`pnpm env:init` only fills EMPTY/place
 
 Format: one row per container with image, port, volume, health check. (written by I12.1)
 
+### Tiles service (added by I3.1)
+
+| Image               | Port           | Volume                                                                                                      | Health check                                 |
+| ------------------- | -------------- | ----------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `nginx:1.28-alpine` | 127.0.0.1:8080 | `infra/tiles/nginx.conf` → `/etc/nginx/conf.d/default.conf:ro`; `infra/tiles/` → `/usr/share/nginx/html:ro` | `wget -qO- http://127.0.0.1:8080/style.json` |
+
+Serves the self-hosted basemap: `/style.json` + `/style.dark.json`, `/tiles/iran.pmtiles` (byte-range — the PMTiles client fetches ~16KB windows), `/fonts/<stack>/<range>.pbf` (immutable), `/sprites/…` (immutable). The PMTiles archive is machine-local — placement + provenance in `infra/tiles/README.md` §1; the service boots without it. `pnpm check:tiles` validates the whole stack.
+
 ## 3. Hosting platform decision
 
 Platform name, plan limits (RAM, CPU, disk, Docker support, PostgreSQL with PostGIS support), link to the documentation pages read, date read. (written by I12.2)

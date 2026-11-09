@@ -9,6 +9,10 @@ import { z } from 'zod';
  */
 const webEnvSchema = z.object({
   NEXT_PUBLIC_API_URL: z.string().url().default('http://localhost:4000/api/v1'),
+  // Self-hosted basemap tiles origin (I3.1) — the MapLibre style URL is
+  // `${NEXT_PUBLIC_TILES_URL}/style.json`; the pmtiles source URL is baked
+  // into the style at generate time from the same origin (infra/tiles).
+  NEXT_PUBLIC_TILES_URL: z.string().url().default('http://localhost:8080'),
 });
 
 export type WebEnv = z.infer<typeof webEnvSchema>;

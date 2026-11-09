@@ -43,7 +43,7 @@ const [cmd, ...rest] = process.argv.slice(2);
 function usage() {
   console.log(`Usage: pnpm services:<cmd>
 Commands:
-  up        start db, redis, mailpit (detached, waits for healthchecks)
+  up        start db, redis, mailpit, tiles (detached, waits for healthchecks)
   down      stop and remove containers (keeps data volumes)
   reset     stop, remove containers AND data volumes (destructive!)
   logs [s]  tail logs (optional service name: db | redis | mailpit)
