@@ -21,4 +21,5 @@ export * from './menu.js';
 export * from './claims.js';
 export * from './search.js';
 export * from './suggest.js';
+export * from './map.js';
 export * from './theme/index.js';
