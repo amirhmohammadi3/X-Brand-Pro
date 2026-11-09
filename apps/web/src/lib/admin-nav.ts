@@ -78,7 +78,7 @@ export const ADMIN_NAV_GROUPS: ReadonlyArray<AdminNavGroup> = [
         href: '/admin/languages',
         labelKey: 'languages',
         permissions: ['i18n.manage'],
-        available: false, // F2.3
+        available: true, // F2.3
       },
     ],
   },

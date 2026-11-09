@@ -694,7 +694,7 @@
     },
     "form": {
       "nameFa": "Name (Persian)",
-      "nameEn": "Name (English)",
+      "nameEn": "English name",
       "slug": "Slug",
       "slugHint": "Leave empty to generate from the name",
       "lat": "Latitude",
@@ -715,7 +715,11 @@
       "delete": "Delete",
       "saveFailed": "Saving failed.",
       "deleteFailed": "Deleting failed.",
-      "slugFormat": "The slug may only contain lowercase latin letters, digits and dashes."
+      "slugFormat": "The slug may only contain lowercase latin letters, digits and dashes.",
+      "code": "Language code",
+      "codeHint": "e.g. fa or ar",
+      "nameNative": "Native name",
+      "dir": "Text direction"
     },
     "cities": {
       "page": {
@@ -834,6 +838,49 @@
       "deleteTitle": "Delete amenity?",
       "deleteBody": "The amenity “{name}” will be deleted. This cannot be undone.",
       "deleteBlocked": "This amenity cannot be deleted; remove its category mapping first."
+    },
+    "languages": {
+      "page": {
+        "title": "Languages",
+        "description": "Platform languages; the default can move but “fa” can never be deactivated or deleted."
+      },
+      "colCode": "Code",
+      "colName": "Name",
+      "colDir": "Direction",
+      "defaultBadge": "Default",
+      "activeLabel": "Active",
+      "actionsLabel": "Actions",
+      "translationsLink": "Translations",
+      "editLabel": "Edit",
+      "deleteLabel": "Delete",
+      "empty": "No languages yet.",
+      "create": "Add language",
+      "createTitle": "New language",
+      "editTitle": "Edit language",
+      "created": "Language created.",
+      "updated": "Language updated.",
+      "deleted": "Language deleted.",
+      "deleteTitle": "Delete language?",
+      "deleteBody": "The language “{name}” and its translations will be deleted. This cannot be undone.",
+      "deleteBlocked": "This language cannot be deleted; switch the default first.",
+      "makeDefault": "Make default",
+      "codeFormat": "The code must be two lowercase letters (optionally with a region, e.g. pt-BR)."
+    },
+    "translations": {
+      "page": {
+        "title": "Translation editor — {name}",
+        "description": "Keys with the default-locale reference; batch-save your edits."
+      },
+      "colKey": "Key",
+      "colDefault": "Default value",
+      "colValue": "Value",
+      "searchPlaceholder": "Search keys…",
+      "missingOnly": "Missing only",
+      "empty": "No keys found.",
+      "save": "Save",
+      "saveDirty": "Save {count} changes",
+      "saved": "{count} translations saved.",
+      "tooLong": "The search query is too long."
     }
   }
 }

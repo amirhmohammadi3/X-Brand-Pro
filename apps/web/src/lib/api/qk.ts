@@ -30,5 +30,12 @@ export const qk = {
       categoryAmenities: (categoryId: string) =>
         ['admin', 'catalog', 'category-amenities', categoryId] as const,
     },
+    /** Admin i18n (F2.3): language list + per-locale translation pages. */
+    i18n: {
+      languages: () => ['admin', 'i18n', 'languages'] as const,
+      translationsAll: () => ['admin', 'i18n', 'translations'] as const,
+      translations: (locale: string, filter: unknown) =>
+        ['admin', 'i18n', 'translations', locale, filter] as const,
+    },
   },
 };
