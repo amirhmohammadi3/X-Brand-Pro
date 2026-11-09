@@ -1012,6 +1012,27 @@
     },
     "popular": {
       "title": "جست‌وجوهای پرطرفدار"
+    },
+    "pageTitle": "جست‌وجوی نقشه‌محور",
+    "pageDescription": "جست‌وجوی کسب‌وکارها روی نقشه با فیلتر شهر، دسته، امتیاز و مرتب‌سازی",
+    "resultsTitle": "نتایج جست‌وجو",
+    "resultsCount": "{count} کسب‌وکار",
+    "filters": {
+      "city": "شهر",
+      "allCities": "همهٔ شهرها",
+      "minRating": "حداقل امتیاز",
+      "anyRating": "هر امتیازی",
+      "minRatingValue": "{value} و بالاتر",
+      "sort": "مرتب‌سازی"
+    },
+    "sort": {
+      "relevance": "مرتبط‌ترین",
+      "rating": "بیشترین امتیاز",
+      "newest": "جدیدترین"
+    },
+    "pagination": {
+      "prev": "قبلی",
+      "next": "بعدی"
     }
   }
 }

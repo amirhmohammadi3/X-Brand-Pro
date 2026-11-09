@@ -1012,6 +1012,27 @@
     },
     "popular": {
       "title": "Popular searches"
+    },
+    "pageTitle": "Map search",
+    "pageDescription": "Search businesses on the map with city, category, rating and sort filters",
+    "resultsTitle": "Results",
+    "resultsCount": "{count} businesses",
+    "filters": {
+      "city": "City",
+      "allCities": "All cities",
+      "minRating": "Minimum rating",
+      "anyRating": "Any rating",
+      "minRatingValue": "{value} and up",
+      "sort": "Sort"
+    },
+    "sort": {
+      "relevance": "Most relevant",
+      "rating": "Top rated",
+      "newest": "Newest"
+    },
+    "pagination": {
+      "prev": "Previous",
+      "next": "Next"
     }
   }
 }

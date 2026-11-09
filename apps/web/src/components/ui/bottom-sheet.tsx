@@ -28,6 +28,10 @@ export interface BottomSheetProps {
   dismissible?: boolean;
   trigger?: ReactNode;
   className?: string;
+  /** Radix modal mode (default true). `false` keeps the page interactive
+   * behind the sheet — the map-search page's sheet is a persistent PANEL,
+   * not a blocking dialog (F3.4). */
+  modal?: boolean;
 }
 
 /**
@@ -50,6 +54,7 @@ export function BottomSheet({
   dismissible = true,
   trigger,
   className,
+  modal = true,
 }: BottomSheetProps) {
   const t = useTranslations('form.overlay');
   const [internalSnap, setInternalSnap] = useState<BottomSheetSnap>(defaultSnap);
@@ -121,7 +126,7 @@ export function BottomSheet({
   }, [open, cycleSnap]);
 
   return (
-    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+    <Dialog.Root open={open} onOpenChange={onOpenChange} modal={modal}>
       {trigger ? <Dialog.Trigger asChild>{trigger}</Dialog.Trigger> : null}
       <Dialog.Portal>
         <Dialog.Overlay

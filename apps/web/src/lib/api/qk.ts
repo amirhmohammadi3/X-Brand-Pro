@@ -61,5 +61,8 @@ export const qk = {
     history: (limit: number = 10) => ['search', 'history', limit] as const,
     popular: (cityId?: string, limit: number = 10) =>
       ['search', 'popular', cityId ?? 'all', limit] as const,
+    results: (params: unknown) => ['search', 'results', params] as const,
+    map: (bbox?: string, zoom?: number, cityId?: string) =>
+      ['search', 'map', bbox, zoom, cityId ?? 'all'] as const,
   },
 };
