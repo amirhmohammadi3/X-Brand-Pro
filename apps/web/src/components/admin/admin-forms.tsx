@@ -22,7 +22,10 @@ import { Text } from '../ui/text';
 /** Resolve a contracts icon name to its Lucide component (or null). */
 export function iconByName(name: string): LucideIcon | null {
   const candidate = (Lucide as unknown as Record<string, unknown>)[name];
-  return typeof candidate === 'function' ? (candidate as LucideIcon) : null;
+  return typeof candidate === 'function' ||
+    (typeof candidate === 'object' && candidate !== null && '$$typeof' in (candidate as object))
+    ? (candidate as LucideIcon)
+    : null;
 }
 
 const CATEGORY_OPTIONS: ReadonlyArray<SelectOption> = CATEGORY_ICONS.map((name) => ({

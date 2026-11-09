@@ -168,7 +168,16 @@
       "title": "Discover the city's businesses",
       "subtitle": "Map-based search, real user reviews and online reservations — all in one place"
     },
-    "cta": "Get started"
+    "cta": "Get started",
+    "categories": {
+      "title": "Categories"
+    },
+    "cities": {
+      "title": "Cities"
+    },
+    "featured": {
+      "title": "Top businesses"
+    }
   },
   "ui": {
     "loading": "Loading",
