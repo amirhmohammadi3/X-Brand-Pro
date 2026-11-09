@@ -171,7 +171,7 @@ export function adminSectionsForRole(role: UserRole): ReadonlyArray<AdminNavGrou
   })).filter((group) => group.items.length > 0);
 }
 
-/** The role's sections that are actually built and linkable right now. */
+/** The role's sections that are built and linkable at present. */
 export function availableAdminItems(role: UserRole): ReadonlyArray<AdminNavItem> {
   return adminSectionsForRole(role)
     .flatMap((group) => group.items)

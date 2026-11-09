@@ -1,8 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
-import { requireUser } from '../../../lib/auth/guard';
-import { PageHeader } from '../../../components/layout/page-header';
-import { availableAdminItems } from '../../../lib/admin-nav';
+import { requireUser } from '@/lib/auth/guard';
+import { PageHeader } from '@/components/layout/page-header';
+import { availableAdminItems } from '@/lib/admin-nav';
 import type { UserRole } from '@app/contracts';
 
 const ADMIN_ROLES: ReadonlyArray<UserRole> = ['moderator', 'admin', 'super_admin'];
