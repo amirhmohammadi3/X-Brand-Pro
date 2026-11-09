@@ -19,4 +19,5 @@ export * from './business.js';
 export * from './hours.js';
 export * from './menu.js';
 export * from './claims.js';
+export * from './search.js';
 export * from './theme/index.js';

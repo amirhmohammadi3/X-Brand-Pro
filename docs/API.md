@@ -681,3 +681,25 @@ Business opening hours: a weekly schedule (per-weekday intervals or an all-day s
 
 - Errors: 400 (validation — bad time format, >3 intervals, overlapping intervals, duplicate weekday, malformed `YYYY-MM-DD`), 401, 403 (not the owner / not `businesses.manage` / owner editing a non-editable status), 404 (business missing or soft-deleted; non-active business hidden from a non-owner viewer)
 - Notes: the open-status computation is pure (`computeOpenStatus` in `hours.service.ts`) and DST-correct for any IANA zone via `Intl.DateTimeFormat` (no moment/luxon). The `nextChangeAt` lookahead covers today + tomorrow; it is `null` when the business is open 24h (all-day) or when the next change is more than a day away. Search filtering by `openNow` is B3.2.
+
+## /api/v1/search (B3.2)
+
+Public business search: free-text `q` (Persian/Arabic-normalized + matched against the B3.1 weighted `search_vector`), facet filters (city, neighborhood, categories, amenities, tags, price level, minimum rating), an optional geo origin + radius (meters) for `ST_DWithin` filtering and `distance` sort, and four sort modes. Returns ranked, paginated hits — only `active`, non-soft-deleted businesses.
+
+| Method | Path    | Auth   | Body/Query                  | Notes                                                                                                                                                                                                                                                  |
+| ------ | ------- | ------ | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET    | /search | public | `searchQuerySchema` (query) | Response: `searchResultSchema` = `{ items: SearchHit[], meta: PageMeta }`. `SearchHit` is a `BusinessSummary` subset plus `distance` (meters from origin, null when none) and `rank` (ts_rank, 0 when no `q`). Rate limit `search.read` 60/min per ip. |
+
+Query params (all optional unless noted):
+
+- `q` — free text, 1–200 chars; normalized via `normalizePersianText` + `normalizeDigits` before `plainto_tsquery('simple', …)`.
+- `cityId`, `neighborhoodId` — UUID facet filters.
+- `categoryIds`, `amenityIds`, `tags` — UUID/string arrays; accept `?k=a,b` (comma form, split by a pre-transform pipe) or `?k=a&k=b` (repeat-key form). Max 20 / 40 / 20 entries.
+- `priceLevel` — 1..4.
+- `minRating` — 0..5, step 0.5.
+- `lat`, `lng` — geo origin (must be supplied together); `radius` — meters, 1..50000.
+- `sort` — `relevance` (default when `q` present), `rating` (default otherwise), `distance` (requires `lat`+`lng`), `newest`.
+- `page` (default 1), `pageSize` (default 20, max 100).
+
+- Errors: 400 (validation — bad UUID, `sort=distance` without origin, `lat` without `lng` or vice versa, params beyond max counts/lengths), 429 (rate limited with `Retry-After`).
+- Notes: `openNow` filtering is intentionally NOT supported yet — the weekly-hours + special-days + timezone computation lives in TypeScript (`HoursService.computeOpenStatus`, B2.5) and cannot be expressed in the search SQL without duplicating it; it is recorded as a Follow-up (materialized `currently_open` column or a SQL port). The repository builds one parameterised Drizzle query over the B3.1 `search_vector` GIN + PostGIS `location` GiST + `name_normalized` trigram indexes; `plainto_tsquery` (not `to_tsquery`) is used so bare multi-word user input is AND-joined without throwing. The ORDER BY always appends `id` as the stable tiebreaker (AGENTS.md §6).
