@@ -102,7 +102,7 @@ export const ADMIN_NAV_GROUPS: ReadonlyArray<AdminNavGroup> = [
         href: '/admin/users',
         labelKey: 'users',
         permissions: ['users.read'],
-        available: false, // F2.5
+        available: true, // F2.5
       },
     ],
   },

@@ -44,5 +44,11 @@ export const qk = {
     settings: {
       all: () => ['admin', 'settings', 'all'] as const,
     },
+    /** Admin users registry (F2.5). */
+    users: {
+      all: () => ['admin', 'users'] as const,
+      list: (filter: unknown) => ['admin', 'users', 'list', filter] as const,
+      detail: (id: string) => ['admin', 'users', 'detail', id] as const,
+    },
   },
 };

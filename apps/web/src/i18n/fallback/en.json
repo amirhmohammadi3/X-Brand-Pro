@@ -917,6 +917,54 @@
       "clearOverride": "Clear override",
       "clearOverrideHint": "Fall back to the registered default.",
       "saved": "“{key}” saved."
+    },
+    "users": {
+      "page": {
+        "title": "Users",
+        "description": "Search, filter by role/status and manage users; role hierarchy rules are enforced server-side."
+      },
+      "colUser": "User",
+      "colContact": "Contact",
+      "colRole": "Role",
+      "colStatus": "Status",
+      "colMeta": "Sessions & login",
+      "role": {
+        "user": "User",
+        "owner": "Business owner",
+        "moderator": "Moderator",
+        "admin": "Admin",
+        "super_admin": "Super admin"
+      },
+      "status": {
+        "active": "Active",
+        "blocked": "Blocked",
+        "deleted": "Deleted"
+      },
+      "sessionsCount": "{count} active sessions",
+      "actionsLabel": "Actions",
+      "filterAll": "All",
+      "searchPlaceholder": "Search users…",
+      "tooLong": "The search query is too long.",
+      "empty": "No users found.",
+      "changeRoleLabel": "Change role",
+      "banLabel": "Ban",
+      "unbanLabel": "Unban",
+      "revokeLabel": "Revoke sessions",
+      "roleTitle": "Change role of {name}",
+      "roleHint": "Changing a role revokes all of the user's sessions; granting admin requires a super admin.",
+      "roleChanged": "Role of {name} changed to {role}.",
+      "banTitle": "Ban {name}",
+      "reasonLabel": "Ban reason",
+      "reasonMin": "The reason needs at least 3 characters.",
+      "reasonMax": "The reason is capped at 500 characters.",
+      "banHint": "The ban lasts until manually lifted; every session is revoked immediately.",
+      "banned": "{name} banned.",
+      "unbanTitle": "Unban {name}?",
+      "unbanBody": "The user will be able to sign in again.",
+      "unbanned": "Ban lifted for {name}.",
+      "revokeTitle": "Revoke sessions of {name}?",
+      "revokeBody": "All active sessions are revoked; the user must sign in again.",
+      "revoked": "Sessions of {name} revoked."
     }
   }
 }
