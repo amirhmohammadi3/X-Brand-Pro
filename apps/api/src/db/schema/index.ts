@@ -26,3 +26,4 @@ export * from './hours.js';
 export * from './menu.js';
 export * from './claims.js';
 export * from './theme.js';
+export * from './search.js';

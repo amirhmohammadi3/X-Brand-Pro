@@ -321,3 +321,19 @@ Block format (one per table):
 - Indexes: `business_claims_one_pending` UNIQUE btree (business_id) WHERE status = 'pending'; `business_claims_claimant_idx` btree (claimant_user_id, created_at desc); `business_claims_status_created_idx` btree (status, created_at desc)
 - Constraints: at most one PENDING claim per business (partial unique index); the approve transaction re-checks `owner_id IS NULL` so a business claimed in the meantime cannot double-own.
 - Retention: cascade-deleted with the business; the claimant user's deletion cascades their claims (evidence is personal data); decided claims are kept for audit.
+
+### search_queries
+
+- Module: search - Prompt: B3.5
+- Purpose: the GLOBAL popularity counter behind `GET /search/popular` — one row per normalized query text (+ optional city scope), a `hits` counter bumped on every text search (anonymous included). NO user identity is ever written here (privacy: aggregate text only).
+- Columns of note: `id uuid pk`, `normalized_text text not null` (canonical form — `normalizePersianText` + `normalizeDigits`, DECISIONS B3.1/3.2), `text text not null` (first-seen display spelling), `city_id uuid` FK cities CASCADE nullable (the search's `cityId` facet; null = no-city variant), `hits integer not null` default 1, `result_count integer not null` default 0 (the last search's total), `last_searched_at timestamptz not null`
+- Indexes/constraints: `search_queries_normalized_city_uniq` UNIQUE NULLS NOT DISTINCT (normalized_text, city_id) — Postgres 16; without NULLS NOT DISTINCT two NULL city_ids would be distinct rows and the `ON CONFLICT` upsert would never fire for the anonymous variant; `search_queries_popular_idx` btree (hits DESC, last_searched_at DESC) drives the popular list; `search_queries_city_idx` btree (city_id)
+- Retention: grows with distinct query texts only (deduped by the canonical form); the admin does not edit it; a city deletion cascades its scoped counters (the no-city rows survive).
+
+### search_history
+
+- Module: search - Prompt: B3.5
+- Purpose: the PER-USER recent-search list behind `GET /search/history` — upserted automatically by `GET /search` when a valid access token rides along (re-searching the same canonical text bumps `searched_at` and refreshes the display `text`), pruned to the newest `HISTORY_LIMIT` (20) rows per user on every record. Owned by the user: clear-all and remove-one endpoints delete rows.
+- Columns of note: `id uuid pk`, `user_id uuid` FK users CASCADE, `normalized_text text not null` (canonical form), `text text not null` (latest display spelling via the upsert), `city_id uuid` FK cities ON DELETE SET NULL nullable, `searched_at timestamptz not null`
+- Indexes/constraints: `search_history_user_query_uniq` UNIQUE NULLS NOT DISTINCT (user_id, normalized_text, city_id) — makes the upsert idempotent (no duplicate rows for the same query); `search_history_user_recent_idx` btree (user_id, searched_at DESC) drives the newest-first list
+- Retention: capped at 20 rows/user by the service prune; user deletion cascades (personal data); city deletion nulls the scope but keeps the entry.
