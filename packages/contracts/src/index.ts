@@ -25,5 +25,6 @@ export * from './map.js';
 export * from './search-history.js';
 export * from './reviews.js';
 export * from './reputation.js';
+export * from './qa.js';
 export * from './moderation.js';
 export * from './theme/index.js';
