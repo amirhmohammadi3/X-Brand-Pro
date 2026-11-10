@@ -64,6 +64,8 @@ interface FakeReviewRow {
   status: 'approved' | 'pending' | 'rejected';
   photoMediaId: string | null;
   photoKey: string | null;
+  helpfulCount: number;
+  unhelpfulCount: number;
   editedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -78,6 +80,27 @@ function makeMemoryReviewsRepo() {
     [DELETED, { status: 'active', deletedAt: new Date(), avgRating: '0.00', reviewCount: 0 }],
   ]);
   const rows = new Map<string, FakeReviewRow>();
+  // B4.2: vote store keyed "reviewId:userId" → 1 | -1 (unique upsert semantics).
+  const votes = new Map<string, 1 | -1>();
+  const voteKey = (reviewId: string, userId: string) => `${reviewId}:${userId}`;
+  const tally = (reviewId: string) => {
+    let helpful = 0;
+    let unhelpful = 0;
+    for (const [k, v] of votes) {
+      if (k.startsWith(`${reviewId}:`)) {
+        if (v === 1) helpful += 1;
+        else unhelpful += 1;
+      }
+    }
+    return { helpful, unhelpful };
+  };
+  const syncCounts = (reviewId: string) => {
+    const row = rows.get(reviewId);
+    if (row) {
+      const t = tally(reviewId);
+      Object.assign(row, { helpfulCount: t.helpful, unhelpfulCount: t.unhelpful });
+    }
+  };
   let seq = 0;
   const recompute = (businessId: string) => {
     const approved = [...rows.values()].filter(
@@ -147,6 +170,8 @@ function makeMemoryReviewsRepo() {
         status: 'approved',
         photoMediaId: input.photoMediaId,
         photoKey: input.photoMediaId ? `p-${input.photoMediaId.slice(0, 8)}.webp` : null,
+        helpfulCount: 0,
+        unhelpfulCount: 0,
         editedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -165,6 +190,21 @@ function makeMemoryReviewsRepo() {
     },
     async delete(id: string) {
       return rows.delete(id);
+    },
+    async upsertVote(reviewId: string, userId: string, value: 1 | -1) {
+      votes.set(voteKey(reviewId, userId), value);
+      syncCounts(reviewId);
+    },
+    async deleteVote(reviewId: string, userId: string) {
+      const removed = votes.delete(voteKey(reviewId, userId));
+      syncCounts(reviewId);
+      return removed;
+    },
+    async findVoteByReviewAndUser(reviewId: string, userId: string) {
+      return votes.get(voteKey(reviewId, userId)) ?? null;
+    },
+    async countVotes(reviewId: string) {
+      return tally(reviewId);
     },
     async recomputeRating(businessId: string) {
       return recompute(businessId);
@@ -539,5 +579,141 @@ describe('audit trail (B4.1)', () => {
     expect(auditActions).toContain('review.create');
     expect(auditActions).toContain('review.update');
     expect(auditActions).toContain('review.delete');
+  });
+});
+
+// ─── B4.2 helpful/unhelpful votes (HTTP level) ───────────────────────────────
+// The B4.1 block above deletes both of its reviews by design, but `user` has
+// still REVIEWED ACTIVE2 there (one review per user per business), so the
+// vote tests register a fresh business in the in-memory fake and create on it.
+
+const ACTIVE3 = '15151515-1515-4151-8151-151515151515';
+
+const voteOn = (reviewId: string, body: object, bearer?: string) =>
+  request(app.getHttpServer())
+    .put(`/api/v1/reviews/${reviewId}/vote`)
+    .set(bearer ? { Authorization: bearer } : {})
+    .send(body);
+
+const unvoteOn = (reviewId: string, bearer?: string) =>
+  request(app.getHttpServer())
+    .delete(`/api/v1/reviews/${reviewId}/vote`)
+    .set(bearer ? { Authorization: bearer } : {});
+
+describe('PUT /api/v1/reviews/:id/vote (B4.2)', () => {
+  let reviewId = '';
+
+  beforeAll(async () => {
+    reviewsRepo.businesses.set(ACTIVE3, {
+      status: 'active',
+      deletedAt: null,
+      avgRating: '0.00',
+      reviewCount: 0,
+    });
+    const create = await createReview(
+      ACTIVE3,
+      { rating: 5, body: 'برای رأی‌گیری ساخته شد.' },
+      user.bearer,
+    );
+    expect(create.status).toBe(201);
+    reviewId = (create.body.data as { id: string }).id;
+  });
+
+  it('401 without authentication', async () => {
+    const res = await voteOn(reviewId, { value: 1 });
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('400 an invalid vote value (0, 2, text, null) — the domain is {1, -1}', async () => {
+    for (const value of [0, 2, 'helpful', null]) {
+      const res = await voteOn(reviewId, { value }, other.bearer);
+      expect(res.status).toBe(400);
+    }
+  });
+
+  it('422 when the author votes on their own review', async () => {
+    const res = await voteOn(reviewId, { value: 1 }, user.bearer);
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('UNPROCESSABLE');
+  });
+
+  it('200 the first helpful vote returns the fresh tally', async () => {
+    const res = await voteOn(reviewId, { value: 1 }, other.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ helpful: 1, unhelpful: 0, myVote: 1 });
+  });
+
+  it('200 switching to unhelpful moves the vote (one vote per user per review)', async () => {
+    const res = await voteOn(reviewId, { value: -1 }, other.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ helpful: 0, unhelpful: 1, myVote: -1 });
+  });
+
+  it('200 re-voting the same value is idempotent (tally unchanged)', async () => {
+    const res = await voteOn(reviewId, { value: -1 }, other.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ helpful: 0, unhelpful: 1, myVote: -1 });
+  });
+
+  it('200 a second voter raises the helpful tally; the list carries the counts', async () => {
+    const res = await voteOn(reviewId, { value: 1 }, admin.bearer);
+    expect(res.body.data).toEqual({ helpful: 1, unhelpful: 1, myVote: 1 });
+    const list = await listReviews(ACTIVE3);
+    const row = (list.body.data.items as Array<Record<string, unknown>>)[0];
+    expect(row).toMatchObject({ id: reviewId, helpfulCount: 1, unhelpfulCount: 1 });
+  });
+
+  it('404 an unknown review id (and a non-UUID id is 422)', async () => {
+    const res = await voteOn('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', { value: 1 }, other.bearer);
+    expect(res.status).toBe(404);
+    const garbage = await voteOn('not-a-uuid', { value: 1 }, other.bearer);
+    expect(garbage.status).toBe(422);
+  });
+});
+
+describe('DELETE /api/v1/reviews/:id/vote (B4.2)', () => {
+  let reviewId = '';
+
+  beforeAll(async () => {
+    // `user` already reviewed ACTIVE3 in the PUT block — the author here is `other`.
+    const create = await createReview(
+      ACTIVE3,
+      { rating: 3, body: 'نظر جدید برای آزمودن حذف رأی.' },
+      other.bearer,
+    );
+    expect(create.status).toBe(201);
+    reviewId = (create.body.data as { id: string }).id;
+  });
+
+  it('401 without authentication', async () => {
+    const res = await unvoteOn(reviewId);
+    expect(res.status).toBe(401);
+  });
+
+  it('200 withdraws the vote and zeroes the tally', async () => {
+    await voteOn(reviewId, { value: 1 }, other.bearer);
+    const res = await unvoteOn(reviewId, other.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ helpful: 0, unhelpful: 0, myVote: null });
+  });
+
+  it('200 is idempotent when no vote exists (double-tap is not an error)', async () => {
+    const res = await unvoteOn(reviewId, other.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ helpful: 0, unhelpful: 0, myVote: null });
+  });
+
+  it('404 an unknown review id', async () => {
+    const res = await unvoteOn('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', other.bearer);
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('vote audit trail (B4.2)', () => {
+  it('votes are NOT audited (high-volume, no content) — only the review writes are', async () => {
+    expect(auditActions).not.toContain('review.voted');
+    expect(auditActions).not.toContain('review.vote.removed');
+    expect(auditActions).toContain('review.create');
   });
 });

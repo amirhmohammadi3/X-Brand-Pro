@@ -35,6 +35,8 @@ function reviewRow(overrides: Partial<ReviewWithMeta> = {}): ReviewWithMeta {
     status: 'approved' as ReviewStatus,
     photoMediaId: null,
     photoKey: null,
+    helpfulCount: 0,
+    unhelpfulCount: 0,
     editedAt: null,
     createdAt: new Date('2026-11-10T10:00:00Z'),
     updatedAt: new Date('2026-11-10T10:00:00Z'),
@@ -114,6 +116,45 @@ function makeRepo(
     async delete(id: string) {
       return rows.delete(id);
     },
+    // ── B4.2 vote doubles: a keyed votes map + faithful count() simulation,
+    // mirroring the unique-(review_id, user_id) upsert semantics.
+    ...((): Record<string, unknown> => {
+      const votes = new Map<string, 1 | -1>();
+      const key = (reviewId: string, userId: string) => `${reviewId}:${userId}`;
+      const tally = (reviewId: string) => {
+        let helpful = 0;
+        let unhelpful = 0;
+        for (const [k, v] of votes) {
+          if (k.startsWith(`${reviewId}:`)) {
+            if (v === 1) helpful += 1;
+            else unhelpful += 1;
+          }
+        }
+        return { helpful, unhelpful };
+      };
+      return {
+        async upsertVote(reviewId: string, userId: string, value: 1 | -1) {
+          votes.set(key(reviewId, userId), value);
+          // Keep the joined rows' counts in sync so toReview/list assertions
+          // can observe the new tallies.
+          for (const r of rows.values()) {
+            if (r.id === reviewId) {
+              const t = tally(reviewId);
+              Object.assign(r, { helpfulCount: t.helpful, unhelpfulCount: t.unhelpful });
+            }
+          }
+        },
+        async deleteVote(reviewId: string, userId: string) {
+          return votes.delete(key(reviewId, userId));
+        },
+        async findVoteByReviewAndUser(reviewId: string, userId: string) {
+          return votes.get(key(reviewId, userId)) ?? null;
+        },
+        async countVotes(reviewId: string) {
+          return tally(reviewId);
+        },
+      };
+    })(),
     /** Faithful simulation: AVG(rounded 2dp)/COUNT over approved only. */
     async recomputeRating(businessId: string) {
       const approved = [...rows.values()].filter(
@@ -426,5 +467,112 @@ describe('ReviewsService event contract (B4.1)', () => {
     const { svc, events } = makeService(makeRepo([reviewRow()]));
     await expect(svc.create(BIZ, ALICE, CREATE)).rejects.toBeInstanceOf(HttpException);
     expect(events.emit).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReviewsService.vote (B4.2)', () => {
+  const OTHER_ROW_ID = '55555555-5555-4555-8555-555555555566';
+
+  it('BOB casts the first helpful vote and review.voted carries the value', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()]));
+    const res = await svc.vote(reviewRow().id, BOB, 1);
+    expect(res).toEqual({ helpful: 1, unhelpful: 0, myVote: 1 });
+    expect(events.emit).toHaveBeenCalledWith(REVIEWS_EVENTS.voted, {
+      reviewId: '55555555-5555-4555-8555-555555555555',
+      businessId: BIZ,
+      userId: BOB.id,
+      value: 1,
+    });
+  });
+
+  it('switching helpful → unhelpful moves the vote, never adds a second one', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()]));
+    const reviewId = '55555555-5555-4555-8555-555555555555';
+    await svc.vote(reviewId, BOB, 1);
+    const switched = await svc.vote(reviewId, BOB, -1);
+    expect(switched).toEqual({ helpful: 0, unhelpful: 1, myVote: -1 });
+    expect(events.emit).toHaveBeenCalledTimes(2); // voted + switched, no duplicate rows
+  });
+
+  it('re-voting the same value is an idempotent no-op (no second event)', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()]));
+    const reviewId = '55555555-5555-4555-8555-555555555555';
+    await svc.vote(reviewId, BOB, 1);
+    const again = await svc.vote(reviewId, BOB, 1);
+    expect(again).toEqual({ helpful: 1, unhelpful: 0, myVote: 1 });
+    expect(events.emit).toHaveBeenCalledTimes(1);
+  });
+
+  it('422s a self-vote — helpfulness is social proof from others', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()]));
+    await expect(svc.vote('55555555-5555-4555-8555-555555555555', ALICE, 1)).rejects.toMatchObject({
+      status: 422,
+    });
+    expect(events.emit).not.toHaveBeenCalled();
+  });
+
+  it('422s a vote on a pending review (not publicly visible)', async () => {
+    const { svc } = makeService(makeRepo([reviewRow({ status: 'pending' })]));
+    await expect(svc.vote('55555555-5555-4555-8555-555555555555', BOB, 1)).rejects.toMatchObject({
+      status: 422,
+    });
+  });
+
+  it('422s a vote on a rejected review', async () => {
+    const { svc } = makeService(makeRepo([reviewRow({ status: 'rejected' })]));
+    await expect(svc.vote('55555555-5555-4555-8555-555555555555', BOB, -1)).rejects.toMatchObject({
+      status: 422,
+    });
+  });
+
+  it('404s an unknown review without leaking existence', async () => {
+    const { svc } = makeService(makeRepo([]));
+    await expect(svc.vote(OTHER_ROW_ID, BOB, 1)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('tallies multiple independent voters', async () => {
+    const { svc } = makeService(
+      makeRepo([reviewRow(), reviewRow({ id: OTHER_ROW_ID, userId: BOB.id })]),
+    );
+    const reviewId = '55555555-5555-4555-8555-555555555555';
+    await svc.vote(reviewId, BOB, 1);
+    await svc.vote(reviewId, ADMIN, 1);
+    const res = await svc.vote(
+      reviewId,
+      { id: '66666666-6666-4666-8666-666666666666', role: 'user' },
+      -1,
+    );
+    expect(res).toEqual({ helpful: 2, unhelpful: 1, myVote: -1 });
+  });
+});
+
+describe('ReviewsService.removeVote (B4.2)', () => {
+  const reviewId = '55555555-5555-4555-8555-555555555555';
+
+  it('withdraws the caller’s vote and emits review.vote.removed', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()]));
+    await svc.vote(reviewId, BOB, 1);
+    events.emit.mockClear();
+    const res = await svc.removeVote(reviewId, BOB);
+    expect(res).toEqual({ helpful: 0, unhelpful: 0, myVote: null });
+    expect(events.emit).toHaveBeenCalledWith(REVIEWS_EVENTS.voteRemoved, {
+      reviewId,
+      businessId: BIZ,
+      userId: BOB.id,
+    });
+  });
+
+  it('is idempotent with no vote cast — counts back, no event, no error', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()]));
+    const res = await svc.removeVote(reviewId, BOB);
+    expect(res).toEqual({ helpful: 0, unhelpful: 0, myVote: null });
+    expect(events.emit).not.toHaveBeenCalled();
+  });
+
+  it('404s an unknown review', async () => {
+    const { svc } = makeService(makeRepo([]));
+    await expect(svc.removeVote('55555555-5555-4555-8555-555555555577', BOB)).rejects.toMatchObject(
+      { status: 404 },
+    );
   });
 });

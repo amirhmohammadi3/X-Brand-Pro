@@ -75,3 +75,41 @@ export const reviews = pgTable(
 
 export type ReviewRow = typeof reviews.$inferSelect;
 export type NewReviewRow = typeof reviews.$inferInsert;
+
+/**
+ * Review votes (B4.2). ONE vote per user per review — the unique index
+ * `review_votes_one_per_user` makes the write an UPSERT: re-voting the same
+ * value is an idempotent no-op, the opposite value switches the vote and
+ * DELETE withdraws it. `value` is 1 (helpful) or -1 (unhelpful) — a CHECK
+ * keeps the domain closed. Counts are NEVER denormalised onto `reviews`;
+ * every read derives them from this table (correlated count subselects off
+ * the unique index), so a takedown (B4.4) or a switch can never drift the
+ * displayed score. Both FKs cascade: a deleted review or user takes the
+ * votes with it (GDPR-style personal data).
+ */
+export const reviewVotes = pgTable(
+  'review_votes',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reviewId: uuid('review_id')
+      .notNull()
+      .references(() => reviews.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    value: smallint('value').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // One vote per user per review — the upsert target (review_id first so
+    // the per-review counts also scan this index).
+    uniqueIndex('review_votes_one_per_user').on(table.reviewId, table.userId),
+    // The voter's own votes (B4.8 Q&A and future "my votes" views), newest first.
+    index('review_votes_user_idx').on(table.userId, table.createdAt.desc()),
+    check('review_votes_value', sql`${table.value} IN (1, -1)`),
+  ],
+);
+
+export type ReviewVoteRow = typeof reviewVotes.$inferSelect;
+export type NewReviewVoteRow = typeof reviewVotes.$inferInsert;

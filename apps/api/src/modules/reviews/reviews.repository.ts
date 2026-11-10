@@ -4,8 +4,8 @@ import { DrizzleClient } from '../../db/drizzle.client.js';
 import { businesses } from '../../db/schema/business.js';
 import { mediaFiles } from '../../db/schema/media.js';
 import { users } from '../../db/schema/users.js';
-import { reviews } from '../../db/schema/reviews.js';
-import type { ReviewStatus } from '@app/contracts';
+import { reviews, reviewVotes } from '../../db/schema/reviews.js';
+import type { ReviewStatus, ReviewVoteValue } from '@app/contracts';
 
 /** DI token for the reviews repository (tests bind a fake). */
 export const REVIEWS_REPOSITORY = Symbol('REVIEWS_REPOSITORY');
@@ -22,6 +22,9 @@ export interface ReviewWithMeta {
   status: ReviewStatus;
   photoMediaId: string | null;
   photoKey: string | null;
+  /** B4.2 — derived per read from `review_votes` (never denormalised). */
+  helpfulCount: number;
+  unhelpfulCount: number;
   editedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -65,6 +68,16 @@ export interface ReviewsRepositoryLike {
     patch: { rating?: number; body?: string; photoMediaId?: string | null },
   ): Promise<ReviewWithMeta | null>;
   delete(reviewId: string): Promise<boolean>;
+
+  // ── B4.2 votes ───────────────────────────────────────────────────────────
+  /** Create or switch the caller's vote (unique (review_id, user_id) upsert). */
+  upsertVote(reviewId: string, userId: string, value: ReviewVoteValue): Promise<void>;
+  /** Withdraw the caller's vote; false when there was nothing to remove. */
+  deleteVote(reviewId: string, userId: string): Promise<boolean>;
+  /** The caller's current vote for the review, null when none. */
+  findVoteByReviewAndUser(reviewId: string, userId: string): Promise<ReviewVoteValue | null>;
+  /** Fresh (helpful, unhelpful) pair — one indexed scan per count. */
+  countVotes(reviewId: string): Promise<{ helpful: number; unhelpful: number }>;
   /**
    * Recompute the business aggregate from the APPROVED reviews and write it
    * to `businesses` in ONE statement: avg rounded to 2 decimals (the
@@ -84,6 +97,11 @@ const REVIEW_SELECT = {
   status: reviews.status,
   photoMediaId: reviews.photoMediaId,
   photoKey: mediaFiles.key,
+  // B4.2: correlated counts off `review_votes_one_per_user` (review_id is the
+  // leading column — an index-only scan per review). Derived per read, so a
+  // vote switch or a moderation takedown can never leave a stale counter.
+  helpfulCount: sql<number>`(SELECT count(*)::int FROM ${reviewVotes} WHERE ${reviewVotes.reviewId} = ${reviews.id} AND ${reviewVotes.value} = 1)`,
+  unhelpfulCount: sql<number>`(SELECT count(*)::int FROM ${reviewVotes} WHERE ${reviewVotes.reviewId} = ${reviews.id} AND ${reviewVotes.value} = -1)`,
   editedAt: reviews.editedAt,
   createdAt: reviews.createdAt,
   updatedAt: reviews.updatedAt,
@@ -219,6 +237,53 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
       .where(eq(reviews.id, reviewId))
       .returning({ id: reviews.id });
     return deleted.length > 0;
+  }
+
+  // ── B4.2 votes ─────────────────────────────────────────────────────────────
+
+  /**
+   * One statement: INSERT … ON CONFLICT (review_id, user_id) DO UPDATE —
+   * first vote inserts, the opposite value switches in place (updated_at
+   * stamped), the same value rewrites the same row (idempotent).
+   */
+  async upsertVote(reviewId: string, userId: string, value: ReviewVoteValue): Promise<void> {
+    await this.client.db
+      .insert(reviewVotes)
+      .values({ reviewId, userId, value })
+      .onConflictDoUpdate({
+        target: [reviewVotes.reviewId, reviewVotes.userId],
+        set: { value, updatedAt: new Date() },
+      });
+  }
+
+  async deleteVote(reviewId: string, userId: string): Promise<boolean> {
+    const deleted = await this.client.db
+      .delete(reviewVotes)
+      .where(and(eq(reviewVotes.reviewId, reviewId), eq(reviewVotes.userId, userId)))
+      .returning({ id: reviewVotes.id });
+    return deleted.length > 0;
+  }
+
+  async findVoteByReviewAndUser(reviewId: string, userId: string): Promise<ReviewVoteValue | null> {
+    const rows = await this.client.db
+      .select({ value: reviewVotes.value })
+      .from(reviewVotes)
+      .where(and(eq(reviewVotes.reviewId, reviewId), eq(reviewVotes.userId, userId)))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return row.value === 1 ? 1 : -1;
+  }
+
+  async countVotes(reviewId: string): Promise<{ helpful: number; unhelpful: number }> {
+    const rows = await this.client.db
+      .select({
+        helpful: sql<number>`count(*) FILTER (WHERE ${reviewVotes.value} = 1)::int`,
+        unhelpful: sql<number>`count(*) FILTER (WHERE ${reviewVotes.value} = -1)::int`,
+      })
+      .from(reviewVotes)
+      .where(eq(reviewVotes.reviewId, reviewId));
+    return rows[0] ?? { helpful: 0, unhelpful: 0 };
   }
 
   async recomputeRating(businessId: string): Promise<{ avgRating: string; reviewCount: number }> {

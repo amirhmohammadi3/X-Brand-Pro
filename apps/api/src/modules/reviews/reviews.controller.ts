@@ -10,6 +10,7 @@ import {
   Param,
   Patch,
   Post,
+  Put,
   Query,
   Req,
   UnprocessableEntityException,
@@ -19,9 +20,11 @@ import { uuidSchema } from '@app/contracts';
 import {
   createReviewBodySchema,
   reviewListQuerySchema,
+  reviewVoteBodySchema,
   updateReviewBodySchema,
   type CreateReviewBody,
   type ReviewListQuery,
+  type ReviewVoteBody,
   type UpdateReviewBody,
 } from '@app/contracts';
 import { Public } from '../../common/decorators/public.decorator.js';
@@ -229,5 +232,35 @@ export class ReviewsController {
       request,
     });
     return result;
+  }
+
+  // ─── Votes (B4.2) ────────────────────────────────────────────────────────
+
+  /**
+   * Cast/switch the caller's helpful (1) or unhelpful (-1) vote. Auditing is
+   * deliberately skipped (unlike the review writes): votes are high-volume
+   * one-row upserts of no content — the audit log would flood; the
+   * `review.voted`/`review.vote.removed` events (B4.5 spam filter) plus the
+   * rate limit carry the abuse signal instead.
+   */
+  @Put('reviews/:id/vote')
+  @RateLimit({ name: 'reviews.vote', limit: 30, windowSec: 60, scope: 'user' })
+  async vote(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(reviewVoteBodySchema)) body: ReviewVoteBody,
+  ) {
+    const user = requireUser(req);
+    assertUuid(id, 'reviewId');
+    return this.reviews.vote(id, user, body.value);
+  }
+
+  /** Withdraw the caller's vote (idempotent — unknown vote still 200). */
+  @Delete('reviews/:id/vote')
+  @RateLimit({ name: 'reviews.vote', limit: 30, windowSec: 60, scope: 'user' })
+  async removeVote(@Req() req: Request, @Param('id') id: string) {
+    const user = requireUser(req);
+    assertUuid(id, 'reviewId');
+    return this.reviews.removeVote(id, user);
   }
 }

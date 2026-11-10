@@ -40,12 +40,41 @@ export const reviewSchema = z.object({
   status: reviewStatusSchema,
   /** Public URL of the attached review photo, when one was attached. */
   photoUrl: z.string().min(1).nullable(),
+  /** Helpful votes (B4.2) — recomputed per read, never cached client-side. */
+  helpfulCount: z.number().int().min(0),
+  /** Unhelpful votes (B4.2) — same lifecycle as helpfulCount. */
+  unhelpfulCount: z.number().int().min(0),
   /** Set when the author edited the review after creation. */
   editedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 export type Review = z.infer<typeof reviewSchema>;
+
+/**
+ * Vote values (B4.2): `1` = helpful, `-1` = unhelpful. ONE vote per user per
+ * review (unique index) — re-voting with the same value is an idempotent
+ * no-op, the opposite value switches the vote, `DELETE` withdraws it.
+ */
+export const REVIEW_VOTE_HELPFUL = 1;
+export const REVIEW_VOTE_UNHELPFUL = -1;
+export const reviewVoteValueSchema = z.union([
+  z.literal(REVIEW_VOTE_HELPFUL),
+  z.literal(REVIEW_VOTE_UNHELPFUL),
+]);
+export type ReviewVoteValue = z.infer<typeof reviewVoteValueSchema>;
+
+/** PUT /reviews/:id/vote body. */
+export const reviewVoteBodySchema = z.object({ value: reviewVoteValueSchema }).strict();
+export type ReviewVoteBody = z.infer<typeof reviewVoteBodySchema>;
+
+/** Vote endpoints answer with the fresh counts + the caller's current vote. */
+export const reviewVoteResultSchema = z.object({
+  helpful: z.number().int().min(0),
+  unhelpful: z.number().int().min(0),
+  myVote: reviewVoteValueSchema.nullable(),
+});
+export type ReviewVoteResult = z.infer<typeof reviewVoteResultSchema>;
 
 /** Create body — the photo rides /media/upload (kind `review_photo`). */
 export const createReviewBodySchema = z
@@ -96,3 +125,10 @@ export type MyReviewsResult = z.infer<typeof myReviewsResultSchema>;
 /** { deleted: n } shape for the delete endpoint (mirrors claims/search history). */
 export const deleteReviewResultSchema = z.object({ deleted: z.boolean() });
 export type DeleteReviewResult = z.infer<typeof deleteReviewResultSchema>;
+
+/**
+ * B4.2 vote rules (single source of truth for service + tests):
+ * - votes only on APPROVED reviews (pending/rejected are invisible → 422);
+ * - no self-votes (a helpful score is social proof from OTHERS → 422).
+ */
+export const REVIEW_VOTE_LIMIT_PER_MIN = 30;

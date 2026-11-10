@@ -9,6 +9,8 @@ import type {
   MyReviewsResult,
   Review,
   ReviewListResult,
+  ReviewVoteResult,
+  ReviewVoteValue,
   UpdateReviewBody,
 } from '@app/contracts';
 import { MEDIA_REPOSITORY, type MediaRepositoryLike } from '../media/media.repository.js';
@@ -28,6 +30,10 @@ export const REVIEWS_EVENTS = {
   created: 'review.created',
   updated: 'review.updated',
   deleted: 'review.deleted',
+  /** B4.2 — a vote was cast or switched (payload carries the new value). */
+  voted: 'review.voted',
+  /** B4.2 — a vote was withdrawn. */
+  voteRemoved: 'review.vote.removed',
 } as const;
 
 /** Permission that may delete (take down) any review — granted in ROLE_PERMISSIONS (admin/moderator/super_admin). */
@@ -232,6 +238,72 @@ export class ReviewsService {
     return this.repo.recomputeRating(businessId);
   }
 
+  // ── B4.2 votes ─────────────────────────────────────────────────────────────
+
+  /**
+   * Cast or switch the caller's helpful/unhelpful vote. Rules:
+   * - the review must exist (404, never leaking);
+   * - votes apply to APPROVED reviews only — pending/rejected are not
+   *   publicly visible, so they cannot gather votes (422);
+   * - no self-votes — a helpful score is social proof from OTHERS (422;
+   *   403 is for authorization, and the caller is authorized here, just
+   *   not allowed this specific action);
+   * - re-voting the same value is an idempotent no-op (same response),
+   *   the opposite value switches (unique index upsert), events are
+   *   emitted for the spam filter (B4.5) and reputation (B4.7) prompts.
+   * Vote counts are NOT denormalised anywhere — every response derives
+   * them fresh from `review_votes`, so switches can never drift.
+   */
+  async vote(
+    reviewId: string,
+    user: BusinessActor,
+    value: ReviewVoteValue,
+  ): Promise<ReviewVoteResult> {
+    const row = await this.repo.findById(reviewId);
+    if (!row) throw notFoundException('Review', reviewId);
+    if (row.status !== 'approved') {
+      throw ruleException('Only approved reviews accept votes', {
+        reviewId,
+        status: row.status,
+      });
+    }
+    if (row.userId === user.id) {
+      throw ruleException('You cannot vote on your own review', { reviewId });
+    }
+    const previous = await this.repo.findVoteByReviewAndUser(reviewId, user.id);
+    await this.repo.upsertVote(reviewId, user.id, value);
+    if (previous !== value) {
+      this.events.emit(REVIEWS_EVENTS.voted, {
+        reviewId,
+        businessId: row.businessId,
+        userId: user.id,
+        value,
+      });
+    }
+    const counts = await this.repo.countVotes(reviewId);
+    return { helpful: counts.helpful, unhelpful: counts.unhelpful, myVote: value };
+  }
+
+  /**
+   * Withdraw the caller's vote. Idempotent: no vote → the current counts
+   * with `myVote: null` (the UI just re-syncs), no 404 — a double-tap on
+   * "remove vote" must not be an error. Unknown review is still 404.
+   */
+  async removeVote(reviewId: string, user: BusinessActor): Promise<ReviewVoteResult> {
+    const row = await this.repo.findById(reviewId);
+    if (!row) throw notFoundException('Review', reviewId);
+    const removed = await this.repo.deleteVote(reviewId, user.id);
+    if (removed) {
+      this.events.emit(REVIEWS_EVENTS.voteRemoved, {
+        reviewId,
+        businessId: row.businessId,
+        userId: user.id,
+      });
+    }
+    const counts = await this.repo.countVotes(reviewId);
+    return { helpful: counts.helpful, unhelpful: counts.unhelpful, myVote: null };
+  }
+
   /**
    * Photo attach validation (same rules as the business gallery): the media
    * must exist, not be soft-deleted, be kind `review_photo`, belong to the
@@ -267,6 +339,8 @@ export class ReviewsService {
       body: row.body,
       status: row.status,
       photoUrl: row.photoKey ? this.mediaUrls.urlFor(row.photoKey) : null,
+      helpfulCount: row.helpfulCount,
+      unhelpfulCount: row.unhelpfulCount,
       editedAt: row.editedAt ? row.editedAt.toISOString() : null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
