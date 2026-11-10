@@ -42,6 +42,11 @@ const PENDING = '12121212-1212-4121-8121-121212121212';
 const DELETED = '13131313-1313-4131-8131-131313131313';
 const PHOTO = '66666666-6666-4666-8666-666666666666';
 const PHOTO_WRONG_KIND = '77777777-7777-4777-8777-777777777777';
+/** B4.6 — the reviewer's receipt media (kind verification_receipt). TWO rows:
+ * the one-media-one-home rule means a receipt attached by one test can never
+ * attach again in another. */
+const RECEIPT = 'aaaaaaa1-0000-4000-8000-00000000000a';
+const RECEIPT2 = 'aaaaaaa2-0000-4000-8000-00000000000a';
 const ACTIVE2 = '14141414-1414-4141-8141-141414141414';
 /** Set in beforeAll — the media fake resolves ownership lazily (the module
  * compiles before the users exist). */
@@ -55,6 +60,10 @@ interface FakeBusinessRow {
   deletedAt: Date | null;
   avgRating: string;
   reviewCount: number;
+  /** B4.6 — the location the check-in validates against (only the B4.6
+   * businesses carry it; absent = no check-in validation possible). */
+  lat?: number | null;
+  lng?: number | null;
 }
 
 interface FakeReviewRow {
@@ -68,6 +77,12 @@ interface FakeReviewRow {
   status: 'approved' | 'pending' | 'rejected';
   photoMediaId: string | null;
   photoKey: string | null;
+  /** B4.6 — receipt + check-in proof columns (badge derives from them). */
+  receiptMediaId: string | null;
+  receiptKey: string | null;
+  checkinAt: Date | null;
+  checkinLat: number | null;
+  checkinLng: number | null;
   helpfulCount: number;
   unhelpfulCount: number;
   replyId: string | null;
@@ -88,19 +103,52 @@ function makeMemoryReviewsRepo() {
   const businesses = new Map<string, FakeBusinessRow>([
     [
       ACTIVE,
-      { ownerId: null, status: 'active', deletedAt: null, avgRating: '0.00', reviewCount: 0 },
+      {
+        ownerId: null,
+        status: 'active',
+        deletedAt: null,
+        avgRating: '0.00',
+        reviewCount: 0,
+        // B4.6 — the check-in tests measure against this point.
+        lat: 35.7,
+        lng: 51.4,
+      },
     ],
     [
       ACTIVE2,
-      { ownerId: null, status: 'active', deletedAt: null, avgRating: '0.00', reviewCount: 0 },
+      {
+        ownerId: null,
+        status: 'active',
+        deletedAt: null,
+        avgRating: '0.00',
+        reviewCount: 0,
+        lat: 35.7,
+        lng: 51.4,
+      },
     ],
     [
       PENDING,
-      { ownerId: null, status: 'pending', deletedAt: null, avgRating: '0.00', reviewCount: 0 },
+      {
+        ownerId: null,
+        status: 'pending',
+        deletedAt: null,
+        avgRating: '0.00',
+        reviewCount: 0,
+        lat: 35.7,
+        lng: 51.4,
+      },
     ],
     [
       DELETED,
-      { ownerId: null, status: 'active', deletedAt: new Date(), avgRating: '0.00', reviewCount: 0 },
+      {
+        ownerId: null,
+        status: 'active',
+        deletedAt: new Date(),
+        avgRating: '0.00',
+        reviewCount: 0,
+        lat: 35.7,
+        lng: 51.4,
+      },
     ],
   ]);
   const rows = new Map<string, FakeReviewRow>();
@@ -188,7 +236,15 @@ function makeMemoryReviewsRepo() {
     rows,
     async findBusinessContext(id: string) {
       const b = businesses.get(id);
-      return b ? { ownerId: b.ownerId, status: b.status, deletedAt: b.deletedAt } : null;
+      return b
+        ? {
+            ownerId: b.ownerId,
+            status: b.status,
+            deletedAt: b.deletedAt,
+            lat: b.lat,
+            lng: b.lng,
+          }
+        : null;
     },
     async findByBusinessAndUser(businessId: string, userId: string) {
       for (const r of rows.values()) {
@@ -239,6 +295,10 @@ function makeMemoryReviewsRepo() {
       photoMediaId: string | null;
       authorUsername: string;
       status?: 'approved' | 'pending' | 'rejected';
+      checkinAt?: Date | null;
+      checkinLat?: number | null;
+      checkinLng?: number | null;
+      receiptMediaId?: string | null;
     }) {
       const id = `${(seq += 1).toString(16).padStart(8, '0')}-0000-4000-8000-000000000000`;
       const row: FakeReviewRow = {
@@ -252,6 +312,11 @@ function makeMemoryReviewsRepo() {
         status: input.status ?? 'approved',
         photoMediaId: input.photoMediaId,
         photoKey: input.photoMediaId ? `p-${input.photoMediaId.slice(0, 8)}.webp` : null,
+        receiptMediaId: input.receiptMediaId ?? null,
+        receiptKey: input.receiptMediaId ? `r-${input.receiptMediaId.slice(0, 8)}.webp` : null,
+        checkinAt: input.checkinAt ?? null,
+        checkinLat: input.checkinLat ?? null,
+        checkinLng: input.checkinLng ?? null,
         helpfulCount: 0,
         unhelpfulCount: 0,
         replyId: null,
@@ -271,12 +336,31 @@ function makeMemoryReviewsRepo() {
     },
     async update(
       id: string,
-      patch: { rating?: number; body?: string; photoMediaId?: string | null },
+      patch: {
+        rating?: number;
+        body?: string;
+        photoMediaId?: string | null;
+        receiptMediaId?: string | null;
+        checkinAt?: Date | null;
+        checkinLat?: number | null;
+        checkinLng?: number | null;
+      },
     ) {
       const row = rows.get(id);
       if (!row) return null;
-      Object.assign(row, patch, { editedAt: new Date(), updatedAt: new Date() });
-      return row;
+      // Mirror the real repo (UPDATE + fresh findById): a NEW object so the
+      // service's pre/post badge comparison sees distinct snapshots.
+      const merged: FakeReviewRow = {
+        ...row,
+        ...patch,
+        editedAt: new Date(),
+        updatedAt: new Date(),
+      };
+      // The keys ride the LEFT JOINs: a cleared media id nulls its key.
+      if (merged.photoMediaId === null) merged.photoKey = null;
+      if (merged.receiptMediaId === null) merged.receiptKey = null;
+      rows.set(id, merged);
+      return merged;
     },
     async delete(id: string) {
       return rows.delete(id);
@@ -375,11 +459,28 @@ function makeFakeSettingsRepo() {
 }
 
 function makeMemoryMediaRepo() {
-  const media = new Map([
+  const media = new Map<
+    string,
+    {
+      kind: string;
+      ownerUserId: { current: string };
+      attachedAt: Date | null;
+      deletedAt: Date | null;
+    }
+  >([
     [PHOTO, { kind: 'review_photo', ownerUserId: reviewerId, attachedAt: null, deletedAt: null }],
     [
       PHOTO_WRONG_KIND,
       { kind: 'avatar', ownerUserId: reviewerId, attachedAt: null, deletedAt: null },
+    ],
+    // B4.6 — receipts owned by the reviewer (lazy owner like PHOTO).
+    [
+      RECEIPT,
+      { kind: 'verification_receipt', ownerUserId: reviewerId, attachedAt: null, deletedAt: null },
+    ],
+    [
+      RECEIPT2,
+      { kind: 'verification_receipt', ownerUserId: reviewerId, attachedAt: null, deletedAt: null },
     ],
   ]);
   return {
@@ -394,6 +495,14 @@ function makeMemoryMediaRepo() {
             deletedAt: m.deletedAt,
           }
         : null;
+    },
+    // B4.6 — the REAL MediaService (bound in AppModule; only the repo is
+    // overridden here) calls this through markAttachedQuietly.
+    async markAttached(id: string) {
+      const m = media.get(id);
+      if (!m) return null;
+      m.attachedAt = new Date();
+      return { id, kind: m.kind, ownerUserId: m.ownerUserId.current, attachedAt: m.attachedAt };
     },
   } as unknown as Record<string, unknown>;
 }
@@ -940,6 +1049,11 @@ describe('PUT /api/v1/reviews/:id/reply (B4.3)', () => {
       status: 'pending',
       photoMediaId: null,
       photoKey: null,
+      receiptMediaId: null,
+      receiptKey: null,
+      checkinAt: null,
+      checkinLat: null,
+      checkinLng: null,
       helpfulCount: 0,
       unhelpfulCount: 0,
       replyId: null,
@@ -1202,5 +1316,154 @@ describe('POST /businesses/:id/reviews — the spam filter (B4.5)', () => {
     );
     expect(res.status).toBe(201);
     expect(res.body.data.status).toBe('approved');
+  });
+});
+
+// ── B4.6 verified reviews (check-in, receipt, badge) — HTTP level ────────────
+
+/** Fresh businesses for this suite (one review per user per business — the
+ * B4.1 rule — means every create test needs its own (user, business) pair).
+ * ~111 m from the fake point (35.7, 51.4) is inside the 250 m radius; ~2.2 km
+ * is outside it. */
+const B46A = '2a2a2a2a-2a2a-42a2-82a2-2a2a2a2a2a2a';
+const B46B = '2b2b2b2b-2b2b-42b2-82b2-2b2b2b2b2b2b';
+const B46C = '2c2c2c2c-2c2c-42c2-82c2-2c2c2c2c2c2c';
+const B46D = '2d2d2d2d-2d2d-42d2-82d2-2d2d2d2d2d2d';
+const NEAR = { lat: 35.701, lng: 51.4 };
+const FAR = { lat: 35.72, lng: 51.4 };
+
+beforeAll(async () => {
+  for (const id of [B46A, B46B, B46C, B46D]) {
+    reviewsRepo.businesses.set(id, {
+      ownerId: null,
+      status: 'active',
+      deletedAt: null,
+      avgRating: '0.00',
+      reviewCount: 0,
+      lat: 35.7,
+      lng: 51.4,
+    });
+  }
+});
+
+describe('POST /businesses/:id/reviews — check-in + receipt (B4.6)', () => {
+  it('201 with a VALID check-in: verified=true, checkinAt echoed, coordinates never leak', async () => {
+    const res = await createReview(B46A, { ...GOOD, checkin: NEAR }, user.bearer);
+    expect(res.status).toBe(201);
+    expect(res.body.data.verified).toBe(true);
+    expect(res.body.data.checkinVerified).toBe(true);
+    expect(typeof res.body.data.checkinAt).toBe('string');
+    expect(JSON.stringify(res.body)).not.toContain('35.701');
+  });
+
+  it('422 with an out-of-radius check-in (details carry reason + radius)', async () => {
+    const res = await createReview(B46A, { ...GOOD, checkin: FAR }, other.bearer);
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('UNPROCESSABLE');
+    expect(res.body.error.details).toMatchObject({ reason: 'too_far', radiusM: 250 });
+  });
+
+  it('422 with a future check-in beyond the 300 s tolerance', async () => {
+    const res = await createReview(
+      B46B,
+      { ...GOOD, checkin: { ...NEAR, at: new Date(Date.now() + 3600_000).toISOString() } },
+      user.bearer,
+    );
+    expect(res.status).toBe(422);
+    expect(res.body.error.details).toMatchObject({ reason: 'in_future' });
+  });
+
+  it('422 with a check-in older than 30 days', async () => {
+    const res = await createReview(
+      B46B,
+      { ...GOOD, checkin: { ...NEAR, at: new Date(Date.now() - 31 * 86400_000).toISOString() } },
+      other.bearer,
+    );
+    expect(res.status).toBe(422);
+    expect(res.body.error.details).toMatchObject({ reason: 'too_old' });
+  });
+
+  it('400 with a malformed check-in (lat out of WGS84 range)', async () => {
+    const res = await createReview(
+      B46B,
+      { ...GOOD, checkin: { lat: 95, lng: 51.4 } },
+      admin.bearer,
+    );
+    expect(res.status).toBe(400);
+  });
+
+  it('201 with a receipt: verified=true via receipt, receiptUrl served, checkinVerified=false', async () => {
+    const res = await createReview(B46B, { ...GOOD, receiptMediaId: RECEIPT }, user.bearer);
+    expect(res.status).toBe(201);
+    expect(res.body.data.verified).toBe(true);
+    expect(res.body.data.checkinVerified).toBe(false);
+    // MediaUrlService serves the storage key under the /media mount.
+    expect(res.body.data.receiptUrl).toBe('/media/r-aaaaaaa1.webp');
+  });
+
+  it('400 with a non-UUID receiptMediaId (zod pipe, before any repo call)', async () => {
+    const res = await createReview(B46C, { ...GOOD, receiptMediaId: 'not-a-uuid' }, user.bearer);
+    expect(res.status).toBe(400);
+  });
+
+  it('422 when a review_photo is offered as a receipt (kinds are not interchangeable)', async () => {
+    const res = await createReview(B46C, { ...GOOD, receiptMediaId: PHOTO }, other.bearer);
+    expect(res.status).toBe(422);
+  });
+});
+
+describe('PATCH /reviews/:id — check-in/receipt lifecycle (B4.6)', () => {
+  it('adding a check-in on edit flips the badge (verified=true)', async () => {
+    const create = await createReview(B46C, GOOD, user.bearer);
+    expect(create.body.data.verified).toBe(false);
+    const id = create.body.data.id as string;
+    const res = await patchReview(id, { checkin: NEAR }, user.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.data.verified).toBe(true);
+    expect(res.body.data.checkinVerified).toBe(true);
+  });
+
+  it('an out-of-radius check-in on edit is 422 and leaves the review unverified', async () => {
+    const create = await createReview(B46A, GOOD, admin.bearer);
+    const id = create.body.data.id as string;
+    const res = await patchReview(id, { checkin: FAR }, admin.bearer);
+    expect(res.status).toBe(422);
+    const after = await myReviews(admin.bearer);
+    const row = (after.body.data.items as Array<{ id: string; verified: boolean }>).find(
+      (r) => r.id === id,
+    );
+    expect(row?.verified).toBe(false);
+  });
+
+  it('clearing the check-in (null) drops the badge when no receipt remains', async () => {
+    const create = await createReview(B46A, { ...GOOD, checkin: NEAR }, mod.bearer);
+    const id = create.body.data.id as string;
+    const res = await patchReview(id, { checkin: null }, mod.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.data.verified).toBe(false);
+    expect(res.body.data.checkinAt).toBeNull();
+  });
+
+  it('receipt clear (null) keeps the badge while a check-in remains', async () => {
+    // RECEIPT is owned by `user` (the reviewer) — only the owner may attach
+    // it; RECEIPT2 because RECEIPT already attached to the B46B review above
+    // (one media one home).
+    const create = await createReview(
+      B46D,
+      { ...GOOD, checkin: NEAR, receiptMediaId: RECEIPT2 },
+      user.bearer,
+    );
+    const id = create.body.data.id as string;
+    const res = await patchReview(id, { receiptMediaId: null }, user.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.data.receiptUrl).toBeNull();
+    expect(res.body.data.verified).toBe(true);
+  });
+
+  it('the author may not add a check-in to SOMEONE ELSE’s review (403)', async () => {
+    const create = await createReview(B46C, GOOD, other.bearer);
+    const id = create.body.data.id as string;
+    const res = await patchReview(id, { checkin: NEAR }, user.bearer);
+    expect(res.status).toBe(403);
   });
 });

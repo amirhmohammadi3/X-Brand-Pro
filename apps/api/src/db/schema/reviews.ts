@@ -1,5 +1,6 @@
 import {
   check,
+  doublePrecision,
   index,
   pgEnum,
   pgTable,
@@ -30,6 +31,16 @@ import { users } from './users.js';
  * `photo_media_id` FK is ON DELETE SET NULL: the media module hard-deletes
  * rows during cleanup; the review (its text is the content) survives with the
  * photo reference nulled — the same scheme as `business_claims.document_media_id`.
+ *
+ * B4.6 verification columns: a VALIDATED check-in is one `checkin_at` +
+ * `checkin_lat` + `checkin_lng` triple (all three or none — the
+ * `reviews_checkin_tri_state` CHECK keeps the row domain closed); the badge
+ * is DERIVED per read (`checkin_at IS NOT NULL OR receipt_media_id IS NOT
+ * NULL`) instead of a stored `checkin_verified` boolean — a stored flag can
+ * drift from the proof columns, a derived value cannot (the B4.2
+ * derived-counts decision applied to trust). The raw coordinates are
+ * personal data: they serve verification/audit only and are never mapped
+ * into the public DTO.
  */
 export const reviewStatusEnum = pgEnum('review_status', ['approved', 'pending', 'rejected']);
 
@@ -49,6 +60,15 @@ export const reviews = pgTable(
     photoMediaId: uuid('photo_media_id').references(() => mediaFiles.id, {
       onDelete: 'set null',
     }),
+    /** B4.6 — receipt proof (kind `verification_receipt`); SET NULL like the photo. */
+    receiptMediaId: uuid('receipt_media_id').references(() => mediaFiles.id, {
+      onDelete: 'set null',
+    }),
+    /** B4.6 — the validated visit time (always stored with the coords below). */
+    checkinAt: timestamp('checkin_at', { withTimezone: true }),
+    /** B4.6 — where the visit happened (WGS84; verified ≤ CHECKIN_RADIUS_M). */
+    checkinLat: doublePrecision('checkin_lat'),
+    checkinLng: doublePrecision('checkin_lng'),
     /** Stamped by the service when the author edits the review after creation. */
     editedAt: timestamp('edited_at', { withTimezone: true }),
     /** B4.4 — the moderator's note when the queue flips the status. */
@@ -75,6 +95,20 @@ export const reviews = pgTable(
     check(
       'reviews_moderator_note_len',
       sql`${table.moderatorNote} IS NULL OR char_length(${table.moderatorNote}) BETWEEN 2 AND 1000`,
+    ),
+    // B4.6 — the check-in triple is all-or-nothing (time + both coords), and
+    // the coords stay inside the WGS84 domains (a zod backstop at the DB).
+    check(
+      'reviews_checkin_tri_state',
+      sql`(${table.checkinAt} IS NULL) = (${table.checkinLat} IS NULL) AND (${table.checkinLat} IS NULL) = (${table.checkinLng} IS NULL)`,
+    ),
+    check(
+      'reviews_checkin_lat_range',
+      sql`${table.checkinLat} IS NULL OR (${table.checkinLat} BETWEEN -90 AND 90)`,
+    ),
+    check(
+      'reviews_checkin_lng_range',
+      sql`${table.checkinLng} IS NULL OR (${table.checkinLng} BETWEEN -180 AND 180)`,
     ),
   ],
 );

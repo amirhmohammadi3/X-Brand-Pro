@@ -39,6 +39,11 @@ function reviewRow(overrides: Partial<ReviewWithMeta> = {}): ReviewWithMeta {
     status: 'approved' as ReviewStatus,
     photoMediaId: null,
     photoKey: null,
+    receiptMediaId: null,
+    receiptKey: null,
+    checkinAt: null,
+    checkinLat: null,
+    checkinLng: null,
     helpfulCount: 0,
     unhelpfulCount: 0,
     replyId: null,
@@ -59,11 +64,29 @@ function reviewRow(overrides: Partial<ReviewWithMeta> = {}): ReviewWithMeta {
 /** In-memory repo mirroring the SQL semantics the service relies on. */
 function makeRepo(
   initial: ReviewWithMeta[] = [],
-  businesses?: Map<string, { ownerId?: string | null; status: string; deletedAt: Date | null }>,
+  businesses?: Map<
+    string,
+    {
+      ownerId?: string | null;
+      status: string;
+      deletedAt: Date | null;
+      /** B4.6 — the business location for check-in validation (optional; the real column is NOT NULL). */
+      lat?: number | null;
+      lng?: number | null;
+    }
+  >,
 ) {
   const rows = new Map(initial.map((r) => [r.id, r]));
-  const biz: Map<string, { ownerId?: string | null; status: string; deletedAt: Date | null }> =
-    businesses ?? new Map([[BIZ, { status: 'active', deletedAt: null }]]);
+  const biz: Map<
+    string,
+    {
+      ownerId?: string | null;
+      status: string;
+      deletedAt: Date | null;
+      lat?: number | null;
+      lng?: number | null;
+    }
+  > = businesses ?? new Map([[BIZ, { status: 'active', deletedAt: null, lat: 35.7, lng: 51.4 }]]);
   // B4.3: reply store keyed by review_id (the unique one-per-review target).
   const replies = new Map<
     string,
@@ -111,7 +134,15 @@ function makeRepo(
   const repo = {
     async findBusinessContext(id: string) {
       const b = biz.get(id);
-      return b ? { ownerId: b.ownerId ?? null, status: b.status, deletedAt: b.deletedAt } : null;
+      return b
+        ? {
+            ownerId: b.ownerId ?? null,
+            status: b.status,
+            deletedAt: b.deletedAt,
+            lat: b.lat ?? null,
+            lng: b.lng ?? null,
+          }
+        : null;
     },
     async findByBusinessAndUser(businessId: string, userId: string) {
       for (const r of rows.values()) {
@@ -162,6 +193,10 @@ function makeRepo(
       body: string;
       photoMediaId: string | null;
       status?: 'approved' | 'pending' | 'rejected';
+      checkinAt?: Date | null;
+      checkinLat?: number | null;
+      checkinLng?: number | null;
+      receiptMediaId?: string | null;
     }) {
       const row = reviewRow({
         id: `${(seq += 1).toString().padStart(8, '0')}-0000-4000-8000-000000000000`,
@@ -174,18 +209,38 @@ function makeRepo(
         // The real repo joins media_files.key; the fake derives a stable key
         // so the service's URL mapping is exercised.
         photoKey: input.photoMediaId ? `p-${input.photoMediaId.slice(0, 8)}.webp` : null,
+        receiptMediaId: input.receiptMediaId ?? null,
+        receiptKey: input.receiptMediaId ? `r-${input.receiptMediaId.slice(0, 8)}.webp` : null,
+        checkinAt: input.checkinAt ?? null,
+        checkinLat: input.checkinLat ?? null,
+        checkinLng: input.checkinLng ?? null,
       });
       rows.set(row.id, row);
       return row;
     },
     async update(
       id: string,
-      patch: { rating?: number; body?: string; photoMediaId?: string | null },
+      patch: {
+        rating?: number;
+        body?: string;
+        photoMediaId?: string | null;
+        receiptMediaId?: string | null;
+        checkinAt?: Date | null;
+        checkinLat?: number | null;
+        checkinLng?: number | null;
+      },
     ) {
       const row = rows.get(id);
       if (!row) return null;
-      Object.assign(row, patch, { editedAt: new Date(), updatedAt: new Date() });
-      return row;
+      // Mirror the real repo: UPDATE + a fresh findById — a NEW object, so
+      // the service's pre/post badge comparison sees distinct snapshots
+      // (in-place mutation would alias previous and updated into one row).
+      const merged = reviewRow({ ...row, ...patch, editedAt: new Date(), updatedAt: new Date() });
+      // The keys ride the LEFT JOINs: a cleared media id nulls its key.
+      if (merged.photoMediaId === null) merged.photoKey = null;
+      if (merged.receiptMediaId === null) merged.receiptKey = null;
+      rows.set(id, merged);
+      return merged;
     },
     async delete(id: string) {
       return rows.delete(id);
@@ -336,6 +391,12 @@ function makeMedia(
         attachedAt: new Date(),
         deletedAt: null,
       },
+      [RECEIPT]: {
+        kind: 'verification_receipt',
+        ownerUserId: ALICE.id,
+        attachedAt: null,
+        deletedAt: null,
+      },
       ...media,
     }),
   );
@@ -349,7 +410,17 @@ function makeMedia(
 
 const mediaUrls = { urlFor: (key: string | null) => (key ? `https://media.test/${key}` : null) };
 
-function makeService(repo = makeRepo(), media = makeMedia(), spam?: ReviewsSpamEvaluator) {
+/** Receipt media owned by ALICE (B4.6) — the default store carries it so the
+ * receipt specs stay one-liners; wrong-owner/attached variants override. */
+const RECEIPT = 'aaaaaaa1-0000-4000-8000-00000000000a';
+
+function makeService(
+  repo = makeRepo(),
+  media = makeMedia(),
+  spam?: ReviewsSpamEvaluator,
+  /** B4.6 — the (optional) MediaService double for markAttached assertions. */
+  mediaService?: { markAttached: (id: string, ownerId: string) => Promise<unknown> },
+) {
   const events = { emit: vi.fn() };
   const svc = new ReviewsService(
     repo as ReviewsRepositoryLike,
@@ -357,6 +428,7 @@ function makeService(repo = makeRepo(), media = makeMedia(), spam?: ReviewsSpamE
     mediaUrls as never,
     events as never,
     spam,
+    mediaService as never,
   );
   return { svc, events };
 }
@@ -969,5 +1041,246 @@ describe('ReviewsService.create with the spam filter (B4.5)', () => {
       svc.create(BIZ, ALICE, { ...CREATE, photoMediaId: '77777777-7777-4777-8777-777777777777' }),
     ).rejects.toMatchObject({ status: 422 });
     expect(FLAGGED.evaluate).not.toHaveBeenCalled();
+  });
+});
+
+// ── B4.6 verified reviews: check-in, receipt, badge ──────────────────────────
+
+/**
+ * The default business sits at (35.70, 51.40) in the makeRepo map. Haversine
+ * on 0.001° of latitude ≈ 111 m — inside the 250 m radius; 0.02° ≈ 2.2 km —
+ * far outside. The time window: 31 days back → too_old, 10 minutes ahead →
+ * in_future (tolerance is 300 s).
+ */
+describe('ReviewsService.create with a check-in (B4.6)', () => {
+  const NEAR = { lat: 35.701, lng: 51.4 }; // ~111 m from the business
+  const FAR = { lat: 35.72, lng: 51.4 }; // ~2.2 km from the business
+
+  it('stores a VALIDATED check-in (at + coords) and derives the badge', async () => {
+    const { svc } = makeService();
+    const at = new Date(Date.now() - 60 * 1000).toISOString(); // 1 min ago
+    const review = await svc.create(BIZ, ALICE, { ...CREATE, checkin: { ...NEAR, at } });
+    expect(review.verified).toBe(true);
+    expect(review.checkinVerified).toBe(true);
+    expect(review.checkinAt).toBe(at);
+    // The raw coordinates NEVER reach the DTO (privacy).
+    expect(JSON.stringify(review)).not.toContain('35.701');
+  });
+
+  it('defaults `at` to now when the body omits it', async () => {
+    const { svc } = makeService();
+    const before = Date.now();
+    const review = await svc.create(BIZ, ALICE, { ...CREATE, checkin: NEAR });
+    const stamped = new Date(review.checkinAt as string).getTime();
+    expect(stamped).toBeGreaterThanOrEqual(before);
+    expect(stamped).toBeLessThanOrEqual(Date.now());
+  });
+
+  it('422s a check-in beyond the radius, with the measured distance in the details', async () => {
+    const { svc } = makeService();
+    await expect(svc.create(BIZ, ALICE, { ...CREATE, checkin: FAR })).rejects.toMatchObject({
+      status: 422,
+      response: { details: { reason: 'too_far', radiusM: 250 } },
+    });
+  });
+
+  it('422s a check-in more than 300 s in the future', async () => {
+    const { svc } = makeService();
+    const at = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+    await expect(
+      svc.create(BIZ, ALICE, { ...CREATE, checkin: { ...NEAR, at } }),
+    ).rejects.toMatchObject({ status: 422, response: { details: { reason: 'in_future' } } });
+  });
+
+  it('422s a check-in older than 30 days', async () => {
+    const { svc } = makeService();
+    const at = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000).toISOString();
+    await expect(
+      svc.create(BIZ, ALICE, { ...CREATE, checkin: { ...NEAR, at } }),
+    ).rejects.toMatchObject({ status: 422, response: { details: { reason: 'too_old' } } });
+  });
+
+  it('422s when the business has no location to check in against', async () => {
+    const { svc } = makeService(
+      makeRepo([], new Map([[BIZ, { status: 'active', deletedAt: null, lat: null, lng: null }]])),
+    );
+    await expect(svc.create(BIZ, ALICE, { ...CREATE, checkin: NEAR })).rejects.toMatchObject({
+      status: 422,
+      response: { details: { reason: 'no_business_location' } },
+    });
+  });
+
+  it('emits review.verified exactly once with via=[checkin]', async () => {
+    const { svc, events } = makeService();
+    const review = await svc.create(BIZ, ALICE, { ...CREATE, checkin: NEAR });
+    expect(events.emit).toHaveBeenCalledWith(REVIEWS_EVENTS.verified, {
+      reviewId: review.id,
+      businessId: BIZ,
+      userId: ALICE.id,
+      via: ['checkin'],
+    });
+    expect(events.emit.mock.calls.filter((c) => c[0] === 'review.verified')).toHaveLength(1);
+  });
+
+  it('an unverified create emits NO review.verified', async () => {
+    const { svc, events } = makeService();
+    await svc.create(BIZ, ALICE, CREATE);
+    expect(events.emit).not.toHaveBeenCalledWith('review.verified', expect.anything());
+  });
+});
+
+describe('ReviewsService.create with a receipt (B4.6)', () => {
+  it('attaches kind verification_receipt and derives the badge + URL', async () => {
+    const { svc } = makeService();
+    const review = await svc.create(BIZ, ALICE, { ...CREATE, receiptMediaId: RECEIPT });
+    expect(review.verified).toBe(true);
+    expect(review.checkinVerified).toBe(false);
+    expect(review.checkinAt).toBeNull();
+    expect(review.receiptUrl).toBe('https://media.test/r-aaaaaaa1.webp');
+  });
+
+  it('emits review.verified with via=[receipt] on the first proof', async () => {
+    const { svc, events } = makeService();
+    const review = await svc.create(BIZ, ALICE, { ...CREATE, receiptMediaId: RECEIPT });
+    expect(events.emit).toHaveBeenCalledWith(REVIEWS_EVENTS.verified, {
+      reviewId: review.id,
+      businessId: BIZ,
+      userId: ALICE.id,
+      via: ['receipt'],
+    });
+  });
+
+  it('422s when the media is a review_photo, not a verification_receipt', async () => {
+    const { svc } = makeService();
+    await expect(
+      svc.create(BIZ, ALICE, {
+        ...CREATE,
+        receiptMediaId: '66666666-6666-4666-8666-666666666666',
+      }),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('403s another user’s receipt', async () => {
+    const { svc } = makeService(
+      makeRepo(),
+      makeMedia({
+        'bbbbbbb2-0000-4000-8000-00000000000b': {
+          kind: 'verification_receipt',
+          ownerUserId: BOB.id,
+          attachedAt: null,
+          deletedAt: null,
+        },
+      }),
+    );
+    await expect(
+      svc.create(BIZ, ALICE, {
+        ...CREATE,
+        receiptMediaId: 'bbbbbbb2-0000-4000-8000-00000000000b',
+      }),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('409s an already-attached receipt (one media one home)', async () => {
+    const { svc } = makeService(
+      makeRepo(),
+      makeMedia({
+        'ccccccc3-0000-4000-8000-00000000000c': {
+          kind: 'verification_receipt',
+          ownerUserId: ALICE.id,
+          attachedAt: new Date(),
+          deletedAt: null,
+        },
+      }),
+    );
+    await expect(
+      svc.create(BIZ, ALICE, {
+        ...CREATE,
+        receiptMediaId: 'ccccccc3-0000-4000-8000-00000000000c',
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('stamps photo AND receipt attached after the insert (orphan-sweep guard)', async () => {
+    const markAttached = vi.fn(async () => undefined);
+    const { svc } = makeService(makeRepo(), makeMedia(), undefined, { markAttached });
+    await svc.create(BIZ, ALICE, {
+      ...CREATE,
+      photoMediaId: '66666666-6666-4666-8666-666666666666',
+      receiptMediaId: RECEIPT,
+    });
+    expect(markAttached).toHaveBeenCalledWith('66666666-6666-4666-8666-666666666666', ALICE.id);
+    expect(markAttached).toHaveBeenCalledWith(RECEIPT, ALICE.id);
+  });
+
+  it('a markAttached failure never fails the review write', async () => {
+    const markAttached = vi.fn(async () => {
+      throw new Error('storage down');
+    });
+    const { svc } = makeService(makeRepo(), makeMedia(), undefined, { markAttached });
+    const review = await svc.create(BIZ, ALICE, { ...CREATE, receiptMediaId: RECEIPT });
+    expect(review.verified).toBe(true);
+  });
+});
+
+describe('ReviewsService.update with check-in/receipt (B4.6)', () => {
+  const NEAR = { lat: 35.701, lng: 51.4 };
+
+  it('adds a check-in on edit and fires the badge flip ONCE (false→true)', async () => {
+    const row = reviewRow({ userId: ALICE.id }); // unverified
+    const { svc, events } = makeService(makeRepo([row]));
+    const updated = await svc.update(row.id, ALICE, { checkin: NEAR });
+    expect(updated.verified).toBe(true);
+    const verifiedEvents = events.emit.mock.calls.filter((c) => c[0] === 'review.verified');
+    expect(verifiedEvents).toHaveLength(1);
+    expect(verifiedEvents[0]![1]).toMatchObject({ reviewId: row.id, via: ['checkin'] });
+  });
+
+  it('re-verifies a check-in against the CURRENT business location', async () => {
+    const row = reviewRow({ userId: ALICE.id });
+    const { svc } = makeService(makeRepo([row]));
+    await expect(
+      svc.update(row.id, ALICE, { checkin: { lat: 35.72, lng: 51.4 } }),
+    ).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('clears the check-in with null (the badge drops when no receipt remains)', async () => {
+    const row = reviewRow({
+      userId: ALICE.id,
+      checkinAt: new Date('2026-11-10T09:00:00Z'),
+      checkinLat: 35.7,
+      checkinLng: 51.4,
+    });
+    const { svc } = makeService(makeRepo([row]));
+    const updated = await svc.update(row.id, ALICE, { checkin: null });
+    expect(updated.checkinVerified).toBe(false);
+    expect(updated.checkinAt).toBeNull();
+    expect(updated.verified).toBe(false);
+  });
+
+  it('clearing the receipt keeps the badge when a check-in remains', async () => {
+    const row = reviewRow({
+      userId: ALICE.id,
+      checkinAt: new Date('2026-11-10T09:00:00Z'),
+      checkinLat: 35.7,
+      checkinLng: 51.4,
+      receiptMediaId: RECEIPT,
+      receiptKey: 'r-a.webp',
+    });
+    const { svc } = makeService(makeRepo([row]));
+    const updated = await svc.update(row.id, ALICE, { receiptMediaId: null });
+    expect(updated.receiptUrl).toBeNull();
+    expect(updated.verified).toBe(true);
+  });
+
+  it('re-verification of an already-verified review emits NO second event', async () => {
+    const row = reviewRow({
+      userId: ALICE.id,
+      checkinAt: new Date('2026-11-10T09:00:00Z'),
+      checkinLat: 35.7,
+      checkinLng: 51.4,
+    });
+    const { svc, events } = makeService(makeRepo([row]));
+    await svc.update(row.id, ALICE, { receiptMediaId: RECEIPT });
+    expect(events.emit).not.toHaveBeenCalledWith('review.verified', expect.anything());
   });
 });

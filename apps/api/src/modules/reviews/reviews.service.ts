@@ -9,6 +9,7 @@ import type {
   DeleteReviewResult,
   MyReviewsResult,
   Review,
+  ReviewCheckin,
   ReviewListResult,
   ReviewReply,
   ReviewVoteResult,
@@ -16,8 +17,11 @@ import type {
   UpdateReviewBody,
   UpsertReviewReplyResult,
 } from '@app/contracts';
+import { REVIEW_RECEIPT_MEDIA_KIND } from '@app/contracts';
 import { canManageBusiness, type BusinessActor } from '../business/business-access.js';
 import { MEDIA_REPOSITORY, type MediaRepositoryLike } from '../media/media.repository.js';
+import { MEDIA_SERVICE } from '../media/media.service.js';
+import type { MediaService } from '../media/media.service.js';
 import { roleHasPermissions } from '../users/users.service.js';
 // Value import: Nest reads the type at runtime via emitDecoratorMetadata.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -29,6 +33,7 @@ import {
   type ReviewsRepositoryLike,
 } from './reviews.repository.js';
 import { REVIEWS_SPAM_EVALUATOR, type ReviewsSpamEvaluator } from './reviews-spam.service.js';
+import { validateCheckin } from './reviews-checkin.js';
 
 /** Domain events (AGENTS.md 6 — the `review.created` example lives here). Subscriber: reviews-rating.subscriber.ts (enqueue); B4.4/B4.7 add theirs. */
 export const REVIEWS_EVENTS = {
@@ -49,6 +54,8 @@ export const REVIEWS_EVENTS = {
   statusChanged: 'review.status.changed',
   /** B4.5 — the spam filter demoted the review to pending (carries the reasons). */
   flagged: 'review.flagged',
+  /** B4.6 — the review BECAME verified (check-in and/or receipt; fired once per flip, never on re-verification). */
+  verified: 'review.verified',
 } as const;
 
 /** Permission that may delete (take down) any review — granted in ROLE_PERMISSIONS (admin/moderator/super_admin). */
@@ -124,6 +131,10 @@ export class ReviewsService {
     private readonly events: EventEmitter2,
     /** B4.5 — optional so the B4.1-era fakes stay 4-arg; absent = filter off. */
     @Optional() @Inject(REVIEWS_SPAM_EVALUATOR) private readonly spam?: ReviewsSpamEvaluator,
+    /** B4.6 — optional for the same reason; absent = skip the post-insert
+     * markAttached (the orphan-cleanup sweep then owns the file, exactly as
+     * before). Present in the real app (MediaModule is global). */
+    @Optional() @Inject(MEDIA_SERVICE) private readonly mediaService?: MediaService,
   ) {}
 
   /** Public business page list: approved reviews, newest first, paginated. */
@@ -181,8 +192,18 @@ export class ReviewsService {
       });
     }
     const photoMediaId = input.photoMediaId
-      ? await this.validatePhoto(input.photoMediaId, user)
+      ? await this.validateMedia(input.photoMediaId, user, 'review_photo', 'photo')
       : null;
+    // B4.6 — receipt proof: kind `verification_receipt`, same one-media-one-home rules.
+    const receiptMediaId = input.receiptMediaId
+      ? await this.validateMedia(input.receiptMediaId, user, REVIEW_RECEIPT_MEDIA_KIND, 'receipt')
+      : null;
+    // B4.6 — the check-in is validated BEFORE the insert: a failing proof
+    // 422s the whole create (the caller retries without it) so the badge can
+    // only ever appear on a review the server actually checked.
+    const checkin = input.checkin
+      ? this.resolveCheckin(input.checkin, business)
+      : { checkinAt: null, checkinLat: null, checkinLng: null };
     // B4.5 — the automatic spam/fraud filter runs BEFORE the insert: any
     // signal (blocked word, duplicate, velocity, wave) demotes the review to
     // `pending` for the B4.4 queue instead of 422ing (the author still gets
@@ -197,8 +218,16 @@ export class ReviewsService {
       rating: input.rating,
       body: input.body,
       photoMediaId,
+      receiptMediaId,
+      ...checkin,
       ...(evaluation.flagged ? { status: 'pending' as const } : {}),
     });
+    // B4.6 — the media rows are now referenced by the review: stamp them
+    // attached (idempotent, owner-checked) so the hourly orphan sweep can
+    // never delete a live photo/receipt. Best-effort — an attach failure
+    // must not fail the review (claims.service precedent); the 24h window
+    // and the follow-up cleanup still bound the damage.
+    await this.markAttachedQuietly([photoMediaId, receiptMediaId], user.id);
     this.events.emit(REVIEWS_EVENTS.created, {
       reviewId: row.id,
       businessId,
@@ -214,12 +243,13 @@ export class ReviewsService {
         reasons: evaluation.reasons,
       });
     }
+    this.emitVerifiedIfNew(row, null, user.id);
     // Post-insert counters (velocity/wave) — best-effort, never throws.
     void this.spam?.recordPosted(user.id, businessId);
     return this.toReview(row);
   }
 
-  /** Author-only edit. Unchanged fields stay; photo null clears, id replaces. */
+  /** Author-only edit. Unchanged fields stay; photo/receipt null clears, id replaces; check-in null clears, object revalidates. */
   async update(reviewId: string, user: BusinessActor, input: UpdateReviewBody): Promise<Review> {
     const row = await this.repo.findById(reviewId);
     if (!row) throw notFoundException('Review', reviewId);
@@ -230,20 +260,56 @@ export class ReviewsService {
     if (input.photoMediaId === null) {
       photoMediaId = null; // explicit clear
     } else if (input.photoMediaId !== undefined) {
-      photoMediaId = await this.validatePhoto(input.photoMediaId, user);
+      photoMediaId = await this.validateMedia(input.photoMediaId, user, 'review_photo', 'photo');
+    }
+    // B4.6 — receipt follows the same three-state rule as the photo.
+    let receiptMediaId: string | null | undefined;
+    if (input.receiptMediaId === null) {
+      receiptMediaId = null;
+    } else if (input.receiptMediaId !== undefined) {
+      receiptMediaId = await this.validateMedia(
+        input.receiptMediaId,
+        user,
+        REVIEW_RECEIPT_MEDIA_KIND,
+        'receipt',
+      );
+    }
+    // B4.6 — check-in three-state: undefined keeps, null clears, an object
+    // is revalidated against the CURRENT business location (the business may
+    // have moved since create; the badge must stay truthful after any edit).
+    let checkinPatch:
+      | { checkinAt: Date; checkinLat: number; checkinLng: number }
+      | { checkinAt: null; checkinLat: null; checkinLng: null }
+      | undefined;
+    if (input.checkin === null) {
+      checkinPatch = { checkinAt: null, checkinLat: null, checkinLng: null };
+    } else if (input.checkin !== undefined) {
+      const business = await this.repo.findBusinessContext(row.businessId);
+      if (!business || business.deletedAt) {
+        throw notFoundException('Business', row.businessId);
+      }
+      checkinPatch = this.resolveCheckin(input.checkin, business);
     }
     const updated = await this.repo.update(reviewId, {
       ...(input.rating !== undefined ? { rating: input.rating } : {}),
       ...(input.body !== undefined ? { body: input.body } : {}),
       ...(photoMediaId !== undefined ? { photoMediaId } : {}),
+      ...(receiptMediaId !== undefined ? { receiptMediaId } : {}),
+      ...(checkinPatch ?? {}),
     });
     if (!updated) throw notFoundException('Review', reviewId);
+    // B4.6 — any newly attached media gets its attached stamp (see create).
+    await this.markAttachedQuietly(
+      [receiptMediaId, photoMediaId].map((id) => id ?? null).filter((id): id is string => !!id),
+      user.id,
+    );
     this.events.emit(REVIEWS_EVENTS.updated, {
       reviewId,
       businessId: updated.businessId,
       userId: user.id,
       rating: updated.rating,
     });
+    this.emitVerifiedIfNew(updated, row, user.id);
     return this.toReview(updated);
   }
 
@@ -411,15 +477,22 @@ export class ReviewsService {
   }
 
   /**
-   * Photo attach validation (same rules as the business gallery): the media
-   * must exist, not be soft-deleted, be kind `review_photo`, belong to the
-   * caller and be unattached — one media row lives in exactly one place.
+   * Media attach validation (same rules as the business gallery): the media
+   * must exist, not be soft-deleted, carry the EXPECTED kind (B4.6 — the
+   * photo and the receipt are different proofs, a receipt cannot moonlight
+   * as a photo), belong to the caller and be unattached — one media row
+   * lives in exactly one place.
    */
-  private async validatePhoto(mediaId: string, user: BusinessActor): Promise<string> {
+  private async validateMedia(
+    mediaId: string,
+    user: BusinessActor,
+    kind: 'review_photo' | typeof REVIEW_RECEIPT_MEDIA_KIND,
+    what: string,
+  ): Promise<string> {
     const media = await this.mediaRepo.findById(mediaId);
     if (!media || media.deletedAt) throw notFoundException('Media', mediaId);
-    if (media.kind !== 'review_photo') {
-      throw ruleException(`Media kind ${media.kind} cannot be attached as a review photo`, {
+    if (media.kind !== kind) {
+      throw ruleException(`Media kind ${media.kind} cannot be attached as a review ${what}`, {
         mediaId,
         kind: media.kind,
       });
@@ -431,6 +504,95 @@ export class ReviewsService {
       throw conflictException('Media is already attached', { mediaId });
     }
     return mediaId;
+  }
+
+  /**
+   * B4.6 — validate the claimed check-in against the business location and
+   * stamp the visit time. A rejected proof 422s (with the measured distance
+   * / limit in the details) — an unverified check-in is NEVER stored, so
+   * `checkinAt != null` on a row always means "the server checked it".
+   */
+  private resolveCheckin(
+    input: ReviewCheckin,
+    business: { lat?: number | null; lng?: number | null },
+  ): { checkinAt: Date; checkinLat: number; checkinLng: number } {
+    const result = validateCheckin(input, business, new Date());
+    if (!result.ok) {
+      // Per-reason message + details (the measured distance / limit), so a
+      // legitimate user sees WHY the proof failed — these limits are public
+      // product rules, unlike the B4.5 spam internals.
+      let message: string;
+      let details: Record<string, unknown> = { reason: result.reason };
+      switch (result.reason) {
+        case 'too_far':
+          message = `Check-in is ${Math.round(result.distanceM)}m from the business — the maximum is ${result.radiusM}m`;
+          details = {
+            ...details,
+            distanceM: Math.round(result.distanceM),
+            radiusM: result.radiusM,
+          };
+          break;
+        case 'in_future':
+          message = `The check-in time cannot be more than ${result.maxFutureSec}s in the future`;
+          break;
+        case 'too_old':
+          message = `The check-in time cannot be older than ${result.maxAgeDays} days`;
+          break;
+        case 'no_business_location':
+          message = 'The business has no location to check in against';
+          break;
+      }
+      throw ruleException(message, details);
+    }
+    return {
+      checkinAt: result.at,
+      checkinLat: input.lat,
+      checkinLng: input.lng,
+    };
+  }
+
+  /**
+   * B4.6 — stamp media rows attached after the review write committed
+   * (idempotent, owner-checked by MediaService). Best-effort: a failure
+   * must never fail the review write (claims.service precedent) — the
+   * 24h orphan window bounds the damage, and absent service (B4.1-era
+   * fakes) skips the call entirely.
+   */
+  private async markAttachedQuietly(
+    mediaIds: Array<string | null>,
+    ownerId: string,
+  ): Promise<void> {
+    const ids = mediaIds.filter((id): id is string => !!id);
+    for (const id of ids) {
+      await this.mediaService?.markAttached(id, ownerId).catch(() => undefined);
+    }
+  }
+
+  /**
+   * B4.6 — fire `review.verified` exactly when the review's badge flips
+   * false → true (create-with-proof, or an edit that adds the first proof).
+   * Re-verifying or swapping one proof for another is silent — the event is
+   * the FIRST-time trust signal the reputation prompt (B4.7) subscribes to.
+   */
+  private emitVerifiedIfNew(
+    row: ReviewWithMeta,
+    previous: Pick<ReviewWithMeta, 'checkinAt' | 'receiptMediaId'> | null,
+    userId: string,
+  ): void {
+    const wasVerified = previous
+      ? previous.checkinAt !== null || previous.receiptMediaId !== null
+      : false;
+    const isVerified = row.checkinAt !== null || row.receiptMediaId !== null;
+    if (!isVerified || wasVerified) return;
+    const via: string[] = [];
+    if (row.checkinAt !== null) via.push('checkin');
+    if (row.receiptMediaId !== null) via.push('receipt');
+    this.events.emit(REVIEWS_EVENTS.verified, {
+      reviewId: row.id,
+      businessId: row.businessId,
+      userId,
+      via,
+    });
   }
 
   // ── B4.3 owner replies ───────────────────────────────────────────────────
@@ -541,6 +703,12 @@ export class ReviewsService {
       photoUrl: row.photoKey ? this.mediaUrls.urlFor(row.photoKey) : null,
       helpfulCount: row.helpfulCount,
       unhelpfulCount: row.unhelpfulCount,
+      // B4.6 — the badge derives from the proof columns per read; the raw
+      // check-in coordinates NEVER leave the server (personal data).
+      verified: row.checkinAt !== null || row.receiptMediaId !== null,
+      checkinVerified: row.checkinAt !== null,
+      checkinAt: row.checkinAt ? row.checkinAt.toISOString() : null,
+      receiptUrl: row.receiptKey ? this.mediaUrls.urlFor(row.receiptKey) : null,
       editedAt: row.editedAt ? row.editedAt.toISOString() : null,
       reply: row.replyId && row.replyBody ? this.toReplyFromJoin(row) : null,
       createdAt: row.createdAt.toISOString(),

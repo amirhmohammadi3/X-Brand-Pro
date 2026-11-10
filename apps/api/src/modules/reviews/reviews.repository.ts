@@ -15,6 +15,10 @@ export const REVIEWS_REPOSITORY = Symbol('REVIEWS_REPOSITORY');
  * self-join would collide with the review-author join). */
 const replyUsers = alias(users, 'reply_users');
 
+/** Second join over `media_files` for the receipt key (B4.6 — the photo join
+ * is taken; a plain self-join would collide the same way). */
+const receiptMedia = alias(mediaFiles, 'receipt_media');
+
 /** Review row joined with the photo media key + author identity (URL/name resolution in the service). */
 export interface ReviewWithMeta {
   id: string;
@@ -27,6 +31,14 @@ export interface ReviewWithMeta {
   status: ReviewStatus;
   photoMediaId: string | null;
   photoKey: string | null;
+  /** B4.6 — receipt proof media (null when none) + its storage key. */
+  receiptMediaId: string | null;
+  receiptKey: string | null;
+  /** B4.6 — the validated check-in triple (all null when none). The coords
+   * are verification/audit data — the service never maps them into the DTO. */
+  checkinAt: Date | null;
+  checkinLat: number | null;
+  checkinLng: number | null;
   /** B4.2 — derived per read from `review_votes` (never denormalised). */
   helpfulCount: number;
   unhelpfulCount: number;
@@ -64,10 +76,14 @@ export interface ReviewPage {
 
 /** The narrow fake-able surface consumed by ReviewsService + B4.1's HTTP layer. */
 export interface ReviewsRepositoryLike {
-  /** Existence + ownership + status of the business (404-never-leak, active-only and reply-authorization rules). */
-  findBusinessContext(
-    businessId: string,
-  ): Promise<{ ownerId: string | null; status: string; deletedAt: Date | null } | null>;
+  /** Existence + ownership + status of the business (404-never-leak, active-only and reply-authorization rules). `lat`/`lng` carry the business location for the B4.6 check-in validation (optional so test fakes without a location stay valid — the real column is NOT NULL). */
+  findBusinessContext(businessId: string): Promise<{
+    ownerId: string | null;
+    status: string;
+    deletedAt: Date | null;
+    lat?: number | null;
+    lng?: number | null;
+  } | null>;
   /** The caller's existing review for the business (one-per-business rule). */
   findByBusinessAndUser(businessId: string, userId: string): Promise<ReviewWithMeta | null>;
   findById(reviewId: string): Promise<ReviewWithMeta | null>;
@@ -101,11 +117,24 @@ export interface ReviewsRepositoryLike {
     photoMediaId: string | null;
     /** B4.5 — the spam filter demotes flagged reviews to `pending`; default approved. */
     status?: ReviewStatus;
+    /** B4.6 — the VALIDATED check-in triple + receipt (service-validated). */
+    checkinAt?: Date | null;
+    checkinLat?: number | null;
+    checkinLng?: number | null;
+    receiptMediaId?: string | null;
   }): Promise<ReviewWithMeta>;
-  /** Author edit: rating/body/photo; stamps edited_at + updated_at. */
+  /** Author edit: rating/body/photo/receipt/check-in; stamps edited_at + updated_at. */
   update(
     reviewId: string,
-    patch: { rating?: number; body?: string; photoMediaId?: string | null },
+    patch: {
+      rating?: number;
+      body?: string;
+      photoMediaId?: string | null;
+      receiptMediaId?: string | null;
+      checkinAt?: Date | null;
+      checkinLat?: number | null;
+      checkinLng?: number | null;
+    },
   ): Promise<ReviewWithMeta | null>;
   delete(reviewId: string): Promise<boolean>;
 
@@ -168,6 +197,13 @@ const REVIEW_SELECT = {
   status: reviews.status,
   photoMediaId: reviews.photoMediaId,
   photoKey: mediaFiles.key,
+  // B4.6: the receipt proof — key via the second media join, check-in triple
+  // straight off the row (the badge derives from these in the service).
+  receiptMediaId: reviews.receiptMediaId,
+  receiptKey: receiptMedia.key,
+  checkinAt: reviews.checkinAt,
+  checkinLat: reviews.checkinLat,
+  checkinLng: reviews.checkinLng,
   // B4.2: correlated counts off `review_votes_one_per_user` (review_id is the
   // leading column — an index-only scan per review). Derived per read, so a
   // vote switch or a moderation takedown can never leave a stale counter.
@@ -200,14 +236,22 @@ const REVIEW_SELECT = {
 export class ReviewsRepository implements ReviewsRepositoryLike {
   constructor(@Inject(DrizzleClient) private readonly client: DrizzleClient) {}
 
-  async findBusinessContext(
-    businessId: string,
-  ): Promise<{ ownerId: string | null; status: string; deletedAt: Date | null } | null> {
+  async findBusinessContext(businessId: string): Promise<{
+    ownerId: string | null;
+    status: string;
+    deletedAt: Date | null;
+    lat: number | null;
+    lng: number | null;
+  } | null> {
     const rows = await this.client.db
       .select({
         ownerId: businesses.ownerId,
         status: businesses.status,
         deletedAt: businesses.deletedAt,
+        // WGS84 decode of the PostGIS point for the B4.6 check-in validation
+        // (geography stores (lng, lat); ST_X = longitude, ST_Y = latitude).
+        lat: sql<number | null>`ST_Y(${businesses.location})::float8`,
+        lng: sql<number | null>`ST_X(${businesses.location})::float8`,
       })
       .from(businesses)
       .where(eq(businesses.id, businessId))
@@ -215,13 +259,14 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
     return rows[0] ?? null;
   }
 
-  /** The two LEFT JOINs every REVIEW_SELECT read needs (B4.3 reply + author). */
+  /** The four LEFT JOINs every REVIEW_SELECT read needs (author + photo + B4.3 reply + B4.6 receipt). */
   private replyJoins() {
     return this.client.db
       .select(REVIEW_SELECT)
       .from(reviews)
       .innerJoin(users, eq(users.id, reviews.userId))
       .leftJoin(mediaFiles, eq(mediaFiles.id, reviews.photoMediaId))
+      .leftJoin(receiptMedia, eq(receiptMedia.id, reviews.receiptMediaId))
       .leftJoin(reviewReplies, eq(reviewReplies.reviewId, reviews.id))
       .leftJoin(replyUsers, eq(replyUsers.id, reviewReplies.userId));
   }
@@ -295,6 +340,10 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
     body: string;
     photoMediaId: string | null;
     status?: ReviewStatus;
+    checkinAt?: Date | null;
+    checkinLat?: number | null;
+    checkinLng?: number | null;
+    receiptMediaId?: string | null;
   }): Promise<ReviewWithMeta> {
     const inserted = await this.client.db
       .insert(reviews)
@@ -304,6 +353,10 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
         rating: input.rating,
         body: input.body,
         photoMediaId: input.photoMediaId,
+        receiptMediaId: input.receiptMediaId ?? null,
+        checkinAt: input.checkinAt ?? null,
+        checkinLat: input.checkinLat ?? null,
+        checkinLng: input.checkinLng ?? null,
         ...(input.status ? { status: input.status } : {}),
       })
       .returning({ id: reviews.id });
@@ -328,7 +381,15 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
 
   async update(
     reviewId: string,
-    patch: { rating?: number; body?: string; photoMediaId?: string | null },
+    patch: {
+      rating?: number;
+      body?: string;
+      photoMediaId?: string | null;
+      receiptMediaId?: string | null;
+      checkinAt?: Date | null;
+      checkinLat?: number | null;
+      checkinLng?: number | null;
+    },
   ): Promise<ReviewWithMeta | null> {
     await this.client.db
       .update(reviews)

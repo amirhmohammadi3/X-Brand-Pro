@@ -71,6 +71,40 @@ export type UpsertReviewReplyResult = z.infer<typeof upsertReviewReplyResultSche
 export const deleteReviewReplyResultSchema = z.object({ deleted: z.boolean() });
 export type DeleteReviewReplyResult = z.infer<typeof deleteReviewReplyResultSchema>;
 
+/**
+ * B4.6 verified-review rules (single source of truth for service + tests + web):
+ * - a check-in proves WHERE (haversine distance to the business ≤ radius)
+ *   and WHEN (a claimed visit time inside the window: not older than
+ *   CHECKIN_MAX_AGE_DAYS, not more than CHECKIN_FUTURE_TOLERANCE_SEC ahead —
+ *   the small future tolerance absorbs device clock skew, nothing else);
+ * - invalid check-in data is a 422, never a silently unverified review —
+ *   the badge must mean the server CHECKED it;
+ * - a receipt is media kind `verification_receipt` (B1.9 enum), owned by the
+ *   caller and unattached — the same one-media-one-home rule as the photo;
+ * - the badge = verified check-in OR receipt attached (derived per read).
+ */
+export const CHECKIN_RADIUS_M = 250;
+export const CHECKIN_MAX_AGE_DAYS = 30;
+export const CHECKIN_FUTURE_TOLERANCE_SEC = 300;
+
+/**
+ * B4.6 check-in proof. `at` is the claimed visit time (ISO datetime); when
+ * omitted the server stamps "now". The reviewer's raw coordinates are
+ * request-only data — they are stored for verification/audit but NEVER
+ * echoed in the public Review DTO (privacy: a GPS point can locate a home).
+ */
+export const reviewCheckinSchema = z
+  .object({
+    lat: z.number().min(-90).max(90),
+    lng: z.number().min(-180).max(180),
+    at: z.string().datetime({ offset: true }).optional(),
+  })
+  .strict();
+export type ReviewCheckin = z.infer<typeof reviewCheckinSchema>;
+
+/** PUT/PATCH bodies accept the check-in as an optional nested object. */
+export type CreateReviewCheckin = ReviewCheckin;
+
 /** One review as served by the review endpoints. */
 export const reviewSchema = z.object({
   id: uuidSchema,
@@ -89,6 +123,14 @@ export const reviewSchema = z.object({
   helpfulCount: z.number().int().min(0),
   /** Unhelpful votes (B4.2) — same lifecycle as helpfulCount. */
   unhelpfulCount: z.number().int().min(0),
+  /** B4.6 trust badge — verified check-in OR a receipt attached (derived per read). */
+  verified: z.boolean(),
+  /** B4.6 — true when the server validated the geo/time check-in. */
+  checkinVerified: z.boolean(),
+  /** B4.6 — the validated visit time (null when the review has no check-in). */
+  checkinAt: z.string().nullable(),
+  /** B4.6 — public URL of the attached receipt, when one was attached. */
+  receiptUrl: z.string().min(1).nullable(),
   /** Set when the author edited the review after creation. */
   editedAt: z.string().nullable(),
   /** The owner's reply (B4.3) — null until the business answers. */
@@ -123,27 +165,41 @@ export const reviewVoteResultSchema = z.object({
 });
 export type ReviewVoteResult = z.infer<typeof reviewVoteResultSchema>;
 
-/** Create body — the photo rides /media/upload (kind `review_photo`). */
+/**
+ * Create body — the photo and receipt ride /media/upload (kinds
+ * `review_photo` / `verification_receipt`). B4.6: the optional check-in
+ * (`{lat, lng, at?}`) is validated server-side; a failing check-in 422s the
+ * whole create (the caller retries without it) so the badge stays truthful.
+ */
 export const createReviewBodySchema = z
   .object({
     rating: z.number().int().min(REVIEW_RATING_MIN).max(REVIEW_RATING_MAX),
     body: z.string().min(REVIEW_BODY_MIN).max(REVIEW_BODY_MAX),
     /** Media id from POST /media/upload (kind `review_photo`), owned by the caller. */
     photoMediaId: uuidSchema.optional(),
+    /** Media id from POST /media/upload (kind `verification_receipt`), owned by the caller. */
+    receiptMediaId: uuidSchema.optional(),
+    /** Geo/time check-in proof (B4.6) — validated against the business location. */
+    checkin: reviewCheckinSchema.optional(),
   })
   .strict();
 export type CreateReviewBody = z.infer<typeof createReviewBodySchema>;
 
 /**
- * Edit body — the author may change the rating, text and photo. `photoMediaId`
- * is nullable here: `undefined` keeps the current photo, `null` clears it,
- * a media id replaces it.
+ * Edit body — the author may change the rating, text, photo, receipt and
+ * check-in. `photoMediaId`/`receiptMediaId` are nullable here: `undefined`
+ * keeps the current one, `null` clears it, a media id replaces it. The
+ * check-in follows the same three-state rule — `undefined` keeps the
+ * current one, `null` clears it, an object replaces it (and is re-validated
+ * against the business location like on create).
  */
 export const updateReviewBodySchema = z
   .object({
     rating: z.number().int().min(REVIEW_RATING_MIN).max(REVIEW_RATING_MAX).optional(),
     body: z.string().min(REVIEW_BODY_MIN).max(REVIEW_BODY_MAX).optional(),
     photoMediaId: uuidSchema.nullable().optional(),
+    receiptMediaId: uuidSchema.nullable().optional(),
+    checkin: reviewCheckinSchema.nullable().optional(),
   })
   .strict()
   .refine((v) => Object.keys(v).length > 0, { message: 'at least one field is required' });
@@ -190,3 +246,11 @@ export const REVIEW_VOTE_LIMIT_PER_MIN = 30;
  *   ownership transfer they no longer manage the business).
  */
 export const REVIEW_REPLY_LIMIT_PER_MIN = 30;
+
+/**
+ * B4.6 — media kind the receipt must carry (B1.9's media_kind enum) and the
+ * audit label of the trust signal (the `review.verified` event payload).
+ */
+export const REVIEW_RECEIPT_MEDIA_KIND = 'verification_receipt' as const;
+export const REVIEW_VERIFIED_VIA_CHECKIN = 'checkin' as const;
+export const REVIEW_VERIFIED_VIA_RECEIPT = 'receipt' as const;
