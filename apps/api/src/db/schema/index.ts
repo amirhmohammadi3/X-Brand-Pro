@@ -27,3 +27,4 @@ export * from './menu.js';
 export * from './claims.js';
 export * from './theme.js';
 export * from './search.js';
+export * from './reviews.js';

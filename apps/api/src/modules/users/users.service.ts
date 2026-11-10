@@ -38,7 +38,7 @@ export function roleSatisfies(userRole: UserRole, required: readonly string[]): 
 export const ROLE_PERMISSIONS: Readonly<Record<UserRole, readonly string[]>> = {
   user: [],
   owner: [],
-  moderator: ['users.read'],
+  moderator: ['users.read', 'reviews.manage'],
   admin: [
     'settings.manage',
     'audit.read',
@@ -46,6 +46,7 @@ export const ROLE_PERMISSIONS: Readonly<Record<UserRole, readonly string[]>> = {
     'theme.manage',
     'catalog.manage',
     'businesses.manage',
+    'reviews.manage',
     'users.read',
     'users.manage',
   ],
