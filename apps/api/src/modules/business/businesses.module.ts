@@ -1,6 +1,8 @@
 import { Module, type Provider } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module.js';
 import { MediaModule } from '../media/media.module.js';
+import { ReviewsModule } from '../reviews/reviews.module.js';
+import { QaModule } from '../qa/qa.module.js';
 import { BUSINESSES_REPOSITORY, BusinessesRepository } from './businesses.repository.js';
 import { BusinessDomainService } from './businesses.domain.js';
 import { BusinessCounters } from './businesses.counters.js';
@@ -24,6 +26,7 @@ import { ClaimsService } from './claims/claims.service.js';
 import { ClaimsController } from './claims/claims.controller.js';
 import { BusinessesService } from './businesses.service.js';
 import { BusinessesController } from './businesses.controller.js';
+import { BusinessPageService } from './businesses-page.service.js';
 
 /**
  * Business catalog module (B2.4–B2.9) — the core business data model:
@@ -76,7 +79,7 @@ const counterProviders: Provider[] = [
 ];
 
 @Module({
-  imports: [AuditModule, MediaModule],
+  imports: [ReviewsModule, QaModule, AuditModule, MediaModule],
   controllers: [
     BusinessesController,
     HoursController,
@@ -93,6 +96,7 @@ const counterProviders: Provider[] = [
     BusinessDomainService,
     BusinessCounters,
     BusinessesService,
+    BusinessPageService,
     HoursService,
     PhotosService,
     MenuService,

@@ -1,9 +1,22 @@
-import { Body, Controller, Delete, Get, Inject, Param, Patch, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Inject,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Req,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import {
   createBusinessBodySchema,
   updateBusinessBodySchema,
   businessTransitionBodySchema,
+  businessPageQuerySchema,
+  type BusinessPageQuery,
   type CreateBusinessBody,
   type UpdateBusinessBody,
   type BusinessTransitionBody,
@@ -15,6 +28,9 @@ import { AUDIT_SERVICE, type AuditService } from '../audit/audit.service.js';
 // Value import: Nest reads the type at runtime via emitDecoratorMetadata.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { BusinessesService } from './businesses.service.js';
+// Value import: Nest reads the type at runtime via emitDecoratorMetadata.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { BusinessPageService } from './businesses-page.service.js';
 import { type BusinessActor } from './business-access.js';
 
 /** The req.user shape set by JwtAuthGuard (undefined on @Public routes). */
@@ -55,6 +71,7 @@ function auditInfo(req: Request): {
 export class BusinessesController {
   constructor(
     private readonly businesses: BusinessesService,
+    private readonly pages: BusinessPageService,
     @Inject(AUDIT_SERVICE) private readonly audit: AuditService,
   ) {}
 
@@ -75,6 +92,25 @@ export class BusinessesController {
   @RateLimit({ name: 'business.read', limit: 120, windowSec: 60 })
   async getDetail(@Req() req: Request, @Param('idOrSlug') idOrSlug: string) {
     return this.businesses.getBusinessDetail(userOf(req), idOrSlug);
+  }
+
+  /**
+   * B4.9 — the ONE aggregate read the F4.1 business page needs for first
+   * paint (detail + hours + gallery + menu + first reviews page + question
+   * count + schema.org JSON-LD). Same visibility gate as the detail GET
+   * above (the actor is always undefined on a @Public route — non-active
+   * businesses answer 404 to every guest). The embedded reviews page is
+   * capped at 20; the full paginated list remains the reviews endpoint's job.
+   */
+  @Public()
+  @Get('businesses/:idOrSlug/page')
+  @RateLimit({ name: 'business.page', limit: 60, windowSec: 60 })
+  async getPage(
+    @Req() req: Request,
+    @Param('idOrSlug') idOrSlug: string,
+    @Query(new ZodValidationPipe(businessPageQuerySchema)) query: BusinessPageQuery,
+  ) {
+    return this.pages.getPage(idOrSlug, userOf(req), query);
   }
 
   // ─── Create ─────────────────────────────────────────────────────────────

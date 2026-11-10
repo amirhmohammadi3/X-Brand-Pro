@@ -873,3 +873,18 @@ Errors: `UNAUTHENTICATED` (401), `FORBIDDEN` (403), `NOT_FOUND` (404), `UNPROCES
 
 - Schemas: `qaQuestionSchema`, `qaAnswerSchema`, `qaListResultSchema`, `createQaQuestionBodySchema`, `updateQaQuestionBodySchema`, `upsertQaAnswerBodySchema`, `upsertQaAnswerResultSchema`, `deleteQaQuestionResultSchema`, `deleteQaAnswerResultSchema`.
 - Migration: `0027_business_qa` — enum `qa_status`, tables `business_questions` + `business_answers`, `business_answers_one_per_question` UNIQUE (question_id), 3 question indexes + 1 answer index, CHECKs `business_questions_body_len` (10..500) / `business_answers_body_len` (2..1000); all FKs CASCADE.
+
+## /api/v1/businesses/:idOrSlug/page (B4.9)
+
+The ONE aggregate read the F4.1 business page needs for first paint. Composition ONLY — every fact comes from a service that already backs its own public endpoint, and the visibility gate is exactly `BusinessesService.getBusinessDetail`'s: `active` businesses for everyone; a non-active business answers 404 unless the caller is its owner or a `businesses.manage` holder (existence never leaks). Resolves by UUID **or slug** (stable public URLs).
+
+Payload (`businessPageSchema`): `business` (BusinessDetail), `hours` (weekly + special days + computed open-status in the city timezone — the same `GET /hours` response), `photos` (the gallery), `menu` (sections + items), `reviews` (the first page of approved reviews + exact list meta; default `pageSize` 5, max 20), `questions.total` (the approved Q&A count — the list itself remains paginated at `GET /businesses/:id/questions`) and `jsonLd` — the schema.org `LocalBusiness` object (`@context`, `@type`, name/alternateName, description, PostalAddress (street + city fa + IR), GeoCoordinates, telephone, image[] from the gallery, `aggregateRating` only when `reviewCount > 0` (schema.org forbids a rating with zero reviews) and `openingHoursSpecification` mapped from the B2.5 weekly schedule — `allDay` → 00:00–23:59, a `24:00` close → `23:59`, closed days omitted). The web client injects `jsonLd` verbatim as `<script type="application/ld+json">`.
+
+| Method | Path                       | Auth                                            | Body/Query                                        | Notes                                                                                                                                                                                                                   |
+| ------ | -------------------------- | ----------------------------------------------- | ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | /businesses/:idOrSlug/page | public (non-active → owner/`businesses.manage`) | `businessPageQuerySchema` (`?page=&pageSize=≤20`) | 200 + `BusinessPage`. 404 unknown/soft-deleted/non-visible business, 400 query validation. Rate limit `business.page` 60/min per ip. No cache yet — every underlying read is indexed (Redis page-cache is a follow-up). |
+
+Errors: `NOT_FOUND` (404), `VALIDATION_FAILED` (400), `RATE_LIMITED` (429).
+
+- Schemas: `businessPageSchema`, `businessPageQuerySchema`, `businessPageReviewsSchema`, `businessPageQuestionsSchema`, `businessJsonLdSchema`.
+- No migration — composition over existing tables.
