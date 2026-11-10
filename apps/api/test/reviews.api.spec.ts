@@ -76,6 +76,7 @@ interface FakeReviewRow {
   replyEditedAt: Date | null;
   replyCreatedAt: Date | null;
   replyUpdatedAt: Date | null;
+  moderatorNote: string | null;
   editedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -215,6 +216,13 @@ function makeMemoryReviewsRepo() {
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length };
     },
+    async listByStatusAll(status: string, page: number, pageSize: number) {
+      // Triage order: OLDEST first (mirrors reviews_status_created_idx).
+      const items = [...rows.values()]
+        .filter((r) => r.status === status)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+      return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length };
+    },
     async insert(input: {
       businessId: string;
       userId: string;
@@ -244,6 +252,7 @@ function makeMemoryReviewsRepo() {
         replyEditedAt: null,
         replyCreatedAt: null,
         replyUpdatedAt: null,
+        moderatorNote: null,
         editedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -317,6 +326,16 @@ function makeMemoryReviewsRepo() {
       const removed = replies.delete(reviewId);
       syncReply(reviewId);
       return removed;
+    },
+    async moderateStatus(id: string, patch: { status: string; moderatorNote?: string | null }) {
+      const row = rows.get(id);
+      if (!row) return null;
+      Object.assign(row, {
+        status: patch.status,
+        moderatorNote: patch.moderatorNote ?? row.moderatorNote,
+        updatedAt: new Date(),
+      });
+      return row;
     },
   };
   return repo as unknown as typeof repo & Record<string, unknown>;
@@ -895,6 +914,7 @@ describe('PUT /api/v1/reviews/:id/reply (B4.3)', () => {
       replyEditedAt: null,
       replyCreatedAt: null,
       replyUpdatedAt: null,
+      moderatorNote: null,
       editedAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),

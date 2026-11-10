@@ -47,6 +47,7 @@ function reviewRow(overrides: Partial<ReviewWithMeta> = {}): ReviewWithMeta {
     replyEditedAt: null,
     replyCreatedAt: null,
     replyUpdatedAt: null,
+    moderatorNote: null,
     editedAt: null,
     createdAt: new Date('2026-11-10T10:00:00Z'),
     updatedAt: new Date('2026-11-10T10:00:00Z'),
@@ -136,6 +137,13 @@ function makeRepo(
       const items = [...rows.values()]
         .filter((r) => r.businessId === businessId && r.status === status)
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+      return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length };
+    },
+    async listByStatusAll(status: string, page: number, pageSize: number) {
+      // Triage order: OLDEST first (mirrors reviews_status_created_idx).
+      const items = [...rows.values()]
+        .filter((r) => r.status === status)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
       return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length };
     },
     async insert(input: {
@@ -248,6 +256,16 @@ function makeRepo(
       const removed = replies.delete(reviewId);
       syncReply(reviewId);
       return removed;
+    },
+    async moderateStatus(id: string, patch: { status: string; moderatorNote?: string | null }) {
+      const row = rows.get(id);
+      if (!row) return null;
+      Object.assign(row, {
+        status: patch.status,
+        moderatorNote: patch.moderatorNote ?? row.moderatorNote,
+        updatedAt: new Date(),
+      });
+      return row;
     },
 
     /** Faithful simulation: AVG(rounded 2dp)/COUNT over approved only. */
@@ -825,5 +843,69 @@ describe('ReviewsService.removeReply (B4.3)', () => {
     await svc.removeReply(reviewId, OWNER);
     const list = await svc.listByBusiness(BIZ, { page: 1, pageSize: 20 });
     expect(list.items[0]?.reply).toBeNull();
+  });
+});
+
+describe('ReviewsService.moderateStatus (B4.4)', () => {
+  const reviewId = '55555555-5555-4555-8555-555555555555';
+
+  it('flips pending → approved and emits review.status.changed (aggregate must re-run)', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow({ status: 'pending' })]));
+    const res = await svc.moderateStatus(reviewId, { status: 'approved' });
+    expect(res.review.status).toBe('approved');
+    expect(res.moderatorNote).toBeNull();
+    expect(events.emit).toHaveBeenCalledWith(REVIEWS_EVENTS.statusChanged, {
+      reviewId,
+      businessId: BIZ,
+      userId: ALICE.id,
+      from: 'pending',
+      to: 'approved',
+    });
+  });
+
+  it('stamps the moderator note on rejection (moderation-only data)', async () => {
+    const { svc } = makeService(makeRepo([reviewRow()]));
+    const res = await svc.moderateStatus(reviewId, {
+      status: 'rejected',
+      note: 'تبلیغ خارج از قوانین',
+    });
+    expect(res.review.status).toBe('rejected');
+    expect(res.moderatorNote).toBe('تبلیغ خارج از قوانین');
+    // The PUBLIC DTO never carries the moderation note.
+    expect(res.review).not.toHaveProperty('moderatorNote');
+  });
+
+  it('a flip to the CURRENT status is an idempotent no-op — no event, no aggregate churn', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()]));
+    const res = await svc.moderateStatus(reviewId, { status: 'approved' });
+    expect(res.review.status).toBe('approved');
+    expect(events.emit).not.toHaveBeenCalled();
+  });
+
+  it('404s an unknown review', async () => {
+    const { svc } = makeService(makeRepo([]));
+    await expect(
+      svc.moderateStatus('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', { status: 'approved' }),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('the queue lists pending reviews across ALL businesses, oldest first', async () => {
+    const rows = [
+      reviewRow({
+        id: '55555555-5555-4555-8555-555555555552',
+        businessId: '12121212-1212-4121-8121-121212121212',
+        status: 'pending',
+        createdAt: new Date('2026-11-10T08:00:00Z'),
+      }),
+      reviewRow({ id: '55555555-5555-4555-8555-555555555551', status: 'pending' }),
+      reviewRow({ id: '55555555-5555-4555-8555-555555555553', status: 'approved' }),
+    ];
+    const { svc } = makeService(makeRepo(rows));
+    const queue = await svc.listForModeration('pending', 1, 20);
+    expect(queue.meta.total).toBe(2);
+    expect(queue.items.map((r) => r.id)).toEqual([
+      '55555555-5555-4555-8555-555555555552', // created 08:00 — oldest first
+      '55555555-5555-4555-8555-555555555551', // created 10:00
+    ]);
   });
 });

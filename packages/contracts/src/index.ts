@@ -24,4 +24,5 @@ export * from './suggest.js';
 export * from './map.js';
 export * from './search-history.js';
 export * from './reviews.js';
+export * from './moderation.js';
 export * from './theme/index.js';

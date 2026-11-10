@@ -20,6 +20,7 @@ import { BusinessModule } from './modules/business/businesses.module.js';
 import { SearchModule } from './modules/search/search.module.js';
 import { MapModule } from './modules/map/map.module.js';
 import { ReviewsModule } from './modules/reviews/reviews.module.js';
+import { ModerationModule } from './modules/moderation/moderation.module.js';
 import { PostgresHealthIndicator } from './modules/health/postgres.health.js';
 import { I18nModule } from './modules/i18n/i18n.module.js';
 import { MediaModule } from './modules/media/media.module.js';
@@ -86,6 +87,7 @@ import { RedisModule } from './redis/redis.module.js';
     AmenitiesModule,
     BusinessModule,
     ReviewsModule,
+    ModerationModule,
     SearchModule,
     MapModule,
     // Dev-only raw outbox (B1.5): never registered in production — loadEnv

@@ -44,6 +44,8 @@ export const REVIEWS_EVENTS = {
   replyUpdated: 'review.reply.updated',
   /** B4.3 — a reply was removed (owner, reply author or reviews.manage). */
   replyDeleted: 'review.reply.deleted',
+  /** B4.4 — the moderation queue flipped the status (aggregate must re-run). */
+  statusChanged: 'review.status.changed',
 } as const;
 
 /** Permission that may delete (take down) any review — granted in ROLE_PERMISSIONS (admin/moderator/super_admin). */
@@ -246,6 +248,75 @@ export class ReviewsService {
    */
   async recomputeRating(businessId: string): Promise<{ avgRating: string; reviewCount: number }> {
     return this.repo.recomputeRating(businessId);
+  }
+
+  // ── B4.4 moderation ──────────────────────────────────────────────────────
+
+  /**
+   * The review moderation queue: reviews with the given status across ALL
+   * businesses, OLDEST first (the reviews_status_created_idx triage order).
+   * `reviews.manage` enforcement lives in the callers (ModerationController).
+   * Defaults to the `pending` queue — the B4.1 pre-provisioned statuses have
+   * been waiting for this prompt.
+   */
+  async listForModeration(
+    status: 'approved' | 'pending' | 'rejected',
+    page: number,
+    pageSize: number,
+  ): Promise<ReviewListResult> {
+    const result = await this.repo.listByStatusAll(status, page, pageSize);
+    return {
+      items: result.items.map((row) => this.toReview(row)),
+      meta: {
+        page,
+        pageSize,
+        total: result.total,
+        totalPages: Math.ceil(result.total / pageSize),
+      },
+    };
+  }
+
+  /**
+   * Flip the moderation status — the decision endpoint behind
+   * PATCH /moderation/reviews/:id/status (reviews.manage enforced by the
+   * controller; the AUTHOR can never flip their own review — an unhappy
+   * author DELETES it instead). Rules:
+   * - 404 unknown review;
+   * - a flip to the CURRENT status is an idempotent no-op (same response,
+   *   no event, no aggregate churn — the queue double-submit is not an
+   *   error); the note still updates when one is supplied;
+   * - every REAL flip emits `review.status.changed` — only APPROVED rows
+   *   count toward the aggregate, so the rating recompute MUST run after a
+   *   pending→approved or approved→rejected move (the same jobId-deduped
+   *   recompute as every other review write).
+   * The moderator note is moderation-only data: stored on the row, returned
+   * in THIS response, never mapped into the public Review DTO.
+   */
+  async moderateStatus(
+    reviewId: string,
+    input: { status: 'approved' | 'rejected'; note?: string },
+  ): Promise<{ review: Review; moderatorNote: string | null }> {
+    const row = await this.repo.findById(reviewId);
+    if (!row) throw notFoundException('Review', reviewId);
+    const note = input.note ?? null;
+    // Captured BEFORE the write — the flip overwrites the row's status.
+    const from = row.status;
+    const changed = from !== input.status;
+    const updated = await this.repo.moderateStatus(reviewId, {
+      status: input.status,
+      moderatorNote: note,
+    });
+    if (!updated) throw notFoundException('Review', reviewId);
+    if (changed) {
+      this.events.emit(REVIEWS_EVENTS.statusChanged, {
+        reviewId,
+        businessId: updated.businessId,
+        userId: row.userId,
+        from,
+        to: input.status,
+      });
+    }
+    return { review: this.toReview(updated), moderatorNote: updated.moderatorNote };
   }
 
   // ── B4.2 votes ─────────────────────────────────────────────────────────────

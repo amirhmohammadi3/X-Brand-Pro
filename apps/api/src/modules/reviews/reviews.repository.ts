@@ -38,6 +38,8 @@ export interface ReviewWithMeta {
   replyEditedAt: Date | null;
   replyCreatedAt: Date | null;
   replyUpdatedAt: Date | null;
+  /** B4.4 — moderation-only: never mapped into the public Review DTO. */
+  moderatorNote: string | null;
   editedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -80,6 +82,8 @@ export interface ReviewsRepositoryLike {
     page: number,
     pageSize: number,
   ): Promise<ReviewPage>;
+  /** The B4.4 moderation queue: reviews with the given status across ALL businesses, oldest first. */
+  listByStatusAll(status: ReviewStatus, page: number, pageSize: number): Promise<ReviewPage>;
   insert(input: {
     businessId: string;
     userId: string;
@@ -125,6 +129,16 @@ export interface ReviewsRepositoryLike {
   /** Remove the review's reply; false when there was none (idempotent DELETE). */
   deleteReply(reviewId: string): Promise<boolean>;
   /**
+   * B4.4 — flip the moderation status (and optionally stamp the moderator
+   * note) in one statement; returns the fresh row (null when gone). The
+   * caller (service) decides idempotency and emits the aggregate-recompute
+   * event ONLY when the status actually changed.
+   */
+  moderateStatus(
+    reviewId: string,
+    patch: { status: ReviewStatus; moderatorNote?: string | null },
+  ): Promise<ReviewWithMeta | null>;
+  /**
    * Recompute the business aggregate from the APPROVED reviews and write it
    * to `businesses` in ONE statement: avg rounded to 2 decimals (the
    * numeric(3,2) column), count as int; zero reviews → 0/0.
@@ -157,6 +171,7 @@ const REVIEW_SELECT = {
   replyEditedAt: reviewReplies.editedAt,
   replyCreatedAt: reviewReplies.createdAt,
   replyUpdatedAt: reviewReplies.updatedAt,
+  moderatorNote: reviews.moderatorNote,
   editedAt: reviews.editedAt,
   createdAt: reviews.createdAt,
   updatedAt: reviews.updatedAt,
@@ -246,6 +261,20 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
 
   async listByUser(userId: string, page: number, pageSize: number): Promise<ReviewPage> {
     return this.list(eq(reviews.userId, userId), page, pageSize);
+  }
+
+  /** B4.4 queue: one status across ALL businesses, oldest-first (triage order). */
+  async listByStatusAll(status: ReviewStatus, page: number, pageSize: number): Promise<ReviewPage> {
+    const items = await this.replyJoins()
+      .where(eq(reviews.status, status))
+      .orderBy(asc(reviews.createdAt), asc(reviews.id))
+      .limit(pageSize)
+      .offset((page - 1) * pageSize);
+    const totals = await this.client.db
+      .select({ n: count() })
+      .from(reviews)
+      .where(eq(reviews.status, status));
+    return { items, total: totals[0]?.n ?? 0 };
   }
 
   async insert(input: {
@@ -399,6 +428,21 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
       .where(eq(reviewReplies.reviewId, reviewId))
       .returning({ id: reviewReplies.id });
     return deleted.length > 0;
+  }
+
+  async moderateStatus(
+    reviewId: string,
+    patch: { status: ReviewStatus; moderatorNote?: string | null },
+  ): Promise<ReviewWithMeta | null> {
+    await this.client.db
+      .update(reviews)
+      .set({
+        status: patch.status,
+        ...(patch.moderatorNote !== undefined ? { moderatorNote: patch.moderatorNote } : {}),
+        updatedAt: new Date(),
+      })
+      .where(eq(reviews.id, reviewId));
+    return this.findById(reviewId);
   }
 
   async recomputeRating(businessId: string): Promise<{ avgRating: string; reviewCount: number }> {

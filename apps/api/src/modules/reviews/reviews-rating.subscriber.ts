@@ -25,6 +25,7 @@ export class ReviewsRatingSubscriber {
   @OnEvent(REVIEWS_EVENTS.created)
   @OnEvent(REVIEWS_EVENTS.updated)
   @OnEvent(REVIEWS_EVENTS.deleted)
+  @OnEvent(REVIEWS_EVENTS.statusChanged)
   async onReviewChanged(event: ReviewChangedEvent): Promise<void> {
     await this.queues.enqueue(REVIEWS_QUEUE, RECOMPUTE_RATING_JOB, event, {
       jobId: `recompute:${event.businessId}`,

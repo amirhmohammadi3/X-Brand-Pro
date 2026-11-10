@@ -51,6 +51,8 @@ export const reviews = pgTable(
     }),
     /** Stamped by the service when the author edits the review after creation. */
     editedAt: timestamp('edited_at', { withTimezone: true }),
+    /** B4.4 — the moderator's note when the queue flips the status. */
+    moderatorNote: text('moderator_note'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -70,6 +72,10 @@ export const reviews = pgTable(
     index('reviews_status_created_idx').on(table.status, table.createdAt.asc()),
     check('reviews_rating_range', sql`${table.rating} BETWEEN 1 AND 5`),
     check('reviews_body_len', sql`char_length(${table.body}) BETWEEN 10 AND 2000`),
+    check(
+      'reviews_moderator_note_len',
+      sql`${table.moderatorNote} IS NULL OR char_length(${table.moderatorNote}) BETWEEN 2 AND 1000`,
+    ),
   ],
 );
 
@@ -153,3 +159,80 @@ export const reviewReplies = pgTable(
 
 export type ReviewReplyRow = typeof reviewReplies.$inferSelect;
 export type NewReviewReplyRow = typeof reviewReplies.$inferInsert;
+
+/**
+ * Abuse reports (B4.4). A user flags review/reply content for the
+ * moderation queue; a `reviews.manage` moderator triages oldest-pending-
+ * first. The target is POLYMORPHIC (target_type + target_id) — a plain FK
+ * cannot span two tables, so existence is validated in the service and a
+ * hard-deleted target leaves the report standing (the audit trail of WHY
+ * content vanished survives the content itself; the moderator dismisses
+ * orphaned reports).
+ *
+ * One report per reporter per target (unique index): report VOLUME across
+ * distinct users is the abuse signal — a single user cannot pump it.
+ * `pending` rows are the queue; `reviewed`/`dismissed`/`actioned` are the
+ * three resolutions (seen / no violation / violation handled). Reporter and
+ * reviewer FKs cascade (personal data); reviewed_by is SET NULL (an admin
+ * account removal must not erase the decision).
+ */
+export const reportTargetEnum = pgEnum('report_target_type', ['review', 'reply']);
+export const reportCategoryEnum = pgEnum('report_category', [
+  'spam',
+  'offensive',
+  'false_info',
+  'other',
+]);
+export const reportStatusEnum = pgEnum('report_status', [
+  'pending',
+  'reviewed',
+  'dismissed',
+  'actioned',
+]);
+
+export const contentReports = pgTable(
+  'content_reports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    targetType: reportTargetEnum('target_type').notNull(),
+    targetId: uuid('target_id').notNull(),
+    reporterUserId: uuid('reporter_user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    category: reportCategoryEnum('category').notNull(),
+    /** Required when category = 'other' (service rule); context otherwise. */
+    details: text('details'),
+    status: reportStatusEnum('status').notNull().default('pending'),
+    reviewedBy: uuid('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+    resolutionNote: text('resolution_note'),
+    reviewedAt: timestamp('reviewed_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // One report per reporter per target — cross-user volume stays the signal.
+    uniqueIndex('content_reports_one_per_reporter').on(
+      table.targetType,
+      table.targetId,
+      table.reporterUserId,
+    ),
+    // The moderation queue: oldest-pending-first triage (mirrors
+    // reviews_status_created_idx from B4.1).
+    index('content_reports_status_created_idx').on(table.status, table.createdAt.asc()),
+    // All reports on one target (takedown sweeps, "why was this removed").
+    index('content_reports_target_idx').on(table.targetType, table.targetId),
+    // The reporter's own reports.
+    index('content_reports_reporter_idx').on(table.reporterUserId, table.createdAt.desc()),
+    check(
+      'content_reports_details_len',
+      sql`${table.details} IS NULL OR char_length(${table.details}) BETWEEN 2 AND 1000`,
+    ),
+    check(
+      'content_reports_note_len',
+      sql`${table.resolutionNote} IS NULL OR char_length(${table.resolutionNote}) BETWEEN 2 AND 1000`,
+    ),
+  ],
+);
+
+export type ContentReportRow = typeof contentReports.$inferSelect;
+export type NewContentReportRow = typeof contentReports.$inferInsert;
