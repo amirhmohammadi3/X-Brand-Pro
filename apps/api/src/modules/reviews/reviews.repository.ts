@@ -6,7 +6,7 @@ import { businesses } from '../../db/schema/business.js';
 import { mediaFiles } from '../../db/schema/media.js';
 import { users } from '../../db/schema/users.js';
 import { reviews, reviewReplies, reviewVotes } from '../../db/schema/reviews.js';
-import type { ReviewStatus, ReviewVoteValue } from '@app/contracts';
+import type { ReviewStatus, ReputationStats, ReviewVoteValue } from '@app/contracts';
 
 /** DI token for the reviews repository (tests bind a fake). */
 export const REVIEWS_REPOSITORY = Symbol('REVIEWS_REPOSITORY');
@@ -39,6 +39,10 @@ export interface ReviewWithMeta {
   checkinAt: Date | null;
   checkinLat: number | null;
   checkinLng: number | null;
+  /** B4.7 — «اولین نظر» badge, stamped at create. */
+  isFirst: boolean;
+  /** B4.7 — the author's denormalised reputation score (level derives in the service). */
+  authorReputation: number;
   /** B4.2 — derived per read from `review_votes` (never denormalised). */
   helpfulCount: number;
   unhelpfulCount: number;
@@ -122,6 +126,8 @@ export interface ReviewsRepositoryLike {
     checkinLat?: number | null;
     checkinLng?: number | null;
     receiptMediaId?: string | null;
+    /** B4.7 — the «اولین نظر» stamp (computed by the service at create). */
+    isFirst?: boolean;
   }): Promise<ReviewWithMeta>;
   /** Author edit: rating/body/photo/receipt/check-in; stamps edited_at + updated_at. */
   update(
@@ -178,6 +184,12 @@ export interface ReviewsRepositoryLike {
     reviewId: string,
     patch: { status: ReviewStatus; moderatorNote?: string | null },
   ): Promise<ReviewWithMeta | null>;
+  /** B4.7 reputation — the three source counts one recompute aggregates (approved reviews / verified proofs / helpful votes received). */
+  reputationStats(userId: string): Promise<ReputationStats>;
+  /** B4.7 — write the recomputed score back onto users (the async aggregate pattern). */
+  writeReputation(userId: string, points: number): Promise<void>;
+  /** B4.7 — the author's existing review count (the «اولین نظر» stamp rule). */
+  countByUser(userId: string): Promise<number>;
   /**
    * Recompute the business aggregate from the APPROVED reviews and write it
    * to `businesses` in ONE statement: avg rounded to 2 decimals (the
@@ -204,6 +216,10 @@ const REVIEW_SELECT = {
   checkinAt: reviews.checkinAt,
   checkinLat: reviews.checkinLat,
   checkinLng: reviews.checkinLng,
+  // B4.7: the first-review badge + the author's denormalised reputation
+  // (users.reputation_points rides the existing author join — no extra query).
+  isFirst: reviews.isFirst,
+  authorReputation: users.reputationPoints,
   // B4.2: correlated counts off `review_votes_one_per_user` (review_id is the
   // leading column — an index-only scan per review). Derived per read, so a
   // vote switch or a moderation takedown can never leave a stale counter.
@@ -344,6 +360,7 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
     checkinLat?: number | null;
     checkinLng?: number | null;
     receiptMediaId?: string | null;
+    isFirst?: boolean;
   }): Promise<ReviewWithMeta> {
     const inserted = await this.client.db
       .insert(reviews)
@@ -357,6 +374,7 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
         checkinAt: input.checkinAt ?? null,
         checkinLat: input.checkinLat ?? null,
         checkinLng: input.checkinLng ?? null,
+        isFirst: input.isFirst ?? false,
         ...(input.status ? { status: input.status } : {}),
       })
       .returning({ id: reviews.id });
@@ -529,6 +547,56 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
       })
       .where(eq(reviews.id, reviewId));
     return this.findById(reviewId);
+  }
+
+  // ── B4.7 reputation ──────────────────────────────────────────────────────
+
+  /**
+   * The three source counts behind the score — three indexed scans (the
+   * user's own reviews via reviews_user_idx, the votes via the
+   * review_votes_one_per_user leading review_id), recomputed FROM SOURCE so
+   * takedowns/switches cannot drift the denormalised value. One statement,
+   * three scalar subselects.
+   */
+  async reputationStats(userId: string): Promise<ReputationStats> {
+    const result = await this.client.db.execute<{
+      approved_reviews: number;
+      verified_reviews: number;
+      helpful_votes_received: number;
+    }>(sql`
+      SELECT
+        (SELECT count(*)::int FROM ${reviews}
+          WHERE ${reviews.userId} = ${userId} AND ${reviews.status} = 'approved') AS approved_reviews,
+        (SELECT count(*)::int FROM ${reviews}
+          WHERE ${reviews.userId} = ${userId} AND ${reviews.status} = 'approved'
+            AND (${reviews.checkinAt} IS NOT NULL OR ${reviews.receiptMediaId} IS NOT NULL)) AS verified_reviews,
+        (SELECT count(*)::int FROM ${reviewVotes}
+          INNER JOIN ${reviews} ON ${reviews.id} = ${reviewVotes.reviewId}
+          WHERE ${reviews.userId} = ${userId} AND ${reviews.status} = 'approved'
+            AND ${reviewVotes.value} = 1) AS helpful_votes_received
+    `);
+    const row = result.rows[0];
+    if (!row) throw new Error('reputationStats returned no rows');
+    return {
+      approvedReviews: Number(row.approved_reviews),
+      verifiedReviews: Number(row.verified_reviews),
+      helpfulVotesReceived: Number(row.helpful_votes_received),
+    };
+  }
+
+  async writeReputation(userId: string, points: number): Promise<void> {
+    await this.client.db
+      .update(users)
+      .set({ reputationPoints: Math.max(0, Math.trunc(points)), updatedAt: new Date() })
+      .where(eq(users.id, userId));
+  }
+
+  async countByUser(userId: string): Promise<number> {
+    const rows = await this.client.db
+      .select({ n: count() })
+      .from(reviews)
+      .where(eq(reviews.userId, userId));
+    return rows[0]?.n ?? 0;
   }
 
   async recomputeRating(businessId: string): Promise<{ avgRating: string; reviewCount: number }> {

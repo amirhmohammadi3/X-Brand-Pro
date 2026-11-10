@@ -16,8 +16,9 @@ import type {
   ReviewVoteValue,
   UpdateReviewBody,
   UpsertReviewReplyResult,
+  UserReputation,
 } from '@app/contracts';
-import { REVIEW_RECEIPT_MEDIA_KIND } from '@app/contracts';
+import { REVIEW_RECEIPT_MEDIA_KIND, reputationLevelFor, reputationPointsFor } from '@app/contracts';
 import { canManageBusiness, type BusinessActor } from '../business/business-access.js';
 import { MEDIA_REPOSITORY, type MediaRepositoryLike } from '../media/media.repository.js';
 import { MEDIA_SERVICE } from '../media/media.service.js';
@@ -65,6 +66,8 @@ export const REVIEWS_MANAGE_PERMISSION = 'reviews.manage';
 export const REVIEWS_QUEUE = 'reviews';
 /** The one B4.1 job on that queue: full AVG/COUNT recompute for one business. */
 export const RECOMPUTE_RATING_JOB = 'recompute-rating';
+/** B4.7 — the same scheme for the author's reputation score. */
+export const RECOMPUTE_REPUTATION_JOB = 'recompute-reputation';
 
 function notFoundException(what: string, id: string): HttpException {
   return new HttpException(
@@ -220,6 +223,9 @@ export class ReviewsService {
       photoMediaId,
       receiptMediaId,
       ...checkin,
+      // B4.7 — «اولین نظر»: stamped when the author has no prior review row
+      // (any status). The count rides the reviews_user_idx — one indexed scan.
+      isFirst: (await this.repo.countByUser(user.id)) === 0,
       ...(evaluation.flagged ? { status: 'pending' as const } : {}),
     });
     // B4.6 — the media rows are now referenced by the review: stamp them
@@ -328,6 +334,9 @@ export class ReviewsService {
         reviewId,
         businessId: row.businessId,
         userId: user.id,
+        // B4.7 — the AUTHOR's reputation changes with the row (a moderator
+        // takedown removes the review's points); the actor is just provenance.
+        authorId: row.userId,
       });
     }
     return { deleted: ok };
@@ -339,6 +348,35 @@ export class ReviewsService {
    */
   async recomputeRating(businessId: string): Promise<{ avgRating: string; reviewCount: number }> {
     return this.repo.recomputeRating(businessId);
+  }
+
+  // ── B4.7 reputation ────────────────────────────────────────────────────────
+
+  /**
+   * Full recompute of the author's score FROM SOURCE (the B4.1 aggregate
+   * pattern — the worker-side entry behind `recompute-reputation`):
+   * three indexed counts → the fixed point formula → one UPDATE on
+   * `users.reputation_points`. A takedown, a vote switch or a moderation
+   * flip can never leave the denormalised value drifted — the next event
+   * re-derives it from the rows.
+   */
+  async recomputeReputation(userId: string): Promise<UserReputation> {
+    const stats = await this.repo.reputationStats(userId);
+    const points = reputationPointsFor(stats);
+    await this.repo.writeReputation(userId, points);
+    return { points, level: reputationLevelFor(points), stats };
+  }
+
+  /**
+   * GET /users/me/reputation — the caller's score computed LIVE from source
+   * (never from the possibly-stale denormalised column): the same formula
+   * the worker runs, answered synchronously because the counts are three
+   * indexed scans and the endpoint is self-scoped + rate-limited.
+   */
+  async myReputation(userId: string): Promise<UserReputation> {
+    const stats = await this.repo.reputationStats(userId);
+    const points = reputationPointsFor(stats);
+    return { points, level: reputationLevelFor(points), stats };
   }
 
   // ── B4.4 moderation ──────────────────────────────────────────────────────
@@ -449,6 +487,8 @@ export class ReviewsService {
         reviewId,
         businessId: row.businessId,
         userId: user.id,
+        // B4.7 — helpful votes received shift the AUTHOR's score, not the voter's.
+        authorId: row.userId,
         value,
       });
     }
@@ -470,6 +510,8 @@ export class ReviewsService {
         reviewId,
         businessId: row.businessId,
         userId: user.id,
+        // B4.7 — the author's tally changed.
+        authorId: row.userId,
       });
     }
     const counts = await this.repo.countVotes(reviewId);
@@ -709,6 +751,10 @@ export class ReviewsService {
       checkinVerified: row.checkinAt !== null,
       checkinAt: row.checkinAt ? row.checkinAt.toISOString() : null,
       receiptUrl: row.receiptKey ? this.mediaUrls.urlFor(row.receiptKey) : null,
+      // B4.7 — the author's trust signals: the first-review badge (stamped
+      // at create) + the level derived live off the denormalised score.
+      isFirstReview: row.isFirst,
+      authorLevel: reputationLevelFor(row.authorReputation),
       editedAt: row.editedAt ? row.editedAt.toISOString() : null,
       reply: row.replyId && row.replyBody ? this.toReplyFromJoin(row) : null,
       createdAt: row.createdAt.toISOString(),

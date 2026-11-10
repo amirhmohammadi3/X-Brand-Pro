@@ -14,7 +14,12 @@ import { MEDIA_REPOSITORY } from '../src/modules/media/media.repository.js';
 import { REVIEWS_REPOSITORY } from '../src/modules/reviews/reviews.repository.js';
 import { ReviewsService } from '../src/modules/reviews/reviews.service.js';
 import { SETTINGS_REPOSITORY, SettingsService } from '../src/modules/settings/settings.service.js';
-import { handleRecomputeRating } from '../src/modules/reviews/reviews.jobs.js';
+import {
+  handleRecomputeRating,
+  handleRecomputeReputation,
+  RECOMPUTE_RATING_JOB,
+  RECOMPUTE_REPUTATION_JOB,
+} from '../src/modules/reviews/reviews.jobs.js';
 import { FakeRedis } from './fake-redis.js';
 import {
   createUser,
@@ -83,6 +88,9 @@ interface FakeReviewRow {
   checkinAt: Date | null;
   checkinLat: number | null;
   checkinLng: number | null;
+  /** B4.7 — first-review badge + the author's denormalised score. */
+  isFirst: boolean;
+  authorReputation: number;
   helpfulCount: number;
   unhelpfulCount: number;
   replyId: string | null;
@@ -299,6 +307,7 @@ function makeMemoryReviewsRepo() {
       checkinLat?: number | null;
       checkinLng?: number | null;
       receiptMediaId?: string | null;
+      isFirst?: boolean;
     }) {
       const id = `${(seq += 1).toString(16).padStart(8, '0')}-0000-4000-8000-000000000000`;
       const row: FakeReviewRow = {
@@ -317,6 +326,8 @@ function makeMemoryReviewsRepo() {
         checkinAt: input.checkinAt ?? null,
         checkinLat: input.checkinLat ?? null,
         checkinLng: input.checkinLng ?? null,
+        isFirst: input.isFirst ?? false,
+        authorReputation: 0,
         helpfulCount: 0,
         unhelpfulCount: 0,
         replyId: null,
@@ -364,6 +375,34 @@ function makeMemoryReviewsRepo() {
     },
     async delete(id: string) {
       return rows.delete(id);
+    },
+    // ── B4.7 reputation doubles: the source counts computed off the same
+    // in-memory rows (the faithful AVG/COUNT scheme of recomputeRating).
+    async countByUser(userId: string) {
+      let n = 0;
+      for (const r of rows.values()) if (r.userId === userId) n += 1;
+      return n;
+    },
+    async reputationStats(userId: string) {
+      const mine = [...rows.values()].filter((r) => r.userId === userId);
+      const approved = mine.filter((r) => r.status === 'approved');
+      const verified = approved.filter((r) => r.checkinAt !== null || r.receiptMediaId !== null);
+      let helpful = 0;
+      for (const r of approved) {
+        for (const [k, v] of votes) {
+          if (k.startsWith(`${r.id}:`) && v === 1) helpful += 1;
+        }
+      }
+      return {
+        approvedReviews: approved.length,
+        verifiedReviews: verified.length,
+        helpfulVotesReceived: helpful,
+      };
+    },
+    async writeReputation(userId: string, points: number) {
+      for (const r of rows.values()) {
+        if (r.userId === userId) r.authorReputation = points;
+      }
     },
     async upsertVote(reviewId: string, userId: string, value: 1 | -1) {
       votes.set(voteKey(reviewId, userId), value);
@@ -510,15 +549,17 @@ function makeMemoryMediaRepo() {
 /**
  * Inline queue double: enqueue() immediately runs the reviews processor's
  * handler (the code the WORKER would run), so the tests exercise the full
- * event → enqueue → recompute path without a real Redis/BullMQ.
+ * event → enqueue → recompute path without a real Redis/BullMQ. The route
+ * receives the JOB NAME too — B4.7 adds a second `reviews` job family
+ * (recompute-reputation) that the same worker registration dispatches.
  */
 class InlineReviewsQueue {
-  route: ((data: unknown) => Promise<void>) | null = null;
+  route: ((name: string, data: unknown) => Promise<void>) | null = null;
   calls: Array<{ queue: string; name: string; data: unknown }> = [];
 
   async enqueue(queue: string, name: string, data: unknown): Promise<string> {
     this.calls.push({ queue, name, data });
-    if (this.route) await this.route(data);
+    if (this.route) await this.route(name, data);
     return `inline-job-${this.calls.length}`;
   }
 
@@ -586,9 +627,13 @@ beforeAll(async () => {
   configureApp(expressApp);
   await app.init();
 
-  // Wire the inline queue to the REAL worker handler + REAL service.
+  // Wire the inline queue to the REAL worker handlers + REAL service (the
+  // same dispatch the registerReviewsJobs worker registration runs).
   const reviews: ReviewsService = app.get(ReviewsService);
-  inlineQueue.route = async (data) => handleRecomputeRating(data, reviews);
+  inlineQueue.route = async (name, data) => {
+    if (name === RECOMPUTE_RATING_JOB) await handleRecomputeRating(data, reviews);
+    else if (name === RECOMPUTE_REPUTATION_JOB) await handleRecomputeReputation(data, reviews);
+  };
 
   const reviewerRow = await createUser(app, { username: 'reviewer', password: 'Sup3rSecret!2026' });
   reviewerId.current = reviewerRow.id;
@@ -1054,6 +1099,8 @@ describe('PUT /api/v1/reviews/:id/reply (B4.3)', () => {
       checkinAt: null,
       checkinLat: null,
       checkinLng: null,
+      isFirst: false,
+      authorReputation: 0,
       helpfulCount: 0,
       unhelpfulCount: 0,
       replyId: null,
@@ -1465,5 +1512,113 @@ describe('PATCH /reviews/:id — check-in/receipt lifecycle (B4.6)', () => {
     const id = create.body.data.id as string;
     const res = await patchReview(id, { checkin: NEAR }, user.bearer);
     expect(res.status).toBe(403);
+  });
+});
+
+// ── B4.7 reputation — HTTP level ─────────────────────────────────────────────
+
+describe('B4.7 — first-review badge, author level, /users/me/reputation', () => {
+  // FRESH users: the first-review stamp + the velocity filter both depend on
+  // the author's history — the suites above have long histories.
+  const B47A = '3a3a3a3a-3a3a-43a3-83a3-3a3a3a3a3a3a';
+  const B47B = '3b3b3b3b-3b3b-43b3-83b3-3b3b3b3b3b3b';
+  let first: LoginSession;
+  let second: LoginSession;
+
+  beforeAll(async () => {
+    for (const id of [B47A, B47B]) {
+      reviewsRepo.businesses.set(id, {
+        ownerId: null,
+        status: 'active',
+        deletedAt: null,
+        avgRating: '0.00',
+        reviewCount: 0,
+      });
+    }
+    await createUser(app, { username: 'b47first', password: 'Sup3rSecret!2026' });
+    await createUser(app, { username: 'b47second', password: 'Sup3rSecret!2026' });
+    first = await loginAs(app, 'b47first', 'Sup3rSecret!2026');
+    second = await loginAs(app, 'b47second', 'Sup3rSecret!2026');
+  });
+
+  const reputationOf = (bearer: string) =>
+    request(app.getHttpServer()).get('/api/v1/users/me/reputation').set({ Authorization: bearer });
+
+  it('401 on /users/me/reputation without authentication', async () => {
+    const res = await request(app.getHttpServer()).get('/api/v1/users/me/reputation');
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('stamps isFirstReview=true on the first review, false on the second; authorLevel rides every payload', async () => {
+    const firstReview = await createReview(B47A, GOOD, first.bearer);
+    expect(firstReview.status).toBe(201);
+    expect(firstReview.body.data.isFirstReview).toBe(true);
+    expect(firstReview.body.data.authorLevel).toBe('newcomer');
+    // A DIFFERENT body — the B4.5 duplicate signal flags identical texts
+    // across businesses, and this suite tests reputation, not spam.
+    const secondReview = await createReview(
+      B47B,
+      { rating: 4, body: 'غذای خوشمزه‌ای داشتیم و برخورد پرسنل خوب بود.' },
+      first.bearer,
+    );
+    expect(secondReview.status).toBe(201);
+    expect(secondReview.body.data.isFirstReview).toBe(false);
+    // The public list carries the same trust fields.
+    const list = await listReviews(B47A);
+    expect(list.body.data.items[0].isFirstReview).toBe(true);
+  });
+
+  it('GET /users/me/reputation answers the live formula', async () => {
+    await flush(); // the created events ran the inline rating+reputation jobs
+    const res = await reputationOf(first.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    const { points, level, stats } = res.body.data as {
+      points: number;
+      level: string;
+      stats: { approvedReviews: number; verifiedReviews: number; helpfulVotesReceived: number };
+    };
+    expect(stats.approvedReviews).toBe(2);
+    expect(stats.verifiedReviews).toBe(0);
+    expect(points).toBe(20);
+    expect(level).toBe('newcomer');
+  });
+
+  it('a helpful vote shifts the AUTHOR\u2019s helpfulVotesReceived (not the voter\u2019s)', async () => {
+    const list = await listReviews(B47A);
+    const target = (list.body.data.items as Array<{ id: string }>)[0]!;
+    const vote = await request(app.getHttpServer())
+      .put(`/api/v1/reviews/${target.id}/vote`)
+      .set({ Authorization: second.bearer })
+      .send({ value: 1 });
+    expect(vote.status).toBe(200);
+    await flush();
+    const author = await reputationOf(first.bearer);
+    expect(author.body.data.stats.helpfulVotesReceived).toBe(1);
+    expect(author.body.data.points).toBe(22);
+    // The voter's own tally is untouched by their vote.
+    const voter = await reputationOf(second.bearer);
+    expect(voter.body.data.stats.helpfulVotesReceived).toBe(0);
+    expect(voter.body.data.points).toBe(0);
+  });
+
+  it('the moderation takedown re-derives the score (rejected review stops counting)', async () => {
+    const list = await listReviews(B47B);
+    const target = (list.body.data.items as Array<{ id: string }>)[0]!;
+    const flip = await request(app.getHttpServer())
+      .patch(`/api/v1/moderation/reviews/${target.id}/status`)
+      .set({ Authorization: admin.bearer })
+      .send({ status: 'rejected' });
+    expect(flip.status).toBe(200);
+    await flush();
+    const after = await reputationOf(first.bearer);
+    const stats = after.body.data.stats as {
+      approvedReviews: number;
+      helpfulVotesReceived: number;
+    };
+    expect(stats.approvedReviews).toBe(1);
+    expect(stats.helpfulVotesReceived).toBe(1);
+    expect(after.body.data.points).toBe(12);
   });
 });

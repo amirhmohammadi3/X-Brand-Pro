@@ -74,6 +74,7 @@ export function makeMemoryUserRepo(initial: UserRow[] = []): UsersRepositoryLike
         usernameChangedAt: null,
         deletedAt: null,
         bio: null,
+        reputationPoints: 0,
         createdAt: new Date(),
         updatedAt: new Date(),
         lastSeenAt: null,

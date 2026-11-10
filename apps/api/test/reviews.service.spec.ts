@@ -44,6 +44,8 @@ function reviewRow(overrides: Partial<ReviewWithMeta> = {}): ReviewWithMeta {
     checkinAt: null,
     checkinLat: null,
     checkinLng: null,
+    isFirst: false,
+    authorReputation: 0,
     helpfulCount: 0,
     unhelpfulCount: 0,
     replyId: null,
@@ -131,6 +133,9 @@ function makeRepo(
     );
   };
   let seq = 0;
+  // B4.2/B4.7 — the votes map hoisted to makeRepo scope so both the vote
+  // doubles (IIFE below) and the B4.7 reputationStats read the same store.
+  const votes = new Map<string, 1 | -1>();
   const repo = {
     async findBusinessContext(id: string) {
       const b = biz.get(id);
@@ -197,6 +202,7 @@ function makeRepo(
       checkinLat?: number | null;
       checkinLng?: number | null;
       receiptMediaId?: string | null;
+      isFirst?: boolean;
     }) {
       const row = reviewRow({
         id: `${(seq += 1).toString().padStart(8, '0')}-0000-4000-8000-000000000000`,
@@ -214,6 +220,7 @@ function makeRepo(
         checkinAt: input.checkinAt ?? null,
         checkinLat: input.checkinLat ?? null,
         checkinLng: input.checkinLng ?? null,
+        isFirst: input.isFirst ?? false,
       });
       rows.set(row.id, row);
       return row;
@@ -245,10 +252,38 @@ function makeRepo(
     async delete(id: string) {
       return rows.delete(id);
     },
+    // ── B4.7 reputation doubles: the source counts off the same rows (the
+    // faithful recompute scheme), plus the users-table write.
+    async countByUser(userId: string) {
+      let n = 0;
+      for (const r of rows.values()) if (r.userId === userId) n += 1;
+      return n;
+    },
+    async reputationStats(userId: string) {
+      const mine = [...rows.values()].filter((r) => r.userId === userId);
+      const approved = mine.filter((r) => r.status === 'approved');
+      const verified = approved.filter((r) => r.checkinAt !== null || r.receiptMediaId !== null);
+      let helpful = 0;
+      for (const [k, v] of votes) {
+        if (v !== 1) continue;
+        const reviewId = k.split(':')[0] ?? '';
+        const target = rows.get(reviewId);
+        if (target && target.userId === userId && target.status === 'approved') helpful += 1;
+      }
+      return {
+        approvedReviews: approved.length,
+        verifiedReviews: verified.length,
+        helpfulVotesReceived: helpful,
+      };
+    },
+    async writeReputation(userId: string, points: number) {
+      for (const r of rows.values()) {
+        if (r.userId === userId) r.authorReputation = points;
+      }
+    },
     // ── B4.2 vote doubles: a keyed votes map + faithful count() simulation,
     // mirroring the unique-(review_id, user_id) upsert semantics.
     ...((): Record<string, unknown> => {
-      const votes = new Map<string, 1 | -1>();
       const key = (reviewId: string, userId: string) => `${reviewId}:${userId}`;
       const tally = (reviewId: string) => {
         let helpful = 0;
@@ -545,6 +580,7 @@ describe('ReviewsService.remove (B4.1)', () => {
       reviewId: '55555555-5555-4555-8555-555555555555',
       businessId: BIZ,
       userId: ALICE.id,
+      authorId: ALICE.id,
     });
   });
 
@@ -678,6 +714,7 @@ describe('ReviewsService.vote (B4.2)', () => {
       reviewId: '55555555-5555-4555-8555-555555555555',
       businessId: BIZ,
       userId: BOB.id,
+      authorId: ALICE.id,
       value: 1,
     });
   });
@@ -756,6 +793,7 @@ describe('ReviewsService.removeVote (B4.2)', () => {
       reviewId,
       businessId: BIZ,
       userId: BOB.id,
+      authorId: ALICE.id,
     });
   });
 
@@ -1282,5 +1320,103 @@ describe('ReviewsService.update with check-in/receipt (B4.6)', () => {
     const { svc, events } = makeService(makeRepo([row]));
     await svc.update(row.id, ALICE, { receiptMediaId: RECEIPT });
     expect(events.emit).not.toHaveBeenCalledWith('review.verified', expect.anything());
+  });
+});
+
+// ── B4.7 reputation: score, levels, «اولین نظر» badge ────────────────────────
+
+describe('ReviewsService.create — the first-review stamp (B4.7)', () => {
+  it('stamps is_first on the author’s FIRST review only', async () => {
+    const { svc } = makeService();
+    const first = await svc.create(BIZ, ALICE, CREATE);
+    expect(first.isFirstReview).toBe(true);
+    const second = await svc.create(BIZ, BOB, CREATE);
+    expect(second.isFirstReview).toBe(true); // BOB's first
+    // ALICE reviews a second business — no longer her first.
+    const biz2 = '12121212-1212-4212-8212-121212121212';
+    const repo = makeRepo(
+      [],
+      new Map([
+        [BIZ, { status: 'active', deletedAt: null }],
+        [biz2, { status: 'active', deletedAt: null }],
+      ]),
+    );
+    const svc2 = makeService(repo).svc;
+    await svc2.create(BIZ, ALICE, CREATE);
+    const another = await svc2.create(biz2, ALICE, CREATE);
+    expect(another.isFirstReview).toBe(false);
+  });
+});
+
+describe('ReviewsService.recomputeReputation (B4.7)', () => {
+  it('derives the score FROM SOURCE: 10/approved + 25/verified + 2/helpful', async () => {
+    // ALICE has one row seeded in the fake (approved, unverified) → 10 pts.
+    const row = reviewRow({ userId: ALICE.id });
+    const repo = makeRepo([row]);
+    const { svc } = makeService(repo);
+    const rep = await svc.recomputeReputation(ALICE.id);
+    expect(rep.stats).toEqual({
+      approvedReviews: 1,
+      verifiedReviews: 0,
+      helpfulVotesReceived: 0,
+    });
+    expect(rep.points).toBe(10);
+    expect(rep.level).toBe('newcomer');
+    // The denormalised write-back happened (the fake mirrors it onto the rows).
+    const stored = await repo.findById(row.id);
+    expect(stored?.authorReputation).toBe(10);
+  });
+
+  it('crosses the level thresholds in order', async () => {
+    const rows = [
+      reviewRow({ id: '55555551-5555-4555-8555-555555555551', userId: ALICE.id }),
+      reviewRow({ id: '55555552-5555-4555-8555-555555555552', userId: ALICE.id }),
+      reviewRow({
+        id: '55555553-5555-4555-8555-555555555553',
+        userId: ALICE.id,
+        checkinAt: new Date('2026-11-10T09:00:00Z'),
+        checkinLat: 35.7,
+        checkinLng: 51.4,
+      }),
+      reviewRow({ id: '55555554-5555-4555-8555-555555555554', userId: ALICE.id }),
+      reviewRow({ id: '55555555-5555-4555-8555-555555555555', userId: ALICE.id }),
+    ];
+    const repo = makeRepo(rows);
+    // Two helpful votes on approved reviews.
+    await repo.upsertVote(rows[0]!.id, BOB.id, 1);
+    await repo.upsertVote(rows[1]!.id, BOB.id, 1);
+    const { svc } = makeService(repo);
+    const rep = await svc.recomputeReputation(ALICE.id);
+    // 5 approved ×10 + 1 verified ×25 + 2 helpful ×2 = 79 → contributor.
+    expect(rep.stats.helpfulVotesReceived).toBe(2);
+    expect(rep.points).toBe(79);
+    expect(rep.level).toBe('contributor');
+  });
+
+  it('myReputation answers LIVE from source (never the stored column)', async () => {
+    const repo = makeRepo([reviewRow({ userId: ALICE.id, authorReputation: 999 })]);
+    const { svc } = makeService(repo);
+    const rep = await svc.myReputation(ALICE.id);
+    expect(rep.points).toBe(10);
+  });
+});
+
+describe('toReview — author trust fields (B4.7)', () => {
+  it('maps isFirstReview + authorLevel off the row', async () => {
+    const repo = makeRepo([
+      reviewRow({ userId: ALICE.id, isFirst: true, authorReputation: 210 }),
+      reviewRow({
+        id: '66666661-6666-4666-8666-666666666661',
+        userId: BOB.id,
+        authorReputation: 40,
+      }),
+    ]);
+    const { svc } = makeService(repo);
+    const list = await svc.listByBusiness(BIZ, { page: 1, pageSize: 20 });
+    const byUser = new Map(list.items.map((r) => [r.userId, r]));
+    expect(byUser.get(ALICE.id)?.isFirstReview).toBe(true);
+    expect(byUser.get(ALICE.id)?.authorLevel).toBe('expert');
+    expect(byUser.get(BOB.id)?.isFirstReview).toBe(false);
+    expect(byUser.get(BOB.id)?.authorLevel).toBe('newcomer');
   });
 });

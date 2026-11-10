@@ -183,6 +183,13 @@
       "when": 1794335957089,
       "tag": "0025_review_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794337561003,
+      "tag": "0026_reputation_first_review",
+      "breakpoints": true
     }
   ]
 }

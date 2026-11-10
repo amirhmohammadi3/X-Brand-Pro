@@ -167,6 +167,21 @@ export class ReviewsController {
     return this.reviews.listMine(user.id, query);
   }
 
+  /**
+   * The caller's reputation score + level + source stats (B4.7). Mounted on
+   * the reviews controller because the SCORE is a reviews-domain aggregate
+   * (approved reviews / verified proofs / helpful votes received) — the
+   * auth-owned /users/me controller stays free of cross-module imports.
+   * Computed LIVE from source (three indexed scans) — never the possibly
+   * stale users.reputation_points column.
+   */
+  @Get('users/me/reputation')
+  @RateLimit({ name: 'reviews.read', limit: 60, windowSec: 60, scope: 'user' })
+  async myReputation(@Req() req: Request) {
+    const user = requireUser(req);
+    return this.reviews.myReputation(user.id);
+  }
+
   // ─── Writes ──────────────────────────────────────────────────────────────
 
   @Post('businesses/:id/reviews')

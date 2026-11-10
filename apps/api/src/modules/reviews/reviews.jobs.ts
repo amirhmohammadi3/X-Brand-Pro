@@ -1,12 +1,17 @@
 import { Logger } from '@nestjs/common';
 import { z } from 'zod';
 import type { WorkersService } from '../../queue/workers.service.js';
-import { REVIEWS_QUEUE, RECOMPUTE_RATING_JOB } from './reviews.service.js';
+import {
+  REVIEWS_QUEUE,
+  RECOMPUTE_RATING_JOB,
+  RECOMPUTE_REPUTATION_JOB,
+} from './reviews.service.js';
 import type { ReviewsService } from './reviews.service.js';
 
 const logger = new Logger('ReviewsJobs');
 
 const recomputeJobSchema = z.object({ businessId: z.string().uuid() });
+const reputationJobSchema = z.object({ userId: z.string().uuid() });
 
 /**
  * Parse + run one recompute-rating job. Exported so the HTTP tests can wire
@@ -29,23 +34,44 @@ export async function handleRecomputeRating(
 }
 
 /**
+ * B4.7 — parse + run one recompute-reputation job (same inline-testable
+ * scheme). Full recompute from source onto users.reputation_points.
+ */
+export async function handleRecomputeReputation(
+  data: unknown,
+  reviews: Pick<ReviewsService, 'recomputeReputation'>,
+): Promise<void> {
+  const parsed = reputationJobSchema.safeParse(data);
+  if (!parsed.success) {
+    logger.warn(`ignoring malformed recompute-reputation job: ${parsed.error.message}`);
+    return;
+  }
+  const rep = await reviews.recomputeReputation(parsed.data.userId);
+  logger.log(`recompute-reputation ${parsed.data.userId} → ${rep.points} pts (${rep.level})`);
+}
+
+/**
  * Worker-side registration of the `reviews` queue (B4.1). Registration is
  * inert in the API process (startAll() runs only in the worker) and safe to
- * repeat across restarts. Currently one job: `recompute-rating` — the full
- * AVG/COUNT recompute of a business's approved reviews onto
- * `businesses.avg_rating`/`review_count`.
+ * repeat across restarts. Jobs: `recompute-rating` (B4.1 — the full
+ * AVG/COUNT recompute of a business onto businesses.avg_rating/review_count)
+ * and `recompute-reputation` (B4.7 — the same scheme for the author's score).
  */
 export function registerReviewsJobs(
   workers: WorkersService,
-  reviews: Pick<ReviewsService, 'recomputeRating'>,
+  reviews: Pick<ReviewsService, 'recomputeRating' | 'recomputeReputation'>,
 ): void {
   workers.register(REVIEWS_QUEUE, async (job) => {
     if (job.name === RECOMPUTE_RATING_JOB) {
       await handleRecomputeRating(job.data, reviews);
       return;
     }
+    if (job.name === RECOMPUTE_REPUTATION_JOB) {
+      await handleRecomputeReputation(job.data, reviews);
+      return;
+    }
     logger.warn(`ignoring unknown reviews job name "${job.name}"`);
   });
 }
 
-export { REVIEWS_QUEUE, RECOMPUTE_RATING_JOB };
+export { REVIEWS_QUEUE, RECOMPUTE_RATING_JOB, RECOMPUTE_REPUTATION_JOB };

@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   index,
+  integer,
   pgEnum,
   pgTable,
   text,
@@ -61,6 +62,14 @@ export const users = pgTable(
     // B1.10: soft delete stamp; deleted rows are anonymized and excluded
     // from every login/lookup path.
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    /**
+     * B4.7 — the denormalised reputation score (integer ≥ 0). Derived FROM
+     * SOURCE by the `reviews` queue's `recompute-reputation` job (full
+     * recompute over approved reviews / verified proofs / helpful votes
+     * received — the businesses.avg_rating pattern), never incremented
+     * inline: a takedown or vote switch cannot drift it.
+     */
+    reputationPoints: integer('reputation_points').notNull().default(0),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),

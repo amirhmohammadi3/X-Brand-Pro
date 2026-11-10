@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { pageQuerySchema, pageMetaSchema } from './pagination.js';
 import { uuidSchema } from './primitives.js';
+import { reputationLevelSchema } from './reputation.js';
 
 /**
  * Reviews (B4.1). An authenticated user rates (1..5) and reviews an ACTIVE
@@ -131,6 +132,10 @@ export const reviewSchema = z.object({
   checkinAt: z.string().nullable(),
   /** B4.6 — public URL of the attached receipt, when one was attached. */
   receiptUrl: z.string().min(1).nullable(),
+  /** B4.7 — true on the author's FIRST review ever (stamped at create). */
+  isFirstReview: z.boolean(),
+  /** B4.7 — the author's reputation level off users.reputation_points (recomputed async). */
+  authorLevel: reputationLevelSchema,
   /** Set when the author edited the review after creation. */
   editedAt: z.string().nullable(),
   /** The owner's reply (B4.3) — null until the business answers. */

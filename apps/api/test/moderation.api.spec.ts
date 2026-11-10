@@ -51,6 +51,8 @@ interface FakeReviewRow {
   status: 'approved' | 'pending' | 'rejected';
   photoMediaId: string | null;
   photoKey: string | null;
+  isFirst: boolean;
+  authorReputation: number;
   helpfulCount: number;
   unhelpfulCount: number;
   replyId: string | null;
@@ -78,6 +80,8 @@ function reviewRow(id: string, status: 'approved' | 'pending', createdAt: Date):
     status,
     photoMediaId: null,
     photoKey: null,
+    isFirst: false,
+    authorReputation: 0,
     helpfulCount: 0,
     unhelpfulCount: 0,
     replyId: null,
@@ -131,6 +135,15 @@ function makeMemoryReviewsRepo(rows: FakeReviewRow[]) {
     async countVotes(): Promise<{ helpful: number; unhelpful: number }> {
       return { helpful: 0, unhelpful: 0 };
     },
+    // B4.7 — the moderation endpoints never recompute scores, but the bound
+    // ReviewsService requires the full repository surface.
+    async countByUser(): Promise<number> {
+      return 0;
+    },
+    async reputationStats() {
+      return { approvedReviews: 0, verifiedReviews: 0, helpfulVotesReceived: 0 };
+    },
+    async writeReputation(): Promise<void> {},
     async recomputeRating(_businessId: string) {
       return { avgRating: '0.00', reviewCount: 0 };
     },

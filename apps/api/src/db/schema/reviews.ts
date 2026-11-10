@@ -1,4 +1,5 @@
 import {
+  boolean,
   check,
   doublePrecision,
   index,
@@ -69,6 +70,12 @@ export const reviews = pgTable(
     /** B4.6 — where the visit happened (WGS84; verified ≤ CHECKIN_RADIUS_M). */
     checkinLat: doublePrecision('checkin_lat'),
     checkinLng: doublePrecision('checkin_lng'),
+    /**
+     * B4.7 — «اولین نظر»: stamped at create when the author had no prior
+     * review row (any status). Historical: a deleted first review is NOT
+     * re-awarded to a later one (the badge marks the event, not the rank).
+     */
+    isFirst: boolean('is_first').notNull().default(false),
     /** Stamped by the service when the author edits the review after creation. */
     editedAt: timestamp('edited_at', { withTimezone: true }),
     /** B4.4 — the moderator's note when the queue flips the status. */
