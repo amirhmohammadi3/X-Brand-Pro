@@ -13,6 +13,7 @@ import { QUEUES_SERVICE } from '../src/queue/queue.module.js';
 import { MEDIA_REPOSITORY } from '../src/modules/media/media.repository.js';
 import { REVIEWS_REPOSITORY } from '../src/modules/reviews/reviews.repository.js';
 import { ReviewsService } from '../src/modules/reviews/reviews.service.js';
+import { SETTINGS_REPOSITORY, SettingsService } from '../src/modules/settings/settings.service.js';
 import { handleRecomputeRating } from '../src/modules/reviews/reviews.jobs.js';
 import { FakeRedis } from './fake-redis.js';
 import {
@@ -223,6 +224,13 @@ function makeMemoryReviewsRepo() {
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
       return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length };
     },
+    async findRecentByUser(userId: string, limit: number) {
+      return [...rows.values()]
+        .filter((r) => r.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit)
+        .map((r) => ({ id: r.id, businessId: r.businessId, body: r.body }));
+    },
     async insert(input: {
       businessId: string;
       userId: string;
@@ -230,6 +238,7 @@ function makeMemoryReviewsRepo() {
       body: string;
       photoMediaId: string | null;
       authorUsername: string;
+      status?: 'approved' | 'pending' | 'rejected';
     }) {
       const id = `${(seq += 1).toString(16).padStart(8, '0')}-0000-4000-8000-000000000000`;
       const row: FakeReviewRow = {
@@ -240,7 +249,7 @@ function makeMemoryReviewsRepo() {
         authorUsername: input.authorUsername ?? 'reviewer',
         rating: input.rating,
         body: input.body,
-        status: 'approved',
+        status: input.status ?? 'approved',
         photoMediaId: input.photoMediaId,
         photoKey: input.photoMediaId ? `p-${input.photoMediaId.slice(0, 8)}.webp` : null,
         helpfulCount: 0,
@@ -341,6 +350,30 @@ function makeMemoryReviewsRepo() {
   return repo as unknown as typeof repo & Record<string, unknown>;
 }
 
+/** The settings-repo fake (the spam filter reads its knobs through
+ * SettingsService; tests prime keys via app.get(SettingsService).set). */
+function makeFakeSettingsRepo() {
+  const store = new Map<
+    string,
+    { key: string; value: unknown; isSecret: boolean; group: string }
+  >();
+  return {
+    store,
+    async findAll() {
+      return [...store.values()].map((r) => ({ ...r, description: null }));
+    },
+    async findByKey(key: string) {
+      const row = store.get(key);
+      return row ? { ...row, description: null } : null;
+    },
+    async upsert(row: { key: string; value: unknown; isSecret: boolean; group: string }) {
+      const created = { ...row, description: null, updatedAt: new Date() };
+      store.set(row.key, created);
+      return created;
+    },
+  };
+}
+
 function makeMemoryMediaRepo() {
   const media = new Map([
     [PHOTO, { kind: 'review_photo', ownerUserId: reviewerId, attachedAt: null, deletedAt: null }],
@@ -428,6 +461,8 @@ beforeAll(async () => {
     .useValue(reviewsRepo)
     .overrideProvider(MEDIA_REPOSITORY)
     .useValue(makeMemoryMediaRepo())
+    .overrideProvider(SETTINGS_REPOSITORY)
+    .useValue(makeFakeSettingsRepo())
     .overrideProvider(AUDIT_SERVICE)
     .useValue({
       log: (entry: { action: string }) => {
@@ -1073,5 +1108,99 @@ describe('reply audit trail (B4.3)', () => {
   it('reply writes ARE audited (business speech, unlike votes)', async () => {
     expect(auditActions).toContain('review.reply.upsert');
     expect(auditActions).toContain('review.reply.delete');
+  });
+});
+
+// ─── B4.5 automatic spam/fraud filter (HTTP level) ──────────────────────
+// The settings knobs are primed through the REAL SettingsService over the
+// fake settings repo — the exact path production uses (set → cache
+// invalidate → next create re-reads). The velocity counters ride the
+// FakeRedis the rate limiter already uses; `resetSpamCounters` gives each
+// scenario a deterministic hour bucket.
+
+const ACTIVE5 = '17171717-1717-4171-8171-171717171717';
+const ACTIVE6 = '18181818-1818-4181-8181-181818181818';
+const ACTIVE7 = '19191919-1919-4191-8191-191919191919';
+const CLEAN_BODY = 'کافه‌چی خوبی بود؛ دسرش بی‌نظیر بود.';
+
+/** Wipe the spam hour-bucket counters (the rl:* limiter keys are separate). */
+const resetSpamCounters = (): void => {
+  for (const key of [...redis.store.keys()]) {
+    if (key.startsWith('spam:')) redis.store.delete(key);
+  }
+};
+
+describe('POST /businesses/:id/reviews — the spam filter (B4.5)', () => {
+  beforeAll(async () => {
+    for (const id of [ACTIVE5, ACTIVE6, ACTIVE7]) {
+      reviewsRepo.businesses.set(id, {
+        ownerId: null,
+        status: 'active',
+        deletedAt: null,
+        avgRating: '0.00',
+        reviewCount: 0,
+      });
+    }
+    // The admin-managed word list — the prompt's «کلمات قابل مدیریت».
+    await app.get(SettingsService).set('moderation.spam.blockedWords', ['تبلیغات']);
+    resetSpamCounters();
+  });
+
+  it('201 a CLEAN review is created approved and publicly listed', async () => {
+    const res = await createReview(ACTIVE5, { rating: 5, body: CLEAN_BODY }, user.bearer);
+    expect(res.status).toBe(201);
+    expect(res.body.data.status).toBe('approved');
+    const list = await listReviews(ACTIVE5);
+    expect(list.body.data.meta.total).toBe(1);
+    await flush();
+  });
+
+  it('201 a review with a BLOCKED WORD is created pending and stays off the public page', async () => {
+    const res = await createReview(
+      ACTIVE5,
+      { rating: 1, body: 'این کافه فقط تبلیغات می‌کند.' },
+      other.bearer,
+    );
+    expect(res.status).toBe(201);
+    expect(res.body.data.status).toBe('pending');
+    const list = await listReviews(ACTIVE5);
+    expect(list.body.data.meta.total).toBe(1); // only the approved one
+    await flush();
+  });
+
+  it('201 a DUPLICATE body (same user, another business) is created pending', async () => {
+    const res = await createReview(ACTIVE6, { rating: 4, body: CLEAN_BODY }, user.bearer);
+    expect(res.status).toBe(201);
+    expect(res.body.data.status).toBe('pending'); // duplicate_text signal
+    await flush();
+  });
+
+  it('201 ANOTHER USER posting the same body is not a duplicate (per-user signal)', async () => {
+    const res = await createReview(ACTIVE5, { rating: 4, body: CLEAN_BODY }, mod.bearer);
+    expect(res.status).toBe(201);
+    expect(res.body.data.status).toBe('approved');
+  });
+
+  it('201 a VELOCITY excess is demoted pending (threshold primed to 1)', async () => {
+    await app.get(SettingsService).set('moderation.spam.maxReviewsPerHour', 1);
+    // `user` already posted twice above (counters bumped) — the next one exceeds.
+    const res = await createReview(
+      ACTIVE7,
+      { rating: 5, body: 'نظر تازه و منحصر برای سرعت.' },
+      user.bearer,
+    );
+    expect(res.status).toBe(201);
+    expect(res.body.data.status).toBe('pending');
+    await app.get(SettingsService).set('moderation.spam.maxReviewsPerHour', 5);
+  });
+
+  it('201 a fresh USER under the velocity threshold is created approved', async () => {
+    const res = await createReview(
+      ACTIVE6,
+      { rating: 5, body: 'نظر کاربر تازه و مستقل.' },
+      admin.bearer,
+    );
+    expect(res.status).toBe(201);
+    expect(res.body.data.status).toBe('approved');
   });
 });

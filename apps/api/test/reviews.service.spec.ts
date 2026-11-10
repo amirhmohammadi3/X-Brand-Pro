@@ -6,6 +6,7 @@ import type {
   ReviewsRepositoryLike,
 } from '../src/modules/reviews/reviews.repository.js';
 import type { MediaRepositoryLike } from '../src/modules/media/media.repository.js';
+import type { ReviewsSpamEvaluator } from '../src/modules/reviews/reviews-spam.service.js';
 import type { ReviewStatus } from '@app/contracts';
 
 /**
@@ -146,12 +147,21 @@ function makeRepo(
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
       return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length };
     },
+    async findRecentByUser(userId: string, limit: number) {
+      // Mirror the repo: the user's most recent reviews, any status/business.
+      return [...rows.values()]
+        .filter((r) => r.userId === userId)
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice(0, limit)
+        .map((r) => ({ id: r.id, businessId: r.businessId, body: r.body }));
+    },
     async insert(input: {
       businessId: string;
       userId: string;
       rating: number;
       body: string;
       photoMediaId: string | null;
+      status?: 'approved' | 'pending' | 'rejected';
     }) {
       const row = reviewRow({
         id: `${(seq += 1).toString().padStart(8, '0')}-0000-4000-8000-000000000000`,
@@ -160,6 +170,7 @@ function makeRepo(
         rating: input.rating,
         body: input.body,
         photoMediaId: input.photoMediaId,
+        status: input.status ?? ('approved' as ReviewStatus),
         // The real repo joins media_files.key; the fake derives a stable key
         // so the service's URL mapping is exercised.
         photoKey: input.photoMediaId ? `p-${input.photoMediaId.slice(0, 8)}.webp` : null,
@@ -338,13 +349,14 @@ function makeMedia(
 
 const mediaUrls = { urlFor: (key: string | null) => (key ? `https://media.test/${key}` : null) };
 
-function makeService(repo = makeRepo(), media = makeMedia()) {
+function makeService(repo = makeRepo(), media = makeMedia(), spam?: ReviewsSpamEvaluator) {
   const events = { emit: vi.fn() };
   const svc = new ReviewsService(
     repo as ReviewsRepositoryLike,
     media,
     mediaUrls as never,
     events as never,
+    spam,
   );
   return { svc, events };
 }
@@ -907,5 +919,55 @@ describe('ReviewsService.moderateStatus (B4.4)', () => {
       '55555555-5555-4555-8555-555555555552', // created 08:00 — oldest first
       '55555555-5555-4555-8555-555555555551', // created 10:00
     ]);
+  });
+});
+
+describe('ReviewsService.create with the spam filter (B4.5)', () => {
+  const FLAGGED = {
+    evaluate: vi.fn(async () => ({ flagged: true, reasons: ['blocked_word:تبلیغ'] })),
+    recordPosted: vi.fn(async () => undefined),
+  } as unknown as ReviewsSpamEvaluator & { evaluate: ReturnType<typeof vi.fn> };
+  const CLEAN = {
+    evaluate: vi.fn(async () => ({ flagged: false, reasons: [] })),
+    recordPosted: vi.fn(async () => undefined),
+  } as unknown as ReviewsSpamEvaluator;
+
+  it('a flagged review is created PENDING and review.flagged carries the reasons', async () => {
+    const { svc, events } = makeService(makeRepo(), makeMedia(), FLAGGED);
+    const review = await svc.create(BIZ, ALICE, CREATE);
+    expect(review.status).toBe('pending');
+    expect(FLAGGED.evaluate).toHaveBeenCalledWith({
+      user: ALICE,
+      businessId: BIZ,
+      body: BODY,
+    });
+    const flagged = events.emit.mock.calls.find((c) => c[0] === 'review.flagged');
+    expect(flagged?.[1]).toMatchObject({
+      reviewId: review.id,
+      businessId: BIZ,
+      reasons: ['blocked_word:تبلیغ'],
+    });
+    // review.created still fires (the aggregate subscriber ignores non-approved rows).
+    expect(events.emit).toHaveBeenCalledWith(REVIEWS_EVENTS.created, {
+      reviewId: review.id,
+      businessId: BIZ,
+      userId: ALICE.id,
+      rating: 5,
+    });
+  });
+
+  it('a clean review stays APPROVED and the counters bump after the insert', async () => {
+    const { svc } = makeService(makeRepo(), makeMedia(), CLEAN);
+    const review = await svc.create(BIZ, ALICE, CREATE);
+    expect(review.status).toBe('approved');
+    expect(CLEAN.recordPosted).toHaveBeenCalledWith(ALICE.id, BIZ);
+  });
+
+  it('a review is NOT flagged before the photo validation passes (validate-first order)', async () => {
+    const { svc } = makeService(makeRepo(), makeMedia(), FLAGGED);
+    await expect(
+      svc.create(BIZ, ALICE, { ...CREATE, photoMediaId: '77777777-7777-4777-8777-777777777777' }),
+    ).rejects.toMatchObject({ status: 422 });
+    expect(FLAGGED.evaluate).not.toHaveBeenCalled();
   });
 });

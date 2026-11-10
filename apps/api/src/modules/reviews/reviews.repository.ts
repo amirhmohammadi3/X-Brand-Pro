@@ -84,12 +84,23 @@ export interface ReviewsRepositoryLike {
   ): Promise<ReviewPage>;
   /** The B4.4 moderation queue: reviews with the given status across ALL businesses, oldest first. */
   listByStatusAll(status: ReviewStatus, page: number, pageSize: number): Promise<ReviewPage>;
+  /**
+   * B4.5 duplicate detection: the user's most recent reviews (any status,
+   * any business) — the service compares normalized bodies against them.
+   * A user's own reviews are few; a 50-row cap bounds the scan.
+   */
+  findRecentByUser(
+    userId: string,
+    limit: number,
+  ): Promise<Array<Pick<ReviewWithMeta, 'id' | 'businessId' | 'body'>>>;
   insert(input: {
     businessId: string;
     userId: string;
     rating: number;
     body: string;
     photoMediaId: string | null;
+    /** B4.5 — the spam filter demotes flagged reviews to `pending`; default approved. */
+    status?: ReviewStatus;
   }): Promise<ReviewWithMeta>;
   /** Author edit: rating/body/photo; stamps edited_at + updated_at. */
   update(
@@ -283,6 +294,7 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
     rating: number;
     body: string;
     photoMediaId: string | null;
+    status?: ReviewStatus;
   }): Promise<ReviewWithMeta> {
     const inserted = await this.client.db
       .insert(reviews)
@@ -292,6 +304,7 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
         rating: input.rating,
         body: input.body,
         photoMediaId: input.photoMediaId,
+        ...(input.status ? { status: input.status } : {}),
       })
       .returning({ id: reviews.id });
     const row = inserted[0];
@@ -299,6 +312,18 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
     const created = await this.findById(row.id);
     if (!created) throw new Error('reviews insert vanished');
     return created;
+  }
+
+  async findRecentByUser(
+    userId: string,
+    limit: number,
+  ): Promise<Array<Pick<ReviewWithMeta, 'id' | 'businessId' | 'body'>>> {
+    return this.client.db
+      .select({ id: reviews.id, businessId: reviews.businessId, body: reviews.body })
+      .from(reviews)
+      .where(eq(reviews.userId, userId))
+      .orderBy(desc(reviews.createdAt), desc(reviews.id))
+      .limit(limit);
   }
 
   async update(

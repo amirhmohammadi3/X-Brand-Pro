@@ -822,3 +822,14 @@ Errors: `UNAUTHENTICATED` (401), `FORBIDDEN` (403 — not `reviews.manage`), `NO
 
 - Schemas: `reportSchema`, `createReportBodySchema`, `resolveReportBodySchema`, `reportQueueQuerySchema`, `reviewQueueQuerySchema`, `moderateReviewStatusBodySchema`, `moderateReviewStatusResultSchema`.
 - Migration: `0024_content_reports` — `content_reports` table (3 enums + UNIQUE (target_type, target_id, reporter_user_id) + status/target/reporter indexes + 2 CHECKs) AND `reviews.moderator_note` (+ its CHECK) — the B4.4 fold.
+
+## The automatic spam/fraud filter (B4.5)
+
+Every review create now runs through the automatic filter (`ReviewsSpamService`) BEFORE the insert — the prompt's four signals, any hit demotes the review to `pending` (the B4.4 queue triages it from there) instead of erroring: the author still gets a 201 and simply sees `status: "pending"`; nobody gets filter feedback that would help evade it.
+
+1. **Blocked words** — `moderation.spam.blockedWords` (admin-managed via PUT /admin/settings/:key, default `[]`), matched against the NORMALIZED body (`normalizePersianText`: Arabic yeh/kaf folded, diacritics stripped, ZWNJ unified — so «تبلیغ» catches «التَبلیغ» and every spelling variant).
+2. **Duplicate** — the same normalized body the user already posted (ANY business; per-user signal, bounded 50-row scan).
+3. **Velocity** — more than `moderation.spam.maxReviewsPerHour` (default 5) reviews by this user inside the current hour bucket (Redis `INCR` counters, TTL 2h, bumped after EVERY successful insert — flagged rows count too, so the queue sees the full pattern).
+4. **Wave** — more than `moderation.spam.maxReviewsPerBusinessPerHour` (default 10) reviews for ONE business in the same hour bucket (coordinated review waves).
+
+FAILURE POLICY: every external read is fail-OPEN — a settings outage skips the word signal, a Redis outage skips velocity/wave, and review creation NEVER breaks because the filter degraded. A flagged create emits `review.created` (unchanged) PLUS `review.flagged` with the machine-readable reasons (`blocked_word:<word>`, `duplicate_text`, `velocity`, `wave`) — the B4.4/B4.7 prompts hook these. The approved-only rating aggregate is untouched (pending rows never counted). No new endpoints; the knobs are settings keys, the demoted rows surface through the existing B4.4 queue and the `?status=pending` moderation view.

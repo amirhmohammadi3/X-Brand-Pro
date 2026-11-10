@@ -1,4 +1,4 @@
-import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Inject, Injectable, Optional } from '@nestjs/common';
 // Value import (not type-only): Nest reads the constructor parameter type at
 // runtime via emitDecoratorMetadata — type-only would break DI (B1.3).
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -28,6 +28,7 @@ import {
   type ReviewWithMeta,
   type ReviewsRepositoryLike,
 } from './reviews.repository.js';
+import { REVIEWS_SPAM_EVALUATOR, type ReviewsSpamEvaluator } from './reviews-spam.service.js';
 
 /** Domain events (AGENTS.md 6 — the `review.created` example lives here). Subscriber: reviews-rating.subscriber.ts (enqueue); B4.4/B4.7 add theirs. */
 export const REVIEWS_EVENTS = {
@@ -46,6 +47,8 @@ export const REVIEWS_EVENTS = {
   replyDeleted: 'review.reply.deleted',
   /** B4.4 — the moderation queue flipped the status (aggregate must re-run). */
   statusChanged: 'review.status.changed',
+  /** B4.5 — the spam filter demoted the review to pending (carries the reasons). */
+  flagged: 'review.flagged',
 } as const;
 
 /** Permission that may delete (take down) any review — granted in ROLE_PERMISSIONS (admin/moderator/super_admin). */
@@ -119,6 +122,8 @@ export class ReviewsService {
     @Inject(MEDIA_REPOSITORY) private readonly mediaRepo: MediaRepositoryLike,
     private readonly mediaUrls: MediaUrlService,
     private readonly events: EventEmitter2,
+    /** B4.5 — optional so the B4.1-era fakes stay 4-arg; absent = filter off. */
+    @Optional() @Inject(REVIEWS_SPAM_EVALUATOR) private readonly spam?: ReviewsSpamEvaluator,
   ) {}
 
   /** Public business page list: approved reviews, newest first, paginated. */
@@ -178,12 +183,21 @@ export class ReviewsService {
     const photoMediaId = input.photoMediaId
       ? await this.validatePhoto(input.photoMediaId, user)
       : null;
+    // B4.5 — the automatic spam/fraud filter runs BEFORE the insert: any
+    // signal (blocked word, duplicate, velocity, wave) demotes the review to
+    // `pending` for the B4.4 queue instead of 422ing (the author still gets
+    // a 201 and sees the pending status; nobody gets filter feedback that
+    // would help evade it). Filter absent/unavailable → approved as before.
+    const evaluation = this.spam
+      ? await this.spam.evaluate({ user, businessId, body: input.body })
+      : { flagged: false, reasons: [] };
     const row = await this.repo.insert({
       businessId,
       userId: user.id,
       rating: input.rating,
       body: input.body,
       photoMediaId,
+      ...(evaluation.flagged ? { status: 'pending' as const } : {}),
     });
     this.events.emit(REVIEWS_EVENTS.created, {
       reviewId: row.id,
@@ -191,6 +205,17 @@ export class ReviewsService {
       userId: user.id,
       rating: row.rating,
     });
+    if (evaluation.flagged) {
+      this.events.emit(REVIEWS_EVENTS.flagged, {
+        reviewId: row.id,
+        businessId,
+        userId: user.id,
+        status: row.status,
+        reasons: evaluation.reasons,
+      });
+    }
+    // Post-insert counters (velocity/wave) — best-effort, never throws.
+    void this.spam?.recordPosted(user.id, businessId);
     return this.toReview(row);
   }
 

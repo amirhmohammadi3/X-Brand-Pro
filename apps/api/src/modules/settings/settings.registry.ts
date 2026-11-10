@@ -9,7 +9,13 @@ import { z, type ZodType } from 'zod';
  * register their own keys (B1.5 SMS drivers, B1.6 email, B1.13 theme packs,
  * B10.2 maintenance mode …) by adding one entry here.
  */
-export type SettingsGroup = 'general' | 'localization' | 'integrations' | 'theme' | 'flags';
+export type SettingsGroup =
+  | 'general'
+  | 'localization'
+  | 'integrations'
+  | 'theme'
+  | 'flags'
+  | 'moderation';
 
 export type SettingDefinition<T = unknown> = {
   key: string;
@@ -38,6 +44,42 @@ const ianaTimezoneSchema: ZodType<string> = z
   }, 'must be a valid IANA timezone');
 
 export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown>>> = {
+  // Spam filter (B4.5) — the manageable knobs the prompt asks for. The
+  // blocked-word list is normalized Persian text (normalizePersianText, B3.1)
+  // matched case-insensitively; the two thresholds feed the Redis velocity/
+  // wave counters. Changing a key flushes through SettingsService.set (cache
+  // invalidated on write), so the filter re-reads fresh values per review.
+  'moderation.spam.blockedWords': {
+    key: 'moderation.spam.blockedWords',
+    schema: z.array(z.string().min(1).max(60)).max(500),
+    default: [],
+    group: 'moderation',
+    public: false,
+    isSecret: false,
+    description:
+      'Blocked words for the review spam filter (normalized Persian text). A review whose normalized body contains any of these is created pending instead of approved.',
+  },
+  'moderation.spam.maxReviewsPerHour': {
+    key: 'moderation.spam.maxReviewsPerHour',
+    schema: z.number().int().min(1).max(1000),
+    default: 5,
+    group: 'moderation',
+    public: false,
+    isSecret: false,
+    description:
+      'Velocity threshold: a user posting MORE reviews than this in one hour has the excess reviews created pending (the counter still increments — the queue sees the pattern).',
+  },
+  'moderation.spam.maxReviewsPerBusinessPerHour': {
+    key: 'moderation.spam.maxReviewsPerBusinessPerHour',
+    schema: z.number().int().min(1).max(5000),
+    default: 10,
+    group: 'moderation',
+    public: false,
+    isSecret: false,
+    description:
+      'Wave threshold: more reviews than this for ONE business in one hour flag the excess as pending (coordinated review waves).',
+  },
+  // SMS delivery (B1.5) — the active provider is `sms.provider`; driver
   'site.name': {
     key: 'site.name',
     schema: z.string().min(1).max(100),
