@@ -1,14 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { and, asc, count, desc, eq, sql, type SQL } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { DrizzleClient } from '../../db/drizzle.client.js';
 import { businesses } from '../../db/schema/business.js';
 import { mediaFiles } from '../../db/schema/media.js';
 import { users } from '../../db/schema/users.js';
-import { reviews, reviewVotes } from '../../db/schema/reviews.js';
+import { reviews, reviewReplies, reviewVotes } from '../../db/schema/reviews.js';
 import type { ReviewStatus, ReviewVoteValue } from '@app/contracts';
 
 /** DI token for the reviews repository (tests bind a fake). */
 export const REVIEWS_REPOSITORY = Symbol('REVIEWS_REPOSITORY');
+
+/** Second join over `users` for the reply author's display name (a plain
+ * self-join would collide with the review-author join). */
+const replyUsers = alias(users, 'reply_users');
 
 /** Review row joined with the photo media key + author identity (URL/name resolution in the service). */
 export interface ReviewWithMeta {
@@ -25,6 +30,26 @@ export interface ReviewWithMeta {
   /** B4.2 — derived per read from `review_votes` (never denormalised). */
   helpfulCount: number;
   unhelpfulCount: number;
+  /** B4.3 — the owner reply, LEFT JOINed per read (null when unanswered). */
+  replyId: string | null;
+  replyUserId: string | null;
+  replyAuthorName: string | null;
+  replyBody: string | null;
+  replyEditedAt: Date | null;
+  replyCreatedAt: Date | null;
+  replyUpdatedAt: Date | null;
+  editedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+/** A reply row joined with the replier's display name. */
+export interface ReviewReplyWithMeta {
+  id: string;
+  reviewId: string;
+  userId: string;
+  authorName: string | null;
+  body: string;
   editedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -37,10 +62,10 @@ export interface ReviewPage {
 
 /** The narrow fake-able surface consumed by ReviewsService + B4.1's HTTP layer. */
 export interface ReviewsRepositoryLike {
-  /** Existence + status of the business (404-never-leak + active-only rules). */
+  /** Existence + ownership + status of the business (404-never-leak, active-only and reply-authorization rules). */
   findBusinessContext(
     businessId: string,
-  ): Promise<{ status: string; deletedAt: Date | null } | null>;
+  ): Promise<{ ownerId: string | null; status: string; deletedAt: Date | null } | null>;
   /** The caller's existing review for the business (one-per-business rule). */
   findByBusinessAndUser(businessId: string, userId: string): Promise<ReviewWithMeta | null>;
   findById(reviewId: string): Promise<ReviewWithMeta | null>;
@@ -78,6 +103,27 @@ export interface ReviewsRepositoryLike {
   findVoteByReviewAndUser(reviewId: string, userId: string): Promise<ReviewVoteValue | null>;
   /** Fresh (helpful, unhelpful) pair — one indexed scan per count. */
   countVotes(reviewId: string): Promise<{ helpful: number; unhelpful: number }>;
+
+  // ── B4.3 replies ─────────────────────────────────────────────────────
+  /** The review's reply (null when unanswered) with the replier's display name. */
+  findReplyByReview(reviewId: string): Promise<ReviewReplyWithMeta | null>;
+  /**
+   * ONE statement: INSERT … ON CONFLICT (review_id) DO UPDATE — the first
+   * call inserts (created_at = the passed timestamp), an edit rewrites body
+   * + edited_at + updated_at in place (the original user_id/created_at are
+   * provenance and never change). `created` is derived by comparing the
+   * RETURNING created_at with the caller's insert timestamp — a conflicted
+   * update keeps the ORIGINAL created_at, an insert the passed one.
+   */
+  upsertReply(input: {
+    reviewId: string;
+    userId: string;
+    body: string;
+    /** The service's insert-time hint — the created/updated discriminator. */
+    createdAt: Date;
+  }): Promise<{ row: ReviewReplyWithMeta; created: boolean }>;
+  /** Remove the review's reply; false when there was none (idempotent DELETE). */
+  deleteReply(reviewId: string): Promise<boolean>;
   /**
    * Recompute the business aggregate from the APPROVED reviews and write it
    * to `businesses` in ONE statement: avg rounded to 2 decimals (the
@@ -102,6 +148,15 @@ const REVIEW_SELECT = {
   // vote switch or a moderation takedown can never leave a stale counter.
   helpfulCount: sql<number>`(SELECT count(*)::int FROM ${reviewVotes} WHERE ${reviewVotes.reviewId} = ${reviews.id} AND ${reviewVotes.value} = 1)`,
   unhelpfulCount: sql<number>`(SELECT count(*)::int FROM ${reviewVotes} WHERE ${reviewVotes.reviewId} = ${reviews.id} AND ${reviewVotes.value} = -1)`,
+  // B4.3: the owner reply LEFT JOINed off `review_replies_one_per_review` —
+  // at most one row per review, so the join cannot fan out the page.
+  replyId: reviewReplies.id,
+  replyUserId: reviewReplies.userId,
+  replyAuthorName: replyUsers.displayName,
+  replyBody: reviewReplies.body,
+  replyEditedAt: reviewReplies.editedAt,
+  replyCreatedAt: reviewReplies.createdAt,
+  replyUpdatedAt: reviewReplies.updatedAt,
   editedAt: reviews.editedAt,
   createdAt: reviews.createdAt,
   updatedAt: reviews.updatedAt,
@@ -121,44 +176,45 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
 
   async findBusinessContext(
     businessId: string,
-  ): Promise<{ status: string; deletedAt: Date | null } | null> {
+  ): Promise<{ ownerId: string | null; status: string; deletedAt: Date | null } | null> {
     const rows = await this.client.db
-      .select({ status: businesses.status, deletedAt: businesses.deletedAt })
+      .select({
+        ownerId: businesses.ownerId,
+        status: businesses.status,
+        deletedAt: businesses.deletedAt,
+      })
       .from(businesses)
       .where(eq(businesses.id, businessId))
       .limit(1);
     return rows[0] ?? null;
   }
 
-  async findByBusinessAndUser(businessId: string, userId: string): Promise<ReviewWithMeta | null> {
-    const rows = await this.client.db
+  /** The two LEFT JOINs every REVIEW_SELECT read needs (B4.3 reply + author). */
+  private replyJoins() {
+    return this.client.db
       .select(REVIEW_SELECT)
       .from(reviews)
       .innerJoin(users, eq(users.id, reviews.userId))
       .leftJoin(mediaFiles, eq(mediaFiles.id, reviews.photoMediaId))
+      .leftJoin(reviewReplies, eq(reviewReplies.reviewId, reviews.id))
+      .leftJoin(replyUsers, eq(replyUsers.id, reviewReplies.userId));
+  }
+
+  async findByBusinessAndUser(businessId: string, userId: string): Promise<ReviewWithMeta | null> {
+    const rows = await this.replyJoins()
       .where(and(eq(reviews.businessId, businessId), eq(reviews.userId, userId)))
       .limit(1);
     return rows[0] ?? null;
   }
 
   async findById(reviewId: string): Promise<ReviewWithMeta | null> {
-    const rows = await this.client.db
-      .select(REVIEW_SELECT)
-      .from(reviews)
-      .innerJoin(users, eq(users.id, reviews.userId))
-      .leftJoin(mediaFiles, eq(mediaFiles.id, reviews.photoMediaId))
-      .where(eq(reviews.id, reviewId))
-      .limit(1);
+    const rows = await this.replyJoins().where(eq(reviews.id, reviewId)).limit(1);
     return rows[0] ?? null;
   }
 
   /** Shared list builder: page slice + total count for the same WHERE. */
   private async list(where: SQL | undefined, page: number, pageSize: number): Promise<ReviewPage> {
-    const items = await this.client.db
-      .select(REVIEW_SELECT)
-      .from(reviews)
-      .innerJoin(users, eq(users.id, reviews.userId))
-      .leftJoin(mediaFiles, eq(mediaFiles.id, reviews.photoMediaId))
+    const items = await this.replyJoins()
       .where(where)
       .orderBy(desc(reviews.createdAt), asc(reviews.id))
       .limit(pageSize)
@@ -284,6 +340,65 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
       .from(reviewVotes)
       .where(eq(reviewVotes.reviewId, reviewId));
     return rows[0] ?? { helpful: 0, unhelpful: 0 };
+  }
+
+  // ── B4.3 replies ─────────────────────────────────────────────────────────
+
+  async findReplyByReview(reviewId: string): Promise<ReviewReplyWithMeta | null> {
+    const rows = await this.client.db
+      .select({
+        id: reviewReplies.id,
+        reviewId: reviewReplies.reviewId,
+        userId: reviewReplies.userId,
+        authorName: replyUsers.displayName,
+        body: reviewReplies.body,
+        editedAt: reviewReplies.editedAt,
+        createdAt: reviewReplies.createdAt,
+        updatedAt: reviewReplies.updatedAt,
+      })
+      .from(reviewReplies)
+      .leftJoin(replyUsers, eq(replyUsers.id, reviewReplies.userId))
+      .where(eq(reviewReplies.reviewId, reviewId))
+      .limit(1);
+    return rows[0] ?? null;
+  }
+
+  async upsertReply(input: {
+    reviewId: string;
+    userId: string;
+    body: string;
+    createdAt: Date;
+  }): Promise<{ row: ReviewReplyWithMeta; created: boolean }> {
+    const inserted = await this.client.db
+      .insert(reviewReplies)
+      .values({
+        reviewId: input.reviewId,
+        userId: input.userId,
+        body: input.body,
+        // The insert hint doubles as created_at AND updated_at; a conflicted
+        // edit keeps the ORIGINAL created_at (see the interface contract).
+        createdAt: input.createdAt,
+        updatedAt: input.createdAt,
+      })
+      .onConflictDoUpdate({
+        target: reviewReplies.reviewId,
+        set: { body: input.body, editedAt: new Date(), updatedAt: new Date() },
+      })
+      .returning({ createdAt: reviewReplies.createdAt });
+    const returned = inserted[0];
+    if (!returned) throw new Error('review_replies upsert returned no rows');
+    const created = returned.createdAt.getTime() === input.createdAt.getTime();
+    const row = await this.findReplyByReview(input.reviewId);
+    if (!row) throw new Error('review reply vanished after upsert');
+    return { row, created };
+  }
+
+  async deleteReply(reviewId: string): Promise<boolean> {
+    const deleted = await this.client.db
+      .delete(reviewReplies)
+      .where(eq(reviewReplies.reviewId, reviewId))
+      .returning({ id: reviewReplies.id });
+    return deleted.length > 0;
   }
 
   async recomputeRating(businessId: string): Promise<{ avgRating: string; reviewCount: number }> {

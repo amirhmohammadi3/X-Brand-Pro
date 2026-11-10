@@ -5,14 +5,18 @@ import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import type {
   CreateReviewBody,
+  DeleteReviewReplyResult,
   DeleteReviewResult,
   MyReviewsResult,
   Review,
   ReviewListResult,
+  ReviewReply,
   ReviewVoteResult,
   ReviewVoteValue,
   UpdateReviewBody,
+  UpsertReviewReplyResult,
 } from '@app/contracts';
+import { canManageBusiness, type BusinessActor } from '../business/business-access.js';
 import { MEDIA_REPOSITORY, type MediaRepositoryLike } from '../media/media.repository.js';
 import { roleHasPermissions } from '../users/users.service.js';
 // Value import: Nest reads the type at runtime via emitDecoratorMetadata.
@@ -20,10 +24,10 @@ import { roleHasPermissions } from '../users/users.service.js';
 import { MediaUrlService } from '../media/media-url.service.js';
 import {
   REVIEWS_REPOSITORY,
+  type ReviewReplyWithMeta,
   type ReviewWithMeta,
   type ReviewsRepositoryLike,
 } from './reviews.repository.js';
-import type { BusinessActor } from '../business/business-access.js';
 
 /** Domain events (AGENTS.md 6 — the `review.created` example lives here). Subscriber: reviews-rating.subscriber.ts (enqueue); B4.4/B4.7 add theirs. */
 export const REVIEWS_EVENTS = {
@@ -34,6 +38,12 @@ export const REVIEWS_EVENTS = {
   voted: 'review.voted',
   /** B4.2 — a vote was withdrawn. */
   voteRemoved: 'review.vote.removed',
+  /** B4.3 — the owner posted the FIRST reply to a review. */
+  replied: 'review.replied',
+  /** B4.3 — an existing reply was edited (upsert hit the conflict branch). */
+  replyUpdated: 'review.reply.updated',
+  /** B4.3 — a reply was removed (owner, reply author or reviews.manage). */
+  replyDeleted: 'review.reply.deleted',
 } as const;
 
 /** Permission that may delete (take down) any review — granted in ROLE_PERMISSIONS (admin/moderator/super_admin). */
@@ -327,6 +337,100 @@ export class ReviewsService {
     return mediaId;
   }
 
+  // ── B4.3 owner replies ───────────────────────────────────────────────────
+
+  /**
+   * The reply-authorization gate shared by upsert and delete. Who may speak
+   * for a business: the OWNER (`businesses.owner_id` match, owner-editable
+   * status — `canManageBusiness`, the same helper as every B2.x manage
+   * endpoint) or a `businesses.manage` holder. A `reviews.manage` moderator
+   * is deliberately NOT a replier — moderation moderates, it never speaks
+   * as the business; it may only takedown via removeReply.
+   */
+  private async assertReplyAccess(businessId: string, user: BusinessActor): Promise<void> {
+    const business = await this.repo.findBusinessContext(businessId);
+    if (!business || business.deletedAt) {
+      // Never leak the business behind a review id (the 404-never-leak rule).
+      throw notFoundException('Business', businessId);
+    }
+    if (!canManageBusiness(user, { ownerId: business.ownerId, status: business.status as never })) {
+      throw forbiddenException('Only the business owner may manage replies on this review');
+    }
+  }
+
+  /**
+   * Create or edit the ONE owner reply (upsert semantics — the unique
+   * `review_replies_one_per_review` makes a second PUT an in-place edit of
+   * the same row, never a thread). Rules:
+   * - the review must exist (404) and be APPROVED — pending/rejected are
+   *   invisible on the public page, so they cannot be answered (422);
+   * - the caller must manage the review's business (403 — see
+   *   assertReplyAccess);
+   * - an existing reply's authorship is PROVENANCE (user_id/created_at stay
+   *   the original replier's — an ownership transfer does not rewrite
+   *   history); the new body + edited_at are what the edit changes.
+   * Emits `review.replied` on the first reply, `review.reply.updated` on an
+   * edit — hooks for the B4.5 spam filter and future notification prompts.
+   */
+  async upsertReply(
+    reviewId: string,
+    user: BusinessActor,
+    input: { body: string },
+  ): Promise<UpsertReviewReplyResult> {
+    const row = await this.repo.findById(reviewId);
+    if (!row) throw notFoundException('Review', reviewId);
+    if (row.status !== 'approved') {
+      throw ruleException('Only approved reviews accept replies', {
+        reviewId,
+        status: row.status,
+      });
+    }
+    await this.assertReplyAccess(row.businessId, user);
+    const { row: reply, created } = await this.repo.upsertReply({
+      reviewId,
+      userId: user.id,
+      body: input.body,
+      createdAt: new Date(),
+    });
+    this.events.emit(created ? REVIEWS_EVENTS.replied : REVIEWS_EVENTS.replyUpdated, {
+      reviewId,
+      businessId: row.businessId,
+      replyId: reply.id,
+      userId: user.id,
+    });
+    return { reply: this.toReply(reply), created };
+  }
+
+  /**
+   * Remove the review's reply. Allowed: the business owner/manage holder
+   * (assertReplyAccess), the reply's own author (e.g. after an ownership
+   * transfer they no longer manage the business but their reply is still
+   * theirs) or a `reviews.manage` moderator (takedown). Idempotent when no
+   * reply exists — `{ deleted: false }`, never a 404 (a double-tap on the
+   * remove button must not error; the unknown REVIEW is still 404).
+   */
+  async removeReply(reviewId: string, user: BusinessActor): Promise<DeleteReviewReplyResult> {
+    const row = await this.repo.findById(reviewId);
+    if (!row) throw notFoundException('Review', reviewId);
+    const reply = await this.repo.findReplyByReview(reviewId);
+    if (!reply) return { deleted: false };
+    const isReplyAuthor = reply.userId === user.id;
+    const isModerator = roleHasPermissions(user.role as never, [REVIEWS_MANAGE_PERMISSION]);
+    if (!isReplyAuthor && !isModerator) {
+      await this.assertReplyAccess(row.businessId, user);
+    }
+    const deleted = await this.repo.deleteReply(reviewId);
+    if (deleted) {
+      this.events.emit(REVIEWS_EVENTS.replyDeleted, {
+        reviewId,
+        businessId: row.businessId,
+        replyId: reply.id,
+        userId: user.id,
+      });
+    }
+    return { deleted };
+  }
+
   /** Map a joined row to the contract shape (URL scheme from MediaUrlService). */
   private toReview(row: ReviewWithMeta): Review {
     return {
@@ -341,6 +445,35 @@ export class ReviewsService {
       photoUrl: row.photoKey ? this.mediaUrls.urlFor(row.photoKey) : null,
       helpfulCount: row.helpfulCount,
       unhelpfulCount: row.unhelpfulCount,
+      editedAt: row.editedAt ? row.editedAt.toISOString() : null,
+      reply: row.replyId && row.replyBody ? this.toReplyFromJoin(row) : null,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  /** The reply DTO off the review row's LEFT-JOIN columns (B4.3). */
+  private toReplyFromJoin(row: ReviewWithMeta): ReviewReply {
+    return {
+      id: row.replyId as string,
+      reviewId: row.id,
+      userId: row.replyUserId as string,
+      authorName: row.replyAuthorName,
+      body: row.replyBody as string,
+      editedAt: row.replyEditedAt ? row.replyEditedAt.toISOString() : null,
+      createdAt: (row.replyCreatedAt as Date).toISOString(),
+      updatedAt: (row.replyUpdatedAt as Date).toISOString(),
+    };
+  }
+
+  /** The reply DTO off a dedicated reply row (the upsert/remove responses). */
+  private toReply(row: ReviewReplyWithMeta): ReviewReply {
+    return {
+      id: row.id,
+      reviewId: row.reviewId,
+      userId: row.userId,
+      authorName: row.authorName,
+      body: row.body,
       editedAt: row.editedAt ? row.editedAt.toISOString() : null,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),

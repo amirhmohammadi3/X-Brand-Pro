@@ -22,6 +22,9 @@ const BIZ = '11111111-1111-4111-8111-111111111111';
 const ALICE = { id: '22222222-2222-4222-8222-222222222222', role: 'user' };
 const BOB = { id: '33333333-3333-4333-8333-333333333333', role: 'user' };
 const ADMIN = { id: '44444444-4444-4444-8444-444444444444', role: 'admin' };
+const MODERATOR = { id: '47474747-4747-4747-8474-474747474747', role: 'moderator' };
+/** The business's owner (B4.3) — matched by `owner_id`, not the role tag. */
+const OWNER = { id: '88888880-8888-4888-8888-888888888880', role: 'user' };
 
 function reviewRow(overrides: Partial<ReviewWithMeta> = {}): ReviewWithMeta {
   return {
@@ -37,6 +40,13 @@ function reviewRow(overrides: Partial<ReviewWithMeta> = {}): ReviewWithMeta {
     photoKey: null,
     helpfulCount: 0,
     unhelpfulCount: 0,
+    replyId: null,
+    replyUserId: null,
+    replyAuthorName: null,
+    replyBody: null,
+    replyEditedAt: null,
+    replyCreatedAt: null,
+    replyUpdatedAt: null,
     editedAt: null,
     createdAt: new Date('2026-11-10T10:00:00Z'),
     updatedAt: new Date('2026-11-10T10:00:00Z'),
@@ -47,14 +57,59 @@ function reviewRow(overrides: Partial<ReviewWithMeta> = {}): ReviewWithMeta {
 /** In-memory repo mirroring the SQL semantics the service relies on. */
 function makeRepo(
   initial: ReviewWithMeta[] = [],
-  businesses?: Map<string, { status: string; deletedAt: Date | null }>,
+  businesses?: Map<string, { ownerId?: string | null; status: string; deletedAt: Date | null }>,
 ) {
   const rows = new Map(initial.map((r) => [r.id, r]));
-  const biz = businesses ?? new Map([[BIZ, { status: 'active', deletedAt: null }]]);
+  const biz: Map<string, { ownerId?: string | null; status: string; deletedAt: Date | null }> =
+    businesses ?? new Map([[BIZ, { status: 'active', deletedAt: null }]]);
+  // B4.3: reply store keyed by review_id (the unique one-per-review target).
+  const replies = new Map<
+    string,
+    {
+      id: string;
+      reviewId: string;
+      userId: string;
+      authorName: string | null;
+      body: string;
+      editedAt: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }
+  >();
+  let replySeq = 0;
+  // Mirror the LEFT JOIN: copy the reply onto its review row (nulls when none).
+  const syncReply = (reviewId: string) => {
+    const review = rows.get(reviewId);
+    if (!review) return;
+    const reply = replies.get(reviewId);
+    Object.assign(
+      review,
+      reply
+        ? {
+            replyId: reply.id,
+            replyUserId: reply.userId,
+            replyAuthorName: reply.authorName,
+            replyBody: reply.body,
+            replyEditedAt: reply.editedAt,
+            replyCreatedAt: reply.createdAt,
+            replyUpdatedAt: reply.updatedAt,
+          }
+        : {
+            replyId: null,
+            replyUserId: null,
+            replyAuthorName: null,
+            replyBody: null,
+            replyEditedAt: null,
+            replyCreatedAt: null,
+            replyUpdatedAt: null,
+          },
+    );
+  };
   let seq = 0;
   const repo = {
     async findBusinessContext(id: string) {
-      return biz.get(id) ?? null;
+      const b = biz.get(id);
+      return b ? { ownerId: b.ownerId ?? null, status: b.status, deletedAt: b.deletedAt } : null;
     },
     async findByBusinessAndUser(businessId: string, userId: string) {
       for (const r of rows.values()) {
@@ -155,6 +210,46 @@ function makeRepo(
         },
       };
     })(),
+
+    // ── B4.3 reply doubles: a keyed replies map + the same one-per-review
+    // upsert semantics (an existing reply edits in place; user_id/created_at
+    // keep the ORIGINAL replier — provenance) and the join sync so list/read
+    // assertions observe the inline reply.
+    async findReplyByReview(reviewId: string) {
+      const reply = replies.get(reviewId);
+      return reply ? { ...reply } : null;
+    },
+    async upsertReply(input: { reviewId: string; userId: string; body: string; createdAt: Date }) {
+      const existing = replies.get(input.reviewId);
+      if (existing) {
+        Object.assign(existing, {
+          body: input.body,
+          editedAt: new Date(),
+          updatedAt: new Date(),
+        });
+        syncReply(input.reviewId);
+        return { row: { ...existing }, created: false };
+      }
+      const row = {
+        id: `9999999${(replySeq += 1).toString().padStart(2, '0')}-9999-4999-8999-999999999999`,
+        reviewId: input.reviewId,
+        userId: input.userId,
+        authorName: null,
+        body: input.body,
+        editedAt: null,
+        createdAt: input.createdAt,
+        updatedAt: input.createdAt,
+      };
+      replies.set(input.reviewId, row);
+      syncReply(input.reviewId);
+      return { row: { ...row }, created: true };
+    },
+    async deleteReply(reviewId: string) {
+      const removed = replies.delete(reviewId);
+      syncReply(reviewId);
+      return removed;
+    },
+
     /** Faithful simulation: AVG(rounded 2dp)/COUNT over approved only. */
     async recomputeRating(businessId: string) {
       const approved = [...rows.values()].filter(
@@ -574,5 +669,161 @@ describe('ReviewsService.removeVote (B4.2)', () => {
     await expect(svc.removeVote('55555555-5555-4555-8555-555555555577', BOB)).rejects.toMatchObject(
       { status: 404 },
     );
+  });
+});
+
+describe('ReviewsService.upsertReply (B4.3)', () => {
+  const reviewId = '55555555-5555-4555-8555-555555555555';
+  const ownedBiz = new Map([[BIZ, { ownerId: OWNER.id, status: 'active', deletedAt: null }]]);
+  const REPLY = { body: 'ممنون از نظرتان؛ خوشحالیم که راضی بودید.' };
+
+  it('the owner posts the FIRST reply — created=true, review.replied emitted', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()], ownedBiz));
+    const res = await svc.upsertReply(reviewId, OWNER, REPLY);
+    expect(res.created).toBe(true);
+    expect(res.reply.body).toBe(REPLY.body);
+    expect(res.reply.editedAt).toBeNull();
+    expect(events.emit).toHaveBeenCalledWith(REVIEWS_EVENTS.replied, {
+      reviewId,
+      businessId: BIZ,
+      replyId: res.reply.id,
+      userId: OWNER.id,
+    });
+  });
+
+  it('a second PUT edits the SAME reply — created=false, review.reply.updated, provenance kept', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()], ownedBiz));
+    const first = await svc.upsertReply(reviewId, OWNER, REPLY);
+    const second = await svc.upsertReply(reviewId, OWNER, {
+      body: 'ویرایش: تخفیف ۱۰٪ برای بازدید بعدی فعال شد.',
+    });
+    expect(second.created).toBe(false);
+    expect(second.reply.id).toBe(first.reply.id);
+    expect(second.reply.userId).toBe(OWNER.id);
+    expect(second.reply.editedAt).not.toBeNull();
+    expect(events.emit).toHaveBeenLastCalledWith(REVIEWS_EVENTS.replyUpdated, {
+      reviewId,
+      businessId: BIZ,
+      replyId: first.reply.id,
+      userId: OWNER.id,
+    });
+  });
+
+  it('an admin (businesses.manage) may reply; a moderator (reviews.manage) may NOT speak for the business', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()], ownedBiz));
+    const byAdmin = await svc.upsertReply(reviewId, ADMIN, REPLY);
+    expect(byAdmin.created).toBe(true);
+    expect(events.emit).toHaveBeenCalledTimes(1);
+    await expect(svc.upsertReply(reviewId, MODERATOR, REPLY)).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  it('a plain user gets 403 even when they authored the review', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()], ownedBiz));
+    await expect(svc.upsertReply(reviewId, ALICE, REPLY)).rejects.toMatchObject({ status: 403 });
+    expect(events.emit).not.toHaveBeenCalled();
+  });
+
+  it('422s a reply to a pending review (invisible on the public page)', async () => {
+    const { svc } = makeService(makeRepo([reviewRow({ status: 'pending' })], ownedBiz));
+    await expect(svc.upsertReply(reviewId, OWNER, REPLY)).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('422s a reply to a rejected review', async () => {
+    const { svc } = makeService(makeRepo([reviewRow({ status: 'rejected' })], ownedBiz));
+    await expect(svc.upsertReply(reviewId, OWNER, REPLY)).rejects.toMatchObject({ status: 422 });
+  });
+
+  it('404s an unknown review', async () => {
+    const { svc } = makeService(makeRepo([], ownedBiz));
+    await expect(
+      svc.upsertReply('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', OWNER, REPLY),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('404s (never 403) when the business behind the review is soft-deleted — no existence leak', async () => {
+    const deletedBiz = new Map([
+      [BIZ, { ownerId: OWNER.id, status: 'active', deletedAt: new Date() }],
+    ]);
+    const { svc } = makeService(makeRepo([reviewRow()], deletedBiz));
+    await expect(svc.upsertReply(reviewId, OWNER, REPLY)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('a suspended business keeps its owner able to answer (owner-editable status)', async () => {
+    const suspendedBiz = new Map([
+      [BIZ, { ownerId: OWNER.id, status: 'suspended', deletedAt: null }],
+    ]);
+    const { svc } = makeService(makeRepo([reviewRow()], suspendedBiz));
+    const res = await svc.upsertReply(reviewId, OWNER, REPLY);
+    expect(res.created).toBe(true);
+  });
+
+  it('the reply rides inline on the review DTO (the LEFT-JOIN shape)', async () => {
+    const { svc } = makeService(makeRepo([reviewRow()], ownedBiz));
+    const { reply } = await svc.upsertReply(reviewId, OWNER, REPLY);
+    const list = await svc.listByBusiness(BIZ, { page: 1, pageSize: 20 });
+    expect(list.items[0]?.reply).not.toBeNull();
+    expect(list.items[0]?.reply?.id).toBe(reply.id);
+    expect(list.items[0]?.reply?.body).toBe(REPLY.body);
+  });
+});
+
+describe('ReviewsService.removeReply (B4.3)', () => {
+  const reviewId = '55555555-5555-4555-8555-555555555555';
+  const ownedBiz = new Map([[BIZ, { ownerId: OWNER.id, status: 'active', deletedAt: null }]]);
+  const REPLY = { body: 'ممنون از نظرتان؛ خوشحالیم که راضی بودید.' };
+
+  async function withReply() {
+    const ctx = makeService(makeRepo([reviewRow()], ownedBiz));
+    const created = await ctx.svc.upsertReply(reviewId, OWNER, REPLY);
+    ctx.events.emit.mockClear();
+    return { ...ctx, created };
+  }
+
+  it('the owner removes the reply and review.reply.deleted is emitted', async () => {
+    const { svc, events, created } = await withReply();
+    const res = await svc.removeReply(reviewId, OWNER);
+    expect(res).toEqual({ deleted: true });
+    expect(events.emit).toHaveBeenCalledWith(REVIEWS_EVENTS.replyDeleted, {
+      reviewId,
+      businessId: BIZ,
+      replyId: created.reply.id,
+      userId: OWNER.id,
+    });
+  });
+
+  it('a moderator (reviews.manage) may takedown a reply', async () => {
+    const { svc, events } = await withReply();
+    const res = await svc.removeReply(reviewId, MODERATOR);
+    expect(res).toEqual({ deleted: true });
+    expect(events.emit).toHaveBeenCalledTimes(1);
+  });
+
+  it('a plain user (neither owner nor moderator) gets 403', async () => {
+    const { svc, events } = await withReply();
+    await expect(svc.removeReply(reviewId, BOB)).rejects.toMatchObject({ status: 403 });
+    expect(events.emit).not.toHaveBeenCalled();
+  });
+
+  it('is idempotent with no reply — { deleted: false }, no event, no error', async () => {
+    const { svc, events } = makeService(makeRepo([reviewRow()], ownedBiz));
+    const res = await svc.removeReply(reviewId, OWNER);
+    expect(res).toEqual({ deleted: false });
+    expect(events.emit).not.toHaveBeenCalled();
+  });
+
+  it('404s an unknown review', async () => {
+    const { svc } = makeService(makeRepo([], ownedBiz));
+    await expect(
+      svc.removeReply('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', OWNER),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('removal clears the inline reply from the review DTO', async () => {
+    const { svc } = await withReply();
+    await svc.removeReply(reviewId, OWNER);
+    const list = await svc.listByBusiness(BIZ, { page: 1, pageSize: 20 });
+    expect(list.items[0]?.reply).toBeNull();
   });
 });

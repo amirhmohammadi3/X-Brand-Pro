@@ -113,3 +113,43 @@ export const reviewVotes = pgTable(
 
 export type ReviewVoteRow = typeof reviewVotes.$inferSelect;
 export type NewReviewVoteRow = typeof reviewVotes.$inferInsert;
+
+/**
+ * Owner replies (B4.3). ONE reply per review — the unique index
+ * `review_replies_one_per_review` turns a second PUT into an in-place EDIT
+ * (body + edited_at stamped), never a thread. Only the business owner
+ * (owner_id match, owner-editable status) or a `businesses.manage` holder
+ * may WRITE; `reviews.manage` moderators and the reply's author may DELETE
+ * (takedown / self-removal) — the authorization lives in the service, the
+ * schema only guards the data domain. FKs cascade: a deleted review (author
+ * delete or moderation takedown) or user takes the reply with it — an
+ * unowned reply must never outlive the review it answers.
+ */
+export const reviewReplies = pgTable(
+  'review_replies',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reviewId: uuid('review_id')
+      .notNull()
+      .references(() => reviews.id, { onDelete: 'cascade' }),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    body: text('body').notNull(),
+    /** Stamped by the service when an allowed caller edits the reply. */
+    editedAt: timestamp('edited_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // One reply per review — the upsert target AND the review-list join key
+    // (every business-page read LEFT JOINs this index).
+    uniqueIndex('review_replies_one_per_review').on(table.reviewId),
+    // The replier's own replies (moderation takedowns, "my replies" views).
+    index('review_replies_user_idx').on(table.userId, table.createdAt.desc()),
+    check('review_replies_body_len', sql`char_length(${table.body}) BETWEEN 2 AND 1000`),
+  ],
+);
+
+export type ReviewReplyRow = typeof reviewReplies.$inferSelect;
+export type NewReviewReplyRow = typeof reviewReplies.$inferInsert;

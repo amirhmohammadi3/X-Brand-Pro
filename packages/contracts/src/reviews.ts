@@ -26,6 +26,51 @@ export const REVIEW_BODY_MAX = 2000;
 export const REVIEW_RATING_MIN = 1;
 export const REVIEW_RATING_MAX = 5;
 
+/**
+ * B4.3 owner reply. The business owner (matched by `businesses.owner_id`,
+ * or a `businesses.manage` holder) answers a review with ONE reply —
+ * `review_replies_one_per_review` (unique on review_id) makes a second PUT
+ * an EDIT of the same row, never a thread. Replies only attach to APPROVED
+ * reviews (pending/rejected are invisible to the public page → 422, the
+ * same rule as votes). The reply is served inline on every review object
+ * (`reply: ReviewReply | null`) so the business page needs no extra calls.
+ */
+export const REPLY_BODY_MIN = 2;
+export const REPLY_BODY_MAX = 1000;
+
+/** One owner reply as served inside a Review. */
+export const reviewReplySchema = z.object({
+  id: uuidSchema,
+  reviewId: uuidSchema,
+  /** The replier at write time — provenance only (an ownership transfer does NOT block further edits). */
+  userId: uuidSchema,
+  /** Replier's public display name (users.display_name at read time). */
+  authorName: z.string().min(1).nullable(),
+  body: z.string().min(REPLY_BODY_MIN).max(REPLY_BODY_MAX),
+  /** Stamped when an allowed caller edits the reply after creation. */
+  editedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type ReviewReply = z.infer<typeof reviewReplySchema>;
+
+/** PUT /reviews/:id/reply body. */
+export const upsertReviewReplyBodySchema = z
+  .object({ body: z.string().min(REPLY_BODY_MIN).max(REPLY_BODY_MAX) })
+  .strict();
+export type UpsertReviewReplyBody = z.infer<typeof upsertReviewReplyBodySchema>;
+
+/** Upsert semantics: `created` distinguishes the first reply from an edit. */
+export const upsertReviewReplyResultSchema = z.object({
+  reply: reviewReplySchema,
+  created: z.boolean(),
+});
+export type UpsertReviewReplyResult = z.infer<typeof upsertReviewReplyResultSchema>;
+
+/** DELETE /reviews/:id/reply — idempotent (no reply → `{ deleted: false }`). */
+export const deleteReviewReplyResultSchema = z.object({ deleted: z.boolean() });
+export type DeleteReviewReplyResult = z.infer<typeof deleteReviewReplyResultSchema>;
+
 /** One review as served by the review endpoints. */
 export const reviewSchema = z.object({
   id: uuidSchema,
@@ -46,6 +91,8 @@ export const reviewSchema = z.object({
   unhelpfulCount: z.number().int().min(0),
   /** Set when the author edited the review after creation. */
   editedAt: z.string().nullable(),
+  /** The owner's reply (B4.3) — null until the business answers. */
+  reply: reviewReplySchema.nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
@@ -132,3 +179,14 @@ export type DeleteReviewResult = z.infer<typeof deleteReviewResultSchema>;
  * - no self-votes (a helpful score is social proof from OTHERS → 422).
  */
 export const REVIEW_VOTE_LIMIT_PER_MIN = 30;
+
+/**
+ * B4.3 reply rules (single source of truth for service + tests):
+ * - replies only by the business owner (owner_id match, owner-editable
+ *   status) or a `businesses.manage` holder — `reviews.manage` moderators
+ *   may TAKEDOWN a reply (delete) but never speak for the business;
+ * - replies only on APPROVED reviews (422 otherwise);
+ * - the reply's author may also delete their own reply (e.g. after an
+ *   ownership transfer they no longer manage the business).
+ */
+export const REVIEW_REPLY_LIMIT_PER_MIN = 30;

@@ -45,8 +45,11 @@ const ACTIVE2 = '14141414-1414-4141-8141-141414141414';
 /** Set in beforeAll — the media fake resolves ownership lazily (the module
  * compiles before the users exist). */
 const reviewerId = { current: 'pending' };
+/** Set in beforeAll — the B4.3 reply tests bind it as ACTIVE4's owner. */
+const ownerId = { current: 'pending' };
 
 interface FakeBusinessRow {
+  ownerId: string | null;
   status: string;
   deletedAt: Date | null;
   avgRating: string;
@@ -66,6 +69,13 @@ interface FakeReviewRow {
   photoKey: string | null;
   helpfulCount: number;
   unhelpfulCount: number;
+  replyId: string | null;
+  replyUserId: string | null;
+  replyAuthorName: string | null;
+  replyBody: string | null;
+  replyEditedAt: Date | null;
+  replyCreatedAt: Date | null;
+  replyUpdatedAt: Date | null;
   editedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
@@ -74,10 +84,22 @@ interface FakeReviewRow {
 /** In-memory reviews repo mirroring the service's expected semantics. */
 function makeMemoryReviewsRepo() {
   const businesses = new Map<string, FakeBusinessRow>([
-    [ACTIVE, { status: 'active', deletedAt: null, avgRating: '0.00', reviewCount: 0 }],
-    [ACTIVE2, { status: 'active', deletedAt: null, avgRating: '0.00', reviewCount: 0 }],
-    [PENDING, { status: 'pending', deletedAt: null, avgRating: '0.00', reviewCount: 0 }],
-    [DELETED, { status: 'active', deletedAt: new Date(), avgRating: '0.00', reviewCount: 0 }],
+    [
+      ACTIVE,
+      { ownerId: null, status: 'active', deletedAt: null, avgRating: '0.00', reviewCount: 0 },
+    ],
+    [
+      ACTIVE2,
+      { ownerId: null, status: 'active', deletedAt: null, avgRating: '0.00', reviewCount: 0 },
+    ],
+    [
+      PENDING,
+      { ownerId: null, status: 'pending', deletedAt: null, avgRating: '0.00', reviewCount: 0 },
+    ],
+    [
+      DELETED,
+      { ownerId: null, status: 'active', deletedAt: new Date(), avgRating: '0.00', reviewCount: 0 },
+    ],
   ]);
   const rows = new Map<string, FakeReviewRow>();
   // B4.2: vote store keyed "reviewId:userId" → 1 | -1 (unique upsert semantics).
@@ -101,6 +123,49 @@ function makeMemoryReviewsRepo() {
       Object.assign(row, { helpfulCount: t.helpful, unhelpfulCount: t.unhelpful });
     }
   };
+  // B4.3: reply store keyed by review_id + a per-review join sync (the real
+  // repo LEFT JOINs review_replies; the fake copies the row onto the review).
+  const replies = new Map<
+    string,
+    {
+      id: string;
+      reviewId: string;
+      userId: string;
+      authorName: string | null;
+      body: string;
+      editedAt: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }
+  >();
+  let replySeq = 0;
+  const syncReply = (reviewId: string) => {
+    const row = rows.get(reviewId);
+    if (!row) return;
+    const reply = replies.get(reviewId);
+    Object.assign(
+      row,
+      reply
+        ? {
+            replyId: reply.id,
+            replyUserId: reply.userId,
+            replyAuthorName: reply.authorName,
+            replyBody: reply.body,
+            replyEditedAt: reply.editedAt,
+            replyCreatedAt: reply.createdAt,
+            replyUpdatedAt: reply.updatedAt,
+          }
+        : {
+            replyId: null,
+            replyUserId: null,
+            replyAuthorName: null,
+            replyBody: null,
+            replyEditedAt: null,
+            replyCreatedAt: null,
+            replyUpdatedAt: null,
+          },
+    );
+  };
   let seq = 0;
   const recompute = (businessId: string) => {
     const approved = [...rows.values()].filter(
@@ -121,7 +186,7 @@ function makeMemoryReviewsRepo() {
     rows,
     async findBusinessContext(id: string) {
       const b = businesses.get(id);
-      return b ? { status: b.status, deletedAt: b.deletedAt } : null;
+      return b ? { ownerId: b.ownerId, status: b.status, deletedAt: b.deletedAt } : null;
     },
     async findByBusinessAndUser(businessId: string, userId: string) {
       for (const r of rows.values()) {
@@ -172,6 +237,13 @@ function makeMemoryReviewsRepo() {
         photoKey: input.photoMediaId ? `p-${input.photoMediaId.slice(0, 8)}.webp` : null,
         helpfulCount: 0,
         unhelpfulCount: 0,
+        replyId: null,
+        replyUserId: null,
+        replyAuthorName: null,
+        replyBody: null,
+        replyEditedAt: null,
+        replyCreatedAt: null,
+        replyUpdatedAt: null,
         editedAt: null,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -208,6 +280,43 @@ function makeMemoryReviewsRepo() {
     },
     async recomputeRating(businessId: string) {
       return recompute(businessId);
+    },
+
+    // ── B4.3: reply store keyed by review_id (the one-per-review upsert
+    // target) + the join sync so read/list responses observe the inline reply.
+    async findReplyByReview(reviewId: string) {
+      const reply = replies.get(reviewId);
+      return reply ? { ...reply } : null;
+    },
+    async upsertReply(input: { reviewId: string; userId: string; body: string; createdAt: Date }) {
+      const existing = replies.get(input.reviewId);
+      if (existing) {
+        Object.assign(existing, {
+          body: input.body,
+          editedAt: new Date(),
+          updatedAt: new Date(),
+        });
+        syncReply(input.reviewId);
+        return { row: { ...existing }, created: false };
+      }
+      const row = {
+        id: `9999999${(replySeq += 1).toString().padStart(2, '0')}-9999-4999-8999-999999999999`,
+        reviewId: input.reviewId,
+        userId: input.userId,
+        authorName: null,
+        body: input.body,
+        editedAt: null,
+        createdAt: input.createdAt,
+        updatedAt: input.createdAt,
+      };
+      replies.set(input.reviewId, row);
+      syncReply(input.reviewId);
+      return { row: { ...row }, created: true };
+    },
+    async deleteReply(reviewId: string) {
+      const removed = replies.delete(reviewId);
+      syncReply(reviewId);
+      return removed;
     },
   };
   return repo as unknown as typeof repo & Record<string, unknown>;
@@ -271,6 +380,8 @@ let inlineQueue: InlineReviewsQueue;
 let user: LoginSession;
 let other: LoginSession;
 let admin: LoginSession;
+let owner: LoginSession;
+let mod: LoginSession;
 /** Captured from the create responses (never guessed from list order). */
 let firstReviewId = '';
 let othersReviewId = '';
@@ -320,9 +431,17 @@ beforeAll(async () => {
   reviewerId.current = reviewerRow.id;
   await createUser(app, { username: 'reviewother', password: 'Sup3rSecret!2026' });
   await createUser(app, { username: 'reviewadmin', password: 'Sup3rSecret!2026', role: 'admin' });
+  const ownerRow = await createUser(app, { username: 'reviewowner', password: 'Sup3rSecret!2026' });
+  ownerId.current = ownerRow.id;
+  await createUser(app, { username: 'reviewmod', password: 'Sup3rSecret!2026', role: 'moderator' });
   user = await loginAs(app, 'reviewer', 'Sup3rSecret!2026');
   other = await loginAs(app, 'reviewother', 'Sup3rSecret!2026');
   admin = await loginAs(app, 'reviewadmin', 'Sup3rSecret!2026');
+  owner = await loginAs(app, 'reviewowner', 'Sup3rSecret!2026');
+  mod = await loginAs(app, 'reviewmod', 'Sup3rSecret!2026');
+  // B4.3: `owner` owns the ACTIVE business — the DATA relationship (owner_id),
+  // not a role tag, is what authorizes replies.
+  (reviewsRepo.businesses.get(ACTIVE) as FakeBusinessRow).ownerId = ownerRow.id;
 });
 
 afterAll(async () => {
@@ -605,6 +724,7 @@ describe('PUT /api/v1/reviews/:id/vote (B4.2)', () => {
 
   beforeAll(async () => {
     reviewsRepo.businesses.set(ACTIVE3, {
+      ownerId: null,
       status: 'active',
       deletedAt: null,
       avgRating: '0.00',
@@ -715,5 +835,223 @@ describe('vote audit trail (B4.2)', () => {
     expect(auditActions).not.toContain('review.voted');
     expect(auditActions).not.toContain('review.vote.removed');
     expect(auditActions).toContain('review.create');
+  });
+});
+
+// ─── B4.3 owner replies (HTTP level) ────────────────────────────────────────
+// A fresh business whose owner_id IS the `owner` user — the reply
+// authorization is the data relationship, exactly as the service checks it.
+
+const ACTIVE4 = '16161616-1616-4161-8161-161616161616';
+const PENDING_REVIEW = '9a9a9a9a-9a9a-49a9-89a9-9a9a9a9a9a9a';
+
+const putReply = (reviewId: string, body: object, bearer?: string) =>
+  request(app.getHttpServer())
+    .put(`/api/v1/reviews/${reviewId}/reply`)
+    .set(bearer ? { Authorization: bearer } : {})
+    .send(body);
+
+const deleteReply = (reviewId: string, bearer?: string) =>
+  request(app.getHttpServer())
+    .delete(`/api/v1/reviews/${reviewId}/reply`)
+    .set(bearer ? { Authorization: bearer } : {});
+
+describe('PUT /api/v1/reviews/:id/reply (B4.3)', () => {
+  let reviewId = '';
+
+  beforeAll(async () => {
+    reviewsRepo.businesses.set(ACTIVE4, {
+      ownerId: ownerId.current,
+      status: 'active',
+      deletedAt: null,
+      avgRating: '0.00',
+      reviewCount: 0,
+    });
+    const create = await createReview(
+      ACTIVE4,
+      { rating: 2, body: 'سرویس کند بود و سفارش دیر رسید.' },
+      user.bearer,
+    );
+    expect(create.status).toBe(201);
+    reviewId = (create.body.data as { id: string }).id;
+    // A pending review (invisible on the public page) for the 422 rule.
+    reviewsRepo.rows.set(PENDING_REVIEW, {
+      id: PENDING_REVIEW,
+      businessId: ACTIVE4,
+      userId: reviewerId.current,
+      authorName: null,
+      authorUsername: 'reviewer',
+      rating: 5,
+      body: 'نظر در انتظار تأیید ماندن است.',
+      status: 'pending',
+      photoMediaId: null,
+      photoKey: null,
+      helpfulCount: 0,
+      unhelpfulCount: 0,
+      replyId: null,
+      replyUserId: null,
+      replyAuthorName: null,
+      replyBody: null,
+      replyEditedAt: null,
+      replyCreatedAt: null,
+      replyUpdatedAt: null,
+      editedAt: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+  });
+
+  it('401 without authentication', async () => {
+    const res = await putReply(reviewId, { body: 'پاسخ صاحب کسب‌وکار.' });
+    expect(res.status).toBe(401);
+    expect(res.body.error.code).toBe('UNAUTHENTICATED');
+  });
+
+  it('400 on validation failures: too-short, too-long and unknown keys', async () => {
+    const short = await putReply(reviewId, { body: 'م' }, owner.bearer);
+    expect(short.status).toBe(400);
+    const long = await putReply(reviewId, { body: 'ع'.repeat(1001) }, owner.bearer);
+    expect(long.status).toBe(400);
+    const extra = await putReply(reviewId, { body: 'پاسخ', hack: true }, owner.bearer);
+    expect(extra.status).toBe(400);
+  });
+
+  it('403 a plain user (even the review author) may not speak for the business', async () => {
+    const res = await putReply(reviewId, { body: 'پاسخ غیرمجاز.' }, user.bearer);
+    expect(res.status).toBe(403);
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('403 a moderator (reviews.manage) may NOT reply — moderation never speaks as the business', async () => {
+    const res = await putReply(reviewId, { body: 'پاسخ ناظر.' }, mod.bearer);
+    expect(res.status).toBe(403);
+  });
+
+  it('422 a pending review cannot be answered (invisible on the public page)', async () => {
+    const res = await putReply(PENDING_REVIEW, { body: 'پاسخ.' }, owner.bearer);
+    expect(res.status).toBe(422);
+    expect(res.body.error.code).toBe('UNPROCESSABLE');
+  });
+
+  it('404 an unknown review id (and a non-UUID id is 422)', async () => {
+    const res = await putReply(
+      'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      { body: 'پاسخ.' },
+      owner.bearer,
+    );
+    expect(res.status).toBe(404);
+    const garbage = await putReply('not-a-uuid', { body: 'پاسخ.' }, owner.bearer);
+    expect(garbage.status).toBe(422);
+  });
+
+  it('200 the owner posts the FIRST reply — created=true, inline on the public list', async () => {
+    const res = await putReply(
+      reviewId,
+      { body: 'عذرخواهی می‌کنیم؛ کد تخفیف برای سفارش بعدی فعال شد.' },
+      owner.bearer,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(res.body.data.created).toBe(true);
+    expect(res.body.data.reply.body).toContain('عذرخواهی');
+    expect(res.body.data.reply.editedAt).toBeNull();
+    const list = await listReviews(ACTIVE4);
+    const row = (list.body.data.items as Array<Record<string, unknown>>)[0]!;
+    expect(row).toMatchObject({ id: reviewId });
+    expect((row.reply as Record<string, unknown>).body).toContain('عذرخواهی');
+  });
+
+  it('200 a second PUT edits the SAME reply — created=false, editedAt stamped, authorship kept', async () => {
+    const res = await putReply(
+      reviewId,
+      { body: 'پاسخ ویرایش‌شده: کد تخفیف ۲۰٪ فعال شد.' },
+      owner.bearer,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data.created).toBe(false);
+    expect(res.body.data.reply.editedAt).not.toBeNull();
+    expect(res.body.data.reply.userId).toBe(ownerId.current);
+    const list = await listReviews(ACTIVE4);
+    const row = (list.body.data.items as Array<Record<string, unknown>>)[0]!;
+    expect((row.reply as Record<string, unknown>).body).toContain('۲۰٪');
+  });
+
+  it('200 an admin (businesses.manage) edits the same row — provenance stays the original replier', async () => {
+    const res = await putReply(
+      reviewId,
+      { body: 'ویرایش مدیر: با پشتیبانی تماس بگیرید.' },
+      admin.bearer,
+    );
+    expect(res.status).toBe(200);
+    expect(res.body.data.created).toBe(false);
+    expect(res.body.data.reply.userId).toBe(ownerId.current);
+  });
+
+  it('the aggregate was NOT touched by replies (replies never re-rate the business)', async () => {
+    await flush();
+    const biz = reviewsRepo.businesses.get(ACTIVE4) as FakeBusinessRow;
+    expect(biz.avgRating).toBe('2.00'); // from the create only
+    const recomputeCalls = inlineQueue.calls.filter(
+      (c) =>
+        c.name === 'recompute-rating' && (c.data as { businessId?: string }).businessId === ACTIVE4,
+    );
+    expect(recomputeCalls).toHaveLength(1); // the review create, nothing else
+  });
+});
+
+describe('DELETE /api/v1/reviews/:id/reply (B4.3)', () => {
+  let reviewId = '';
+
+  beforeAll(async () => {
+    // The reply created/edited above still exists on this review.
+    reviewId = (
+      (await listReviews(ACTIVE4)).body.data.items as Array<{ id: string; reply: unknown }>
+    )[0]!.id;
+  });
+
+  it('401 without authentication', async () => {
+    const res = await deleteReply(reviewId);
+    expect(res.status).toBe(401);
+  });
+
+  it('403 a plain user may not remove the owner’s reply', async () => {
+    const res = await deleteReply(reviewId, user.bearer);
+    expect(res.status).toBe(403);
+  });
+
+  it('200 a moderator (reviews.manage) takes the reply down', async () => {
+    const res = await deleteReply(reviewId, mod.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ deleted: true });
+    const list = await listReviews(ACTIVE4);
+    const row = (list.body.data.items as Array<Record<string, unknown>>)[0]!;
+    expect(row.reply).toBeNull();
+  });
+
+  it('200 is idempotent when no reply exists (double-tap is not an error)', async () => {
+    const res = await deleteReply(reviewId, owner.bearer);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toEqual({ deleted: false });
+  });
+
+  it('200 the owner re-replies and then removes it themselves', async () => {
+    const put = await putReply(reviewId, { body: 'پاسخ دوم پس از رفع مشکل.' }, owner.bearer);
+    expect(put.status).toBe(200);
+    expect(put.body.data.created).toBe(true); // the takedown freed the slot
+    const del = await deleteReply(reviewId, owner.bearer);
+    expect(del.status).toBe(200);
+    expect(del.body.data).toEqual({ deleted: true });
+  });
+
+  it('404 an unknown review id', async () => {
+    const res = await deleteReply('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', owner.bearer);
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('reply audit trail (B4.3)', () => {
+  it('reply writes ARE audited (business speech, unlike votes)', async () => {
+    expect(auditActions).toContain('review.reply.upsert');
+    expect(auditActions).toContain('review.reply.delete');
   });
 });

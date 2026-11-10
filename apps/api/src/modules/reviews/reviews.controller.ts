@@ -22,10 +22,12 @@ import {
   reviewListQuerySchema,
   reviewVoteBodySchema,
   updateReviewBodySchema,
+  upsertReviewReplyBodySchema,
   type CreateReviewBody,
   type ReviewListQuery,
   type ReviewVoteBody,
   type UpdateReviewBody,
+  type UpsertReviewReplyBody,
 } from '@app/contracts';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
@@ -262,5 +264,57 @@ export class ReviewsController {
     const user = requireUser(req);
     assertUuid(id, 'reviewId');
     return this.reviews.removeVote(id, user);
+  }
+
+  // ─── Owner replies (B4.3) ────────────────────────────────────────────────
+
+  /**
+   * Create or edit the ONE owner reply (upsert semantics: a second PUT is an
+   * edit of the same row — `created` tells the two apart). The owner/manage
+   * authorization and the approved-only rule live in the service; every call
+   * is audited (replies are business speech, not high-volume one-row votes).
+   */
+  @Put('reviews/:id/reply')
+  @RateLimit({ name: 'reviews.write', limit: 30, windowSec: 60, scope: 'user' })
+  async upsertReply(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(upsertReviewReplyBodySchema)) body: UpsertReviewReplyBody,
+  ) {
+    const user = requireUser(req);
+    assertUuid(id, 'reviewId');
+    const result = await this.reviews.upsertReply(id, user, body);
+    const { actor, request } = auditInfo(req);
+    this.audit.log({
+      actor,
+      action: 'review.reply.upsert',
+      entityType: 'review',
+      entityId: id,
+      after: { replyId: result.reply.id, created: result.created },
+      request,
+    });
+    return result;
+  }
+
+  /**
+   * Remove the reply (owner, reply author or `reviews.manage` takedown).
+   * Idempotent when no reply exists — `{ deleted: false }`, no error.
+   */
+  @Delete('reviews/:id/reply')
+  @RateLimit({ name: 'reviews.write', limit: 30, windowSec: 60, scope: 'user' })
+  async removeReply(@Req() req: Request, @Param('id') id: string) {
+    const user = requireUser(req);
+    assertUuid(id, 'reviewId');
+    const result = await this.reviews.removeReply(id, user);
+    const { actor, request } = auditInfo(req);
+    this.audit.log({
+      actor,
+      action: 'review.reply.delete',
+      entityType: 'review',
+      entityId: id,
+      after: { deleted: result.deleted },
+      request,
+    });
+    return result;
   }
 }
