@@ -105,9 +105,13 @@ export function LocationPicker({
         <div
           aria-hidden
           data-testid="picker-crosshair"
-          className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-full"
+          // map-canvas geometry: the crosshair sits on the physical center of
+          // the raster, which does not flip with the reading direction
+          className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-full" // rtl-ok
         >
-          <span className="block h-8 w-8 rounded-full rounded-br-none border-2 border-primary bg-primary/20" />
+          {/* teardrop pin silhouette — a map decoration, identical in LTR/RTL */}
+          <span className="block h-8 w-8 rounded-full rounded-br-none border-2 border-primary bg-primary/20" />{' '}
+          {/* rtl-ok */}
         </div>
       </div>
 

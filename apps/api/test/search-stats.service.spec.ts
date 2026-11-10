@@ -13,15 +13,22 @@ import type { SearchRecordInput } from '@app/contracts';
  * prune DELETE ... NOT IN, the popular ordering) is integration-tested
  * against Docker per the Follow-up.
  */
+type UpsertPopularInput = {
+  normalizedText: string;
+  text: string;
+  cityId: string | null;
+  resultCount: number;
+};
+
 function makeRepo(overrides: Partial<Record<string, unknown>> = {}) {
   return {
-    upsertPopular: vi.fn(async () => undefined),
-    upsertHistory: vi.fn(async () => undefined),
-    pruneHistory: vi.fn(async () => undefined),
-    listHistory: vi.fn(async () => []),
-    clearHistory: vi.fn(async () => 0),
-    removeHistoryItem: vi.fn(async () => false),
-    listPopular: vi.fn(async () => []),
+    upsertPopular: vi.fn(async (_input: UpsertPopularInput) => undefined),
+    upsertHistory: vi.fn(async (_input: UpsertPopularInput & { userId: string }) => undefined),
+    pruneHistory: vi.fn(async (_userId: string, _keep: number) => undefined),
+    listHistory: vi.fn(async (_userId: string, _limit: number) => []),
+    clearHistory: vi.fn(async (_userId: string) => 0),
+    removeHistoryItem: vi.fn(async (_userId: string, _id: string) => false),
+    listPopular: vi.fn(async (_cityId: string | undefined, _limit: number) => []),
     ...overrides,
   };
 }
@@ -66,12 +73,12 @@ describe('SearchStatsService.record (B3.5)', () => {
     // as the Persian-spelled, ASCII-digit form.
     await svc.record({ ...baseRecord, text: 'كافه رحيمي ۲' });
     await svc.record({ ...baseRecord, text: 'کافه رحیمی 2' });
-    const first = repo.upsertPopular.mock.calls[0][0] as { normalizedText: string };
-    const second = repo.upsertPopular.mock.calls[1][0] as { normalizedText: string };
+    const first = repo.upsertPopular.mock.calls[0]![0];
+    const second = repo.upsertPopular.mock.calls[1]![0];
     expect(first.normalizedText).toBe(second.normalizedText);
     expect(first.normalizedText).toContain('کافه');
     // display text keeps the caller's (trimmed) spelling
-    expect((repo.upsertPopular.mock.calls[0][0] as { text: string }).text).toBe('كافه رحيمي ۲');
+    expect(repo.upsertPopular.mock.calls[0]![0].text).toBe('كافه رحيمي ۲');
   });
 
   it('no-ops on empty/whitespace-only text without touching the repo', async () => {
@@ -189,9 +196,6 @@ describe('SearchStatsService.clear / remove (B3.5)', () => {
     const svc = makeService(repo);
     await expect(
       svc.remove('11111111-1111-1111-1111-111111111111', '33333333-3333-3333-3333-333333333333'),
-    ).rejects.toSatisfy((e: unknown) => {
-      const err = e as { status?: number; response?: { code?: string } };
-      return err instanceof NotFoundException && err.status === 404;
-    });
+    ).rejects.toSatisfy((e: unknown) => e instanceof NotFoundException && e.getStatus() === 404);
   });
 });
