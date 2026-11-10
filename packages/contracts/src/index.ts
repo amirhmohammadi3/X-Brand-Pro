@@ -27,5 +27,6 @@ export * from './reviews.js';
 export * from './reputation.js';
 export * from './qa.js';
 export * from './business-page.js';
+export * from './public-profile.js';
 export * from './moderation.js';
 export * from './theme/index.js';

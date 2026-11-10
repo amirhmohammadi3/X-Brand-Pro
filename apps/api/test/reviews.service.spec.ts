@@ -170,6 +170,15 @@ function makeRepo(
         .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
       return { items: items.slice((page - 1) * pageSize, page * pageSize), total: items.length };
     },
+    async listApprovedByUser(userId: string, page: number, pageSize: number) {
+      const filtered = [...rows.values()].filter(
+        (r) => r.userId === userId && r.status === 'approved',
+      );
+      const items = filtered
+        .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
+        .slice((page - 1) * pageSize, page * pageSize);
+      return { items, total: filtered.length };
+    },
     async listByStatus(businessId: string, status: string, page: number, pageSize: number) {
       const items = [...rows.values()]
         .filter((r) => r.businessId === businessId && r.status === status)

@@ -4,11 +4,14 @@ import { WORKERS_SERVICE } from '../../queue/queue.module.js';
 import type { WorkersService } from '../../queue/workers.service.js';
 import { AuditModule } from '../audit/audit.module.js';
 import { AuthModule } from '../auth/auth.module.js';
+import { UsersModule } from '../users/users.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
 import { registerReviewsJobs } from './reviews.jobs.js';
 import { REVIEWS_REPOSITORY, ReviewsRepository } from './reviews.repository.js';
 import { REVIEWS_SPAM_EVALUATOR, ReviewsSpamService } from './reviews-spam.service.js';
 import { ReviewsController } from './reviews.controller.js';
+import { UsersPublicController } from './users-public.controller.js';
+import { PublicProfileService } from './public-profile.service.js';
 import { ReviewsService } from './reviews.service.js';
 import { ReviewsRatingSubscriber } from './reviews-rating.subscriber.js';
 
@@ -38,11 +41,12 @@ export class ReviewsJobsInit implements OnModuleInit {
 @Module({
   // AuthModule supplies TokenService (the public list resolves the optional
   // moderation caller from the bearer — no session round trips).
-  imports: [AuditModule, AuthModule, SettingsModule],
-  controllers: [ReviewsController],
+  imports: [AuditModule, AuthModule, SettingsModule, UsersModule],
+  controllers: [ReviewsController, UsersPublicController],
   providers: [
     { provide: REVIEWS_REPOSITORY, useClass: ReviewsRepository },
     ReviewsService,
+    PublicProfileService,
     // The spam evaluator binds under its token so tests can replace the
     // whole filter (and ReviewsService's @Optional injection keeps the
     // B4.1-era fakes working without any binding).

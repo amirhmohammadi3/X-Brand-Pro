@@ -160,6 +160,28 @@ export class ReviewsService {
     };
   }
 
+  /**
+   * B4.10 — the APPROVED-only slice of one user's reviews, served on the
+   * public profile (GET /users/:username/reviews). The caller's own
+   * every-status list stays on listMine (GET /reviews/me); pending/rejected
+   * rows are never publicly visible.
+   */
+  async listApprovedByUser(
+    userId: string,
+    query: { page: number; pageSize: number },
+  ): Promise<ReviewListResult> {
+    const page = await this.repo.listApprovedByUser(userId, query.page, query.pageSize);
+    return {
+      items: page.items.map((row) => this.toReview(row)),
+      meta: {
+        page: query.page,
+        pageSize: query.pageSize,
+        total: page.total,
+        totalPages: Math.ceil(page.total / query.pageSize),
+      },
+    };
+  }
+
   /** The caller's own reviews (every status), newest first. */
   async listMine(
     userId: string,

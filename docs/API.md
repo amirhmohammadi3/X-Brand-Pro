@@ -888,3 +888,19 @@ Errors: `NOT_FOUND` (404), `VALIDATION_FAILED` (400), `RATE_LIMITED` (429).
 
 - Schemas: `businessPageSchema`, `businessPageQuerySchema`, `businessPageReviewsSchema`, `businessPageQuestionsSchema`, `businessJsonLdSchema`.
 - No migration — composition over existing tables.
+
+## /api/v1/users/:username + /api/v1/users/:username/reviews (B4.10)
+
+The PUBLIC user profile — the F4.8 page's data source. Deliberately privacy-minimal: identity (`username`, `displayName`, resolved `avatarUrl`), the B4.7 trust block (the LEVEL derived from the denormalised score + the LIVE source stats — the same three indexed scans as GET /users/me/reputation, never the possibly-stale column) and `joinedAt`. NO email, NO phone, NO reputation POINTS (the raw score is self-only), and a `blocked`/`deleted` user answers 404 EXACTLY like an unknown username (existence is never leaked).
+
+Route order is guaranteed by AppModule import order: AuthModule's `users/me` profile routes register before this controller, so GET /users/me still resolves the caller's own profile and never lands in `:username` (the same module boundary precedent as B4.7's `users/me/reputation` — the profile's trust block is a reviews-domain aggregate, so the endpoints live on the reviews module; `UsersService` is consumed through its exported service, no repository reach-ins).
+
+| Method | Path                     | Auth   | Body/Query                                | Notes                                                                                                                                                                                                                       |
+| ------ | ------------------------ | ------ | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | /users/:username         | public | —                                         | 200 + `PublicProfile`. 404 unknown OR blocked/deleted user (identical payload). Rate limit `users.profile.read` 60/min per ip.                                                                                              |
+| GET    | /users/:username/reviews | public | `pageQuerySchema` (?page/?pageSize ≤ 100) | 200 + `{ items, meta }` — the user's APPROVED reviews only, newest first (pending/rejected stay private; the every-status list remains GET /reviews/me). 404 unknown/blocked user. Rate limit `reviews.read` 60/min per ip. |
+
+Errors: `NOT_FOUND` (404), `RATE_LIMITED` (429).
+
+- Schemas: `publicProfileSchema`, `publicProfileReviewsResultSchema` (`reputationStatsSchema`/`reputationLevelSchema` reused from B4.7 — no duplication).
+- No migration — reads over existing tables (`users`, `reviews`, `review_votes`).

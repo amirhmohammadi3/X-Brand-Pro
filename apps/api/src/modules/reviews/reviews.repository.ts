@@ -95,6 +95,8 @@ export interface ReviewsRepositoryLike {
   listByBusiness(businessId: string, page: number, pageSize: number): Promise<ReviewPage>;
   /** Every-status list of the caller's own reviews, newest first. */
   listByUser(userId: string, page: number, pageSize: number): Promise<ReviewPage>;
+  /** B4.10 — APPROVED-only list of one user's reviews (the public profile), newest first. */
+  listApprovedByUser(userId: string, page: number, pageSize: number): Promise<ReviewPage>;
   /** Admin triage list (B4.4 builds on this): explicit status filter. */
   listByStatus(
     businessId: string,
@@ -333,6 +335,15 @@ export class ReviewsRepository implements ReviewsRepositoryLike {
 
   async listByUser(userId: string, page: number, pageSize: number): Promise<ReviewPage> {
     return this.list(eq(reviews.userId, userId), page, pageSize);
+  }
+
+  /** B4.10 — approved-only public slice of one user's reviews (rides reviews_user_idx). */
+  async listApprovedByUser(userId: string, page: number, pageSize: number): Promise<ReviewPage> {
+    return this.list(
+      and(eq(reviews.userId, userId), eq(reviews.status, 'approved')),
+      page,
+      pageSize,
+    );
   }
 
   /** B4.4 queue: one status across ALL businesses, oldest-first (triage order). */
