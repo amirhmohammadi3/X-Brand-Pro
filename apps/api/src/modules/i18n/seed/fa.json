@@ -1099,6 +1099,18 @@
     "addressLabel": "نشانی",
     "neighborhoodLabel": "محله",
     "cityLabel": "شهر",
-    "categoryLabel": "دسته"
+    "categoryLabel": "دسته",
+    "gallery": {
+      "title": "گالری تصاویر",
+      "prev": "قبلی",
+      "next": "بعدی",
+      "count": "{i} از {n}"
+    },
+    "menu": {
+      "title": "منو و خدمات",
+      "empty": "منویی ثبت نشده است.",
+      "unavailable": "ناموجود",
+      "callForPrice": "استعلام قیمت"
+    }
   }
 }

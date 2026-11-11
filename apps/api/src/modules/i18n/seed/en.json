@@ -1099,6 +1099,18 @@
     "addressLabel": "Address",
     "neighborhoodLabel": "Neighborhood",
     "cityLabel": "City",
-    "categoryLabel": "Category"
+    "categoryLabel": "Category",
+    "gallery": {
+      "title": "Image gallery",
+      "prev": "Previous",
+      "next": "Next",
+      "count": "{i} of {n}"
+    },
+    "menu": {
+      "title": "Menu & services",
+      "empty": "No menu published.",
+      "unavailable": "Unavailable",
+      "callForPrice": "Call for price"
+    }
   }
 }

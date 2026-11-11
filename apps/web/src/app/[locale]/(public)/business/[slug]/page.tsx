@@ -10,6 +10,7 @@ import { Rating, Badge, Separator } from '@/components/ui';
 import { BusinessHours, OPEN_STATE_META } from '@/components/business/business-hours';
 import { BusinessContacts } from '@/components/business/business-contacts';
 import { BusinessMap } from '@/components/business/business-map';
+import { BusinessGallery } from '@/components/business/business-gallery';
 import { businessPageSchema, type BusinessPage } from '@app/contracts';
 
 /**
@@ -80,7 +81,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  const { business, hours, jsonLd } = page;
+  const { business, hours, photos, jsonLd } = page;
   const categoryName = pickLocalized(business.primaryCategory.name, locale);
   const cityName = pickLocalized(business.city.name, locale);
   const neighborhoodName = business.neighborhood
@@ -173,6 +174,16 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
           ) : null}
         </div>
       </section>
+
+      {/* ── gallery (F4.2) ──────────────────────────────────────────────── */}
+      {photos.length > 0 ? (
+        <section aria-labelledby="business-gallery" className="flex flex-col gap-3">
+          <h2 id="business-gallery" className="text-xl font-semibold text-text">
+            {t('gallery.title')}
+          </h2>
+          <BusinessGallery photos={photos} />
+        </section>
+      ) : null}
 
       {/* ── info: description + amenities + categories ───────────────────── */}
       {business.description !== null ||
