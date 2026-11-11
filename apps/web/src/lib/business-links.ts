@@ -41,3 +41,25 @@ export function websiteUrl(raw: string | null): string | null {
 export function directionsUrl(lat: number, lng: number): string {
   return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`; // external-ok
 }
+
+// ─── Page-share URL builders (F4.9) ──────────────────────────────────────
+// These share the BUSINESS PAGE (not a contact): they carry the page URL so
+// the recipient lands on the business. User-clicked navigation hyperlinks —
+// each third-party host literal is tagged `// external-ok` (AGENTS.md §7).
+
+/** WhatsApp share: `?text=` carries the page URL (+ optional title). */
+export function shareWhatsAppUrl(url: string, title?: string): string {
+  const text = title ? `${title} — ${url}` : url;
+  return `https://wa.me/?text=${encodeURIComponent(text)}`; // external-ok
+}
+
+/** Telegram share: `t.me/share/url?url=`. */
+export function shareTelegramUrl(url: string): string {
+  return `https://t.me/share/url?url=${encodeURIComponent(url)}`; // external-ok
+}
+
+/** Instagram has no web share scheme — open the app/site (the user pastes the
+ * copied link). */
+export function shareInstagramUrl(): string {
+  return `https://instagram.com`; // external-ok
+}

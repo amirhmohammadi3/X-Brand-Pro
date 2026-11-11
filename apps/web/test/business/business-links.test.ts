@@ -5,6 +5,9 @@ import {
   instagramUrl,
   websiteUrl,
   directionsUrl,
+  shareWhatsAppUrl,
+  shareTelegramUrl,
+  shareInstagramUrl,
 } from '../../src/lib/business-links';
 
 /**
@@ -45,5 +48,29 @@ describe('business-links', () => {
     expect(directionsUrl(35.6892, 51.389)).toBe(
       'https://www.google.com/maps/dir/?api=1&destination=35.6892,51.389',
     );
+  });
+});
+
+describe('page-share URL builders (F4.9)', () => {
+  it('shareWhatsAppUrl encodes title + url into the wa.me text param', () => {
+    expect(shareWhatsAppUrl('https://x.test/b/s', 'کافه نمونه')).toBe(
+      'https://wa.me/?text=' + encodeURIComponent('کافه نمونه — https://x.test/b/s'),
+    );
+  });
+
+  it('shareWhatsAppUrl falls back to the url alone when no title', () => {
+    expect(shareWhatsAppUrl('https://x.test/b/s')).toBe(
+      'https://wa.me/?text=' + encodeURIComponent('https://x.test/b/s'),
+    );
+  });
+
+  it('shareTelegramUrl uses the t.me share endpoint', () => {
+    expect(shareTelegramUrl('https://x.test/b/s')).toBe(
+      'https://t.me/share/url?url=' + encodeURIComponent('https://x.test/b/s'),
+    );
+  });
+
+  it('shareInstagramUrl points at instagram.com (no web share scheme)', () => {
+    expect(shareInstagramUrl()).toBe('https://instagram.com');
   });
 });

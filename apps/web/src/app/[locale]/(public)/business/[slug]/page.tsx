@@ -15,6 +15,7 @@ import { BusinessMenu } from '@/components/business/business-menu';
 import { BusinessReviews } from '@/components/business/business-reviews';
 import { BusinessReviewForm } from '@/components/business/business-review-form';
 import { BusinessQuestions } from '@/components/business/business-questions';
+import { BusinessShare } from '@/components/business/business-share';
 import { businessPageSchema, type BusinessPage } from '@app/contracts';
 
 /**
@@ -45,9 +46,13 @@ export async function generateMetadata({
   const { slug } = await params;
   try {
     const { data } = await apiFetchServer(`/businesses/${slug}/page`, businessPageSchema);
+    // F4.9 — OG image is the business cover/thumb (a dedicated generated OG
+    // image is a Follow-up; the cover is the honest first-paint preview).
+    const cover = data.business.coverUrl ?? data.business.thumbUrl ?? null;
     return {
       title: data.business.name,
       description: data.business.description ?? undefined,
+      ...(cover ? { openGraph: { images: [{ url: cover }] } } : {}),
     };
   } catch {
     return { title: slug };
@@ -162,6 +167,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
             <Badge variant={openMeta.variant} data-testid="business-open-badge">
               {t(openMeta.labelKey)}
             </Badge>
+            <BusinessShare title={business.name} />
           </div>
 
           {placeLine !== '' ? <p className="text-sm text-muted">{placeLine}</p> : null}

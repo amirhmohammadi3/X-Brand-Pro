@@ -1226,5 +1226,15 @@
       "expert": "Expert",
       "veteran": "Veteran"
     }
+  },
+  "share": {
+    "button": "Share",
+    "whatsapp": "WhatsApp",
+    "telegram": "Telegram",
+    "instagram": "Instagram",
+    "copy": "Copy link",
+    "copied": "Link copied",
+    "native": "Share…",
+    "title": "Share this page"
   }
 }
