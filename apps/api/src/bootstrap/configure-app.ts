@@ -15,6 +15,7 @@ import type { AppConfig } from '../config/env.js';
 import { AllExceptionsFilter } from '../common/filters/all-exceptions.filter.js';
 import { ResponseEnvelopeInterceptor } from '../common/interceptors/response-envelope.interceptor.js';
 import { requestIdMiddleware } from '../common/middleware/request-id.middleware.js';
+import { RealtimeIoAdapter } from '../modules/realtime/realtime.io-adapter.js';
 
 /**
  * Shared app configuration used by BOTH main.ts (production path) and the
@@ -86,6 +87,14 @@ export function configureApp(app: NestExpressApplication): INestApplication {
   // Graceful shutdown — SIGTERM (docker stop / systemd) closes the HTTP
   // server and DI container cleanly.
   app.enableShutdownHooks();
+
+  // Realtime (B5.5): custom Socket.IO adapter carrying the config-derived
+  // CORS policy + the /api/v1/socket.io path. The `app` first argument is
+  // load-bearing (AbstractWsAdapter resolves the http.Server from it — see
+  // the adapter's docblock). Registered through configureApp so main.ts AND
+  // the test helpers boot the identical WS server. The gateway itself is a
+  // provider of RealtimeModule.
+  app.useWebSocketAdapter(new RealtimeIoAdapter(app, config));
 
   // OpenAPI (Swagger UI + JSON) — dev/test only, or DEV_TOOLS=true.
   if (!config.isProduction || config.isDevToolsEnabled) {

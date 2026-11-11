@@ -904,3 +904,30 @@ Errors: `NOT_FOUND` (404), `RATE_LIMITED` (429).
 
 - Schemas: `publicProfileSchema`, `publicProfileReviewsResultSchema` (`reputationStatsSchema`/`reputationLevelSchema` reused from B4.7 — no duplication).
 - No migration — reads over existing tables (`users`, `reviews`, `review_votes`).
+
+## Realtime gateway — Socket.IO at /api/v1/socket.io (B5.5)
+
+One authenticated WebSocket channel for the whole platform, served by Socket.IO 4.8.4 (`engine.io` under the hood) mounted at **`/api/v1/socket.io`** on the API origin (same port, same global prefix — reverse proxies that forward `/api/v1/*` also forward the upgrade). `serveClient` is off; CORS mirrors the HTTP rule (only `PUBLIC_WEB_URL`'s origin, credentials allowed).
+
+**Handshake auth (mandatory — there is no anonymous socket):** the access token is read from `Authorization: Bearer`, then the `at` cookie, then `auth.token` in the socket.io handshake (native clients without a cookie jar). The chain is EXACTLY the HTTP guard chain (B1.3): JWT verify → session liveness → effective user status. Any failure rejects the handshake with `UNAUTHENTICATED`; there is no separate "ws token", so revoking a session revokes its sockets too. Access tokens are short-lived (`ACCESS_TTL_SEC`, default 15 min) — clients re-connect with a fresh token after expiry.
+
+**Rooms (server-enforced; clients never send raw room strings):**
+
+| Room            | Who joins                                                   | How                                                        |
+| --------------- | ----------------------------------------------------------- | ---------------------------------------------------------- |
+| `user:<id>`     | the user themselves                                         | auto-joined on connect; can never be joined for another id |
+| `business:<id>` | the business owner (`ownerId` relationship, not a role tag) | on demand via `room:join`                                  |
+
+**Client → server events** (payload `{ room: string }`, room grammar `user:<uuid>` / `business:<uuid>` from contracts):
+
+| Event        | Ack (object)                                                                           |
+| ------------ | -------------------------------------------------------------------------------------- |
+| `room:join`  | `{ ok: true, room }` or `{ ok: false, code: 'BAD_ROOM' \| 'FORBIDDEN_ROOM', message }` |
+| `room:leave` | same shape; leaving a well-formed room you are not in is an ok no-op                   |
+
+**Server → client events** (reserved names in contracts `REALTIME_EVENTS`; B5.7 starts emitting): `notification`, `conversation:message`. payloads are plain JSON objects.
+
+**Cross-instance delivery:** when Redis is reachable, the gateway attaches the `@socket.io/redis-adapter` (two deduplicated pub/sub clients, adapter channels unprefixed), so `emitToUser` reaches the target socket no matter which API instance holds it. When Redis is down, delivery is in-memory single-instance and the server boots anyway (fail-soft — same stance as the cache/rate-limiter).
+
+- Schemas: `realtimeAckSchema`, `roomRequestSchema`, `realtimeHandshakeAuthSchema`, helpers `parseRealtimeRoom` / `realtimeUserRoom` / `realtimeBusinessRoom` (contracts/realtime.ts).
+- No migration — no database state; rooms live in socket memory + Redis pub/sub.

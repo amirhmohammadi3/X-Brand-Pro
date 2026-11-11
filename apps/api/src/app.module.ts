@@ -34,6 +34,7 @@ import { ThemeModule } from './modules/theme/theme.module.js';
 import { DevSmsModule, SmsModule } from './modules/sms/sms.module.js';
 import { devSmsEnabled } from './modules/sms/dev-sms.controller.js';
 import { UsersModule } from './modules/users/users.module.js';
+import { RealtimeModule } from './modules/realtime/realtime.module.js';
 import { MaintenanceJobsInit } from './queue/maintenance.jobs.js';
 import { QueueModule } from './queue/queue.module.js';
 import { RedisModule } from './redis/redis.module.js';
@@ -98,6 +99,7 @@ import { RedisModule } from './redis/redis.module.js';
     ModerationModule,
     SearchModule,
     MapModule,
+    RealtimeModule,
     // Dev-only raw outbox (B1.5): never registered in production — loadEnv
     // additionally rejects DEV_TOOLS=true with NODE_ENV=production at boot.
     ...(devSmsEnabled(process.env.NODE_ENV, process.env.DEV_TOOLS === 'true')

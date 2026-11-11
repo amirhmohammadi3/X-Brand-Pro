@@ -60,6 +60,13 @@ export class JwtAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // B5.5: APP_GUARDs run for WebSocket contexts too, but this guard's
+    // token/cookie/session chain is HTTP-shaped (Express request). WS
+    // connections authenticate through the realtime gateway's own handshake
+    // middleware (RealtimeAuthService — the SAME token/session/user chain),
+    // so any non-HTTP context passes here untouched.
+    if (context.getType() !== 'http') return true;
+
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
