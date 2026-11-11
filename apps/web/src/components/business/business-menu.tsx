@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { createFormatters } from '@/lib/format';
-import { Badge } from '@/components/ui';
+import { Badge } from '@/components/ui/badge';
 import type { MenuResponse } from '@app/contracts';
 
 /**

@@ -3,7 +3,9 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { Link } from '@/i18n/navigation';
 import { apiFetchServer } from '@/lib/api/server';
 import { createFormatters } from '@/lib/format';
-import { Rating, Badge, Separator } from '@/components/ui';
+import { Rating } from '@/components/ui/rating';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
 import {
   publicProfileSchema,
   publicProfileReviewsResultSchema,

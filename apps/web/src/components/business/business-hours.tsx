@@ -1,5 +1,5 @@
 import { getTranslations } from 'next-intl/server';
-import { Badge, type BadgeVariant } from '@/components/ui';
+import { Badge, type BadgeVariant } from '@/components/ui/badge';
 import { firstDayOfWeek, toPersianDigits, DEFAULT_TIME_ZONE } from '@/lib/format';
 import type { HoursResponse, OpenState, WeeklyDay } from '@app/contracts';
 

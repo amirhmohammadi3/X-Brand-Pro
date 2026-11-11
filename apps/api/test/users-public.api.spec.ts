@@ -135,7 +135,14 @@ function makeMemoryProfileReviewsRepo() {
 function makeFakeSettingsRepo() {
   const store = new Map<
     string,
-    { key: string; value: unknown; isSecret: boolean; group: string }
+    {
+      key: string;
+      value: unknown;
+      isSecret: boolean;
+      group: string;
+      description: string | null;
+      updatedAt: Date;
+    }
   >();
   return {
     async findAll() {
