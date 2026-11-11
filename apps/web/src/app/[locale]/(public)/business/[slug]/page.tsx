@@ -16,6 +16,7 @@ import { BusinessReviews } from '@/components/business/business-reviews';
 import { BusinessReviewForm } from '@/components/business/business-review-form';
 import { BusinessQuestions } from '@/components/business/business-questions';
 import { BusinessShare } from '@/components/business/business-share';
+import { BusinessClaimButton } from '@/components/business/business-claim-button';
 import { businessPageSchema, type BusinessPage } from '@app/contracts';
 
 /**
@@ -153,12 +154,15 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
               </h1>
               {business.nameAlt ? <p className="text-sm text-muted">{business.nameAlt}</p> : null}
             </div>
-            <Badge
-              variant={business.isClaimed ? 'success' : 'neutral'}
-              data-testid="business-claimed-badge"
-            >
-              {t(business.isClaimed ? 'claimed' : 'unclaimed')}
-            </Badge>
+            <div className="flex flex-col items-end gap-2">
+              <Badge
+                variant={business.isClaimed ? 'success' : 'neutral'}
+                data-testid="business-claimed-badge"
+              >
+                {t(business.isClaimed ? 'claimed' : 'unclaimed')}
+              </Badge>
+              {!business.isClaimed ? <BusinessClaimButton businessId={business.id} /> : null}
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
