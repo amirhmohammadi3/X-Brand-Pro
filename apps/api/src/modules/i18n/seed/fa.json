@@ -1111,6 +1111,35 @@
       "empty": "منویی ثبت نشده است.",
       "unavailable": "ناموجود",
       "callForPrice": "استعلام قیمت"
+    },
+    "reviews": {
+      "title": "نظرات کاربران",
+      "basedOn": "بر اساس {count} نظر",
+      "avgRating": "میانگین امتیاز",
+      "filters": {
+        "sort": "مرتب‌سازی",
+        "newest": "جدیدترین",
+        "helpful": "کاربردی‌ترین",
+        "highRating": "بالاترین امتیاز",
+        "lowRating": "پایین‌ترین امتیاز",
+        "verifiedOnly": "فقط تأییدشده",
+        "withPhoto": "فقط با عکس",
+        "clear": "حذف فیلترها"
+      },
+      "item": {
+        "helpful": "کاربردی بود",
+        "unhelpful": "کاربردی نبود",
+        "verified": "تأییدشده",
+        "firstReview": "اولین نظر",
+        "edited": "ویرایش‌شده",
+        "ownerReply": "پاسخ صاحب کسب‌وکار",
+        "helpfulCount": "{count} نفر این نظر را کاربردی دانستند"
+      },
+      "loadMore": "نظرات بیشتر",
+      "noReviews": "هنوز نظری ثبت نشده است.",
+      "noMatches": "نظری با این فیلترها یافت نشد.",
+      "authorFallback": "کاربر ناشناس",
+      "starsLabel": "{n} ستاره"
     }
   }
 }

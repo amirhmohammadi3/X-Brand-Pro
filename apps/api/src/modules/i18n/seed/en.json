@@ -1111,6 +1111,35 @@
       "empty": "No menu published.",
       "unavailable": "Unavailable",
       "callForPrice": "Call for price"
+    },
+    "reviews": {
+      "title": "Reviews",
+      "basedOn": "Based on {count} reviews",
+      "avgRating": "Average rating",
+      "filters": {
+        "sort": "Sort",
+        "newest": "Newest",
+        "helpful": "Most helpful",
+        "highRating": "Highest rating",
+        "lowRating": "Lowest rating",
+        "verifiedOnly": "Verified only",
+        "withPhoto": "With photo",
+        "clear": "Clear filters"
+      },
+      "item": {
+        "helpful": "Helpful",
+        "unhelpful": "Not helpful",
+        "verified": "Verified",
+        "firstReview": "First review",
+        "edited": "Edited",
+        "ownerReply": "Owner reply",
+        "helpfulCount": "{count} people found this helpful"
+      },
+      "loadMore": "Load more",
+      "noReviews": "No reviews yet.",
+      "noMatches": "No reviews match these filters.",
+      "authorFallback": "Anonymous user",
+      "starsLabel": "{n} stars"
     }
   }
 }

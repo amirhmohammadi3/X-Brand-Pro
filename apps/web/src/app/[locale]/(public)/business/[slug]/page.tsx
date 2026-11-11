@@ -12,6 +12,7 @@ import { BusinessContacts } from '@/components/business/business-contacts';
 import { BusinessMap } from '@/components/business/business-map';
 import { BusinessGallery } from '@/components/business/business-gallery';
 import { BusinessMenu } from '@/components/business/business-menu';
+import { BusinessReviews } from '@/components/business/business-reviews';
 import { businessPageSchema, type BusinessPage } from '@app/contracts';
 
 /**
@@ -82,7 +83,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  const { business, hours, photos, menu, jsonLd } = page;
+  const { business, hours, photos, menu, reviews, jsonLd } = page;
   const categoryName = pickLocalized(business.primaryCategory.name, locale);
   const cityName = pickLocalized(business.city.name, locale);
   const neighborhoodName = business.neighborhood
@@ -234,6 +235,20 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
           {t('menu.title')}
         </h2>
         <BusinessMenu menu={menu} locale={locale} />
+      </section>
+
+      {/* ── reviews (F4.4) ─────────────────────────────────────────────── */}
+      <section aria-labelledby="business-reviews-heading" className="flex flex-col gap-4">
+        <h2 id="business-reviews-heading" className="text-xl font-semibold text-text">
+          {t('reviews.title')}
+        </h2>
+        <BusinessReviews
+          businessId={business.id}
+          avgRating={business.avgRating}
+          reviewCount={business.reviewCount}
+          initialReviews={reviews.items}
+          initialMeta={reviews.meta}
+        />
       </section>
 
       <Separator />
