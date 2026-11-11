@@ -110,8 +110,9 @@ export function LocationPicker({
           className="pointer-events-none absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-full" // rtl-ok
         >
           {/* teardrop pin silhouette — a map decoration, identical in LTR/RTL */}
-          <span className="block h-8 w-8 rounded-full rounded-br-none border-2 border-primary bg-primary/20" />{' '}
-          {/* rtl-ok */}
+          <span
+            className="block h-8 w-8 rounded-full rounded-br-none border-2 border-primary bg-primary/20" // rtl-ok
+          />{' '}
         </div>
       </div>
 
