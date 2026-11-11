@@ -1203,5 +1203,28 @@
       "asker": "Asked by",
       "error": "The action failed; please try again."
     }
+  },
+  "userPage": {
+    "notFound": {
+      "title": "User not found",
+      "body": "This user does not exist or is no longer active.",
+      "backHome": "Back to home"
+    },
+    "level": "Reputation level",
+    "joinedAt": "Member since {date}",
+    "stats": {
+      "approvedReviews": "Approved reviews",
+      "verifiedReviews": "Verified reviews (check-in)",
+      "helpfulVotesReceived": "Helpful votes received"
+    },
+    "reviewsTitle": "Reviews by this user",
+    "noReviews": "This user hasn't written any reviews yet.",
+    "reviewsCount": "{count} reviews",
+    "levelNames": {
+      "newcomer": "Newcomer",
+      "contributor": "Contributor",
+      "expert": "Expert",
+      "veteran": "Veteran"
+    }
   }
 }

@@ -15,9 +15,15 @@ const apiFetchMock = vi.fn();
 vi.mock('../../src/lib/api/client', () => ({ apiFetch: apiFetchMock }));
 // ReviewItem now renders the F4.6 actions (vote/report/reply), which call
 // useAuth — stub it as a non-owner authenticated user so the static reply
-// display path is taken and the actions render enabled.
+// display path is taken and the actions render enabled. The author name is
+// a <Link> to the user profile (F4.8) — mock navigation as a plain anchor.
 vi.mock('../../src/lib/auth/auth-context', () => ({
   useAuth: () => ({ status: 'authenticated', user: { id: 'u-other' } }),
+}));
+vi.mock('../../src/i18n/navigation', () => ({
+  Link: (props: { href: string; children?: React.ReactNode }) => (
+    <a href={props.href}>{props.children}</a>
+  ),
 }));
 
 const { BusinessReviews } = await import('../../src/components/business/business-reviews');

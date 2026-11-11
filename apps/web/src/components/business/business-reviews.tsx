@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useLocale, useTranslations } from 'next-intl';
+import { Link } from '@/i18n/navigation';
 import { Rating, Badge } from '@/components/ui';
 import { createFormatters } from '@/lib/format';
 import { apiFetch } from '@/lib/api/client';
@@ -261,7 +262,12 @@ function ReviewItem({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm font-semibold text-text">{author}</span>
+          <Link
+            href={`/user/${review.authorUsername}`}
+            className="text-sm font-semibold text-text hover:text-primary"
+          >
+            {author}
+          </Link>
           {review.verified ? (
             <Badge variant="success" data-testid="business-review-verified">
               {t('item.verified')}

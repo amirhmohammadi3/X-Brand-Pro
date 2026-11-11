@@ -1203,5 +1203,28 @@
       "asker": "پرسشگر",
       "error": "عملیات ناموفق بود؛ دوباره تلاش کنید."
     }
+  },
+  "userPage": {
+    "notFound": {
+      "title": "کاربر یافت نشد",
+      "body": "این کاربر وجود ندارد یا دیگر فعال نیست.",
+      "backHome": "بازگشت به خانه"
+    },
+    "level": "سطح اعتبار",
+    "joinedAt": "عضو از {date}",
+    "stats": {
+      "approvedReviews": "نظرات تأییدشده",
+      "verifiedReviews": "نظرات تأییدشده (چک‌این)",
+      "helpfulVotesReceived": "رأی‌های کاربردی دریافت‌شده"
+    },
+    "reviewsTitle": "نظرات این کاربر",
+    "noReviews": "این کاربر هنوز نظری ثبت نکرده است.",
+    "reviewsCount": "{count} نظر",
+    "levelNames": {
+      "newcomer": "تازه‌وارد",
+      "contributor": "مشارکت‌کننده",
+      "expert": "کارشناس",
+      "veteran": "باسابقه"
+    }
   }
 }
