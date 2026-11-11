@@ -41,8 +41,13 @@ export const realtimeAckSchema = z.discriminatedUnion('ok', [
 ]);
 export type RealtimeAck = z.infer<typeof realtimeAckSchema>;
 
-/** The room kinds that exist today. B5.6 extends this union with `conversation`. */
-export const REALTIME_ROOM_KINDS = ['user', 'business'] as const;
+/**
+ * The room kinds that exist today. `conversation` arrived with B5.6 — a
+ * participant-only room per DM (membership is checked against
+ * conversation_participants on every join/leave, never trusted from the
+ * client).
+ */
+export const REALTIME_ROOM_KINDS = ['user', 'business', 'conversation'] as const;
 export type RealtimeRoomKind = (typeof REALTIME_ROOM_KINDS)[number];
 
 /**
@@ -52,15 +57,19 @@ export type RealtimeRoomKind = (typeof REALTIME_ROOM_KINDS)[number];
  */
 export const realtimeRoomSchema = z
   .string()
-  .regex(/^(user|business):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/);
+  .regex(
+    /^(user|business|conversation):[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/,
+  );
 
 /** Parse a room string into its parts, or null when the grammar is violated. */
 export function parseRealtimeRoom(room: string): { kind: RealtimeRoomKind; id: string } | null {
   const match =
-    /^(user|business):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.exec(room);
+    /^(user|business|conversation):([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$/.exec(
+      room,
+    );
   const kind = match?.[1];
   const id = match?.[2];
-  if ((kind !== 'user' && kind !== 'business') || !id) return null;
+  if ((kind !== 'user' && kind !== 'business' && kind !== 'conversation') || !id) return null;
   return { kind, id };
 }
 
@@ -71,6 +80,9 @@ export function realtimeUserRoom(userId: string): string {
 export function realtimeBusinessRoom(businessId: string): string {
   return `business:${businessId}`;
 }
+export function realtimeConversationRoom(conversationId: string): string {
+  return `conversation:${conversationId}`;
+}
 
 /** Client payload for room:join / room:leave (same shape both ways). */
 export const roomRequestSchema = z.object({ room: realtimeRoomSchema });
@@ -80,10 +92,13 @@ export type RoomRequest = z.infer<typeof roomRequestSchema>;
 export const realtimeHandshakeAuthSchema = z.object({ token: z.string().min(1).optional() });
 export type RealtimeHandshakeAuth = z.infer<typeof realtimeHandshakeAuthSchema>;
 
-/** Server → client event names reserved for platform pushes (B5.7 starts using them). */
+/** Server → client event names reserved for platform pushes (B5.6/B5.7 use them). */
 export const REALTIME_EVENTS = {
   notification: 'notification',
+  /** A new message landed in a conversation the socket follows (B5.6). */
   conversationMessage: 'conversation:message',
+  /** A message was soft-deleted by its sender (B5.6 — the bubble greys out). */
+  conversationMessageDeleted: 'conversation:message.deleted',
 } as const;
 
 /** uuidSchema reuse guard: room uuids use the same strictness as API ids. */

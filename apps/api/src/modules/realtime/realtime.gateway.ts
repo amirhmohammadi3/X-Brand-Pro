@@ -13,6 +13,10 @@ import {
   BUSINESSES_REPOSITORY,
   type BusinessesRepositoryLike,
 } from '../business/businesses.repository.js';
+import {
+  MESSAGING_REPOSITORY,
+  type MessagingRepositoryLike,
+} from '../messaging/messaging.repository.js';
 // Value imports (not type-only): Nest reads the injected classes' types at
 // runtime via emitDecoratorMetadata — type-only would break DI.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
@@ -91,8 +95,11 @@ interface IoredisCarrier {
  *  - `business:<id>` — joined on demand (room:join); owner-only via the
  *    businesses repository (the ownerId relationship drives ownership, not
  *    the role tag — AGENTS.md contracts note).
+ *  - `conversation:<id>` — joined on demand (B5.6); participant-only via
+ *    the messaging repository (a conversation nobody is a member of does
+ *    not exist for the socket — FORBIDDEN_ROOM, never an existence hint).
  *  Room grammar + ack codes live in contracts/realtime.ts; unknown kinds
- *  are rejected at parse level (B5.6 adds `conversation:<id>` there).
+ *  are rejected at parse level.
  *
  * Redis adapter (fail-soft): on boot, two deduplicated ioredis clients are
  * attached as pub/sub so `emitToUser` reaches sockets on ANY instance.
@@ -113,6 +120,7 @@ export class RealtimeGateway
     private readonly auth: RealtimeAuthService,
     private readonly realtime: RealtimeService,
     @Inject(BUSINESSES_REPOSITORY) private readonly businesses: BusinessesRepositoryLike,
+    @Inject(MESSAGING_REPOSITORY) private readonly messaging: MessagingRepositoryLike,
     @Inject(REDIS) private readonly redis: RedisLike,
   ) {}
 
@@ -188,7 +196,8 @@ export class RealtimeGateway
 
   /**
    * Join with the full ACL. Leaving is always allowed for a well-formed
-   * room; joining needs: your own user room, or an owned business room.
+   * room; joining needs: your own user room, an owned business room, or a
+   * conversation you are a participant of (B5.6).
    */
   private async joinRoom(client: Socket, payload: unknown): Promise<RealtimeAck> {
     const user = client.data.user as RealtimeUser | undefined;
@@ -198,8 +207,18 @@ export class RealtimeGateway
     const parsed = parseRealtimeRoom(room);
     if (!parsed) return this.nack('BAD_ROOM', 'Unknown room');
 
-    const allowed =
-      parsed.kind === 'user' ? parsed.id === user.id : await this.ownsBusiness(user.id, parsed.id);
+    let allowed: boolean;
+    switch (parsed.kind) {
+      case 'user':
+        allowed = parsed.id === user.id;
+        break;
+      case 'business':
+        allowed = await this.ownsBusiness(user.id, parsed.id);
+        break;
+      case 'conversation':
+        allowed = await this.messaging.isParticipant(parsed.id, user.id);
+        break;
+    }
     if (!allowed) return this.nack('FORBIDDEN_ROOM', 'Not allowed to join this room');
 
     await client.join(room);

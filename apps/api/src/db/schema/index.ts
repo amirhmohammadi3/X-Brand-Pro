@@ -32,3 +32,4 @@ export * from './qa.js';
 export * from './favorites.js';
 export * from './follows.js';
 export * from './notifications.js';
+export * from './messaging.js';

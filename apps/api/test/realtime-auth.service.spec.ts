@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RealtimeAuthService } from '../src/modules/realtime/realtime-auth.service.js';
-import { parseRealtimeRoom, realtimeBusinessRoom, realtimeUserRoom } from '@app/contracts';
+import {
+  parseRealtimeRoom,
+  realtimeBusinessRoom,
+  realtimeConversationRoom,
+  realtimeUserRoom,
+} from '@app/contracts';
 import type { TokenService } from '../src/modules/auth/token.service.js';
 import type { SessionService } from '../src/modules/auth/session.service.js';
 import type { UsersService } from '../src/modules/users/users.service.js';
@@ -113,10 +118,16 @@ describe('B5.5 RealtimeAuthService.authenticate', () => {
 });
 
 describe('B5.5 contracts room grammar (parseRealtimeRoom)', () => {
-  it('accepts user and business rooms with strict lowercase uuids', () => {
+  it('accepts user, business and conversation rooms with strict lowercase uuids', () => {
     expect(parseRealtimeRoom(realtimeUserRoom(UID))).toEqual({ kind: 'user', id: UID });
     const BID = '22222222-2222-4222-8222-222222222222';
     expect(parseRealtimeRoom(realtimeBusinessRoom(BID))).toEqual({ kind: 'business', id: BID });
+    // B5.6: conversation rooms are grammar-valid; MEMBERSHIP is the gateway's
+    // job (isParticipant), not the parser's.
+    expect(parseRealtimeRoom(realtimeConversationRoom(BID))).toEqual({
+      kind: 'conversation',
+      id: BID,
+    });
   });
 
   it('rejects every non-conforming string (never joins a client-invented room)', () => {
@@ -126,7 +137,9 @@ describe('B5.5 contracts room grammar (parseRealtimeRoom)', () => {
       'user:',
       'user:ABCDEFAB-CDEF-4ABC-8ABC-ABCDEFABCDEF', // uppercase hex — invalid
       'user:11111111-1111-4111-8111-11111111111g', // 'g' is not hex
-      'conversation:11111111-1111-4111-8111-111111111111', // B5.6, not yet
+      'conversation:11111111-1111-4111-8111-11111111111g', // conversation kind, bad hex
+      'conversation:not-a-uuid', // conversation kind, not a uuid
+      'group:11111111-1111-4111-8111-111111111111', // unknown kind (B5.6 has no group DMs)
       'socket:1',
       'global',
       `user:${UID} extra`,

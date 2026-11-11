@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import type { Server } from 'socket.io';
-import { realtimeBusinessRoom, realtimeUserRoom } from '@app/contracts';
+import { realtimeBusinessRoom, realtimeConversationRoom, realtimeUserRoom } from '@app/contracts';
 
 /**
  * Server-side realtime emit surface (B5.5). The gateway hands the Socket.IO
@@ -48,5 +48,16 @@ export class RealtimeService {
       return;
     }
     this.server.to(realtimeBusinessRoom(businessId)).emit(event, payload);
+  }
+
+  /** Push `event` to every socket joined into `conversation:<conversationId>` (all instances). */
+  emitToConversation(conversationId: string, event: string, payload: unknown): void {
+    if (!this.server) {
+      this.logger.debug(
+        `emitToConversation(${conversationId}) skipped — gateway not initialized yet`,
+      );
+      return;
+    }
+    this.server.to(realtimeConversationRoom(conversationId)).emit(event, payload);
   }
 }

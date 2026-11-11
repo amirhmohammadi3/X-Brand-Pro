@@ -913,21 +913,55 @@ One authenticated WebSocket channel for the whole platform, served by Socket.IO 
 
 **Rooms (server-enforced; clients never send raw room strings):**
 
-| Room            | Who joins                                                   | How                                                        |
-| --------------- | ----------------------------------------------------------- | ---------------------------------------------------------- |
-| `user:<id>`     | the user themselves                                         | auto-joined on connect; can never be joined for another id |
-| `business:<id>` | the business owner (`ownerId` relationship, not a role tag) | on demand via `room:join`                                  |
+| Room                | Who joins                                                   | How                                                        |
+| ------------------- | ----------------------------------------------------------- | ---------------------------------------------------------- |
+| `user:<id>`         | the user themselves                                         | auto-joined on connect; can never be joined for another id |
+| `business:<id>`     | the business owner (`ownerId` relationship, not a role tag) | on demand via `room:join`                                  |
+| `conversation:<id>` | a DM participant (B5.6 — `isParticipant` probe)             | on demand via `room:join`; non-members get FORBIDDEN_ROOM  |
 
-**Client → server events** (payload `{ room: string }`, room grammar `user:<uuid>` / `business:<uuid>` from contracts):
+**Client → server events** (payload `{ room: string }`, room grammar `user:<uuid>` / `business:<uuid>` / `conversation:<uuid>` from contracts):
 
 | Event        | Ack (object)                                                                           |
 | ------------ | -------------------------------------------------------------------------------------- |
 | `room:join`  | `{ ok: true, room }` or `{ ok: false, code: 'BAD_ROOM' \| 'FORBIDDEN_ROOM', message }` |
 | `room:leave` | same shape; leaving a well-formed room you are not in is an ok no-op                   |
 
-**Server → client events** (reserved names in contracts `REALTIME_EVENTS`; B5.7 starts emitting): `notification`, `conversation:message`. payloads are plain JSON objects.
+**Server → client events** (reserved names in contracts `REALTIME_EVENTS`; B5.6 emits the conversation pair, B5.7 starts `notification`): `notification`, `conversation:message`, `conversation:message.deleted`. payloads are plain JSON objects.
 
 **Cross-instance delivery:** when Redis is reachable, the gateway attaches the `@socket.io/redis-adapter` (two deduplicated pub/sub clients, adapter channels unprefixed), so `emitToUser` reaches the target socket no matter which API instance holds it. When Redis is down, delivery is in-memory single-instance and the server boots anyway (fail-soft — same stance as the cache/rate-limiter).
 
-- Schemas: `realtimeAckSchema`, `roomRequestSchema`, `realtimeHandshakeAuthSchema`, helpers `parseRealtimeRoom` / `realtimeUserRoom` / `realtimeBusinessRoom` (contracts/realtime.ts).
+- Schemas: `realtimeAckSchema`, `roomRequestSchema`, `realtimeHandshakeAuthSchema`, helpers `parseRealtimeRoom` / `realtimeUserRoom` / `realtimeBusinessRoom` / `realtimeConversationRoom` (contracts/realtime.ts).
 - No migration — no database state; rooms live in socket memory + Redis pub/sub.
+
+## /api/v1/messaging/\* (B5.6)
+
+Direct user-to-user messaging: get-or-create DMs, paged threads with read receipts, media attachments, blocks and message reports. Every route is authenticated (global JwtAuthGuard) and rate-limited per user — reads 60/min, writes 30/min, block/report 30/min (`MESSAGING_*_LIMIT_PER_MIN` in contracts). Blocks and reports are audited (`user.block`, `user.unblock`, `message.report`); message traffic itself is not.
+
+**Conversations**
+
+| Method | Path                                    | Body / Query                     | Notes                                                                                                                                                                                                                                                                                              |
+| ------ | --------------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/messaging/conversations`              | `{ peerId }`                     | get-or-create a DM — idempotent, the second POST (even with ids reversed) answers the SAME conversation with `created:false`. Self 422, unknown/inactive peer 404 (no leak), a block in either direction 403.                                                                                      |
+| GET    | `/messaging/conversations`              | `?page&pageSize`                 | the inbox: `{ items: ConversationCard[], meta }`, sorted by `lastMessageAt DESC NULLS LAST`; each card carries the peer card, the trimmed last-message preview (80 chars) and MY `unreadCount`.                                                                                                    |
+| GET    | `/messaging/conversations/:id/messages` | `?page&pageSize`                 | member-only (foreign/unknown conversation → the same 404); page 1 = the thread's OLDEST messages (stable under growth), rows ordered oldest → newest. Soft-deleted rows keep id/stamp with `body:null`, `deletedAt` set.                                                                           |
+| POST   | `/messaging/conversations/:id/messages` | `{ body? , attachmentMediaId? }` | exactly one-or-both required (neither → 400); attachment must be the sender's own `message_attachment` media row (unknown 404, wrong kind 422, foreign 403) and gets `markAttached` stamped. Emits `messaging.message.created` → realtime `conversation:message` (+ user rooms of the recipients). |
+| POST   | `/messaging/conversations/:id/read`     | `{ messageId }`                  | advances MY receipt to the message's timestamp — forward-only (`GREATEST` guard); answers `{ ok, lastReadMessageId, unreadCount }` (the count AFTER the receipt).                                                                                                                                  |
+
+**Messages (delete / report)**
+
+| Method | Path                             | Body                   | Notes                                                                                                                                                                                                                                               |
+| ------ | -------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| DELETE | `/messaging/messages/:id`        | —                      | sender-only soft delete (others 403); idempotent `{ deleted: true }`; the thread keeps a placeholder; emits `messaging.message.deleted`.                                                                                                            |
+| POST   | `/messaging/messages/:id/report` | `{ reason, details? }` | `reason ∈ spam\|abuse\|scam\|other`; member-visible content only (a foreign message id 404s like an unknown one); once per (message, reporter) — the double report is 409; lands in `message_reports` (status `open`) for the Phase-10 admin queue. |
+
+**Blocks**
+
+| Method | Path                        | Body         | Notes                                                                                                                                |
+| ------ | --------------------------- | ------------ | ------------------------------------------------------------------------------------------------------------------------------------ |
+| POST   | `/messaging/blocks`         | `{ userId }` | block a user — new conversations/sends between the pair answer 403 in BOTH directions; history stays readable. Self 422, double 409. |
+| DELETE | `/messaging/blocks/:userId` | —            | idempotent unblock, answers `{ userId, blocked: false }`.                                                                            |
+| GET    | `/messaging/blocks`         | —            | the block list (peer cards + `blockedAt`).                                                                                           |
+
+- Schemas: contracts/messaging.ts (`conversationCardSchema`, `messageSchema`, `sendMessageBodySchema`, `markReadResultSchema`, `blockResultSchema`, `reportMessageBodySchema`, …) — the web app (F5.6) renders from the same types.
+- Migration: `0032_messaging` (conversations, conversation_participants, messages, user_blocks, message_reports; CHECKs `messages_has_content` / `messages_body_len` / `user_blocks_not_self`; unique pair key, participant pair, (message, reporter); indexes for inbox ordering, thread paging and the report queue).
+- Realtime: `conversation:<id>` rooms are participant-gated (join via `room:join`); events `conversation:message` / `conversation:message.deleted` reach the open thread room AND each recipient's `user:<id>` room.

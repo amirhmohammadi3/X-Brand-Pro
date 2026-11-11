@@ -24,6 +24,7 @@ import { ModerationModule } from './modules/moderation/moderation.module.js';
 import { QaModule } from './modules/qa/qa.module.js';
 import { FavoritesModule } from './modules/favorites/favorites.module.js';
 import { FollowsModule } from './modules/follows/follows.module.js';
+import { MessagingModule } from './modules/messaging/messaging.module.js';
 import { NotificationsModule } from './modules/notifications/notifications.module.js';
 import { PostgresHealthIndicator } from './modules/health/postgres.health.js';
 import { I18nModule } from './modules/i18n/i18n.module.js';
@@ -95,6 +96,7 @@ import { RedisModule } from './redis/redis.module.js';
     QaModule,
     FavoritesModule,
     FollowsModule,
+    MessagingModule,
     NotificationsModule,
     ModerationModule,
     SearchModule,
