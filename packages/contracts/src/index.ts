@@ -28,6 +28,7 @@ export * from './reputation.js';
 export * from './qa.js';
 export * from './favorites.js';
 export * from './follows.js';
+export * from './notifications.js';
 export * from './business-page.js';
 export * from './public-profile.js';
 export * from './moderation.js';

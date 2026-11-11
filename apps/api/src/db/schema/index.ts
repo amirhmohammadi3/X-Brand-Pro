@@ -31,3 +31,4 @@ export * from './reviews.js';
 export * from './qa.js';
 export * from './favorites.js';
 export * from './follows.js';
+export * from './notifications.js';

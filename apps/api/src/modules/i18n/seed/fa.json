@@ -1237,6 +1237,28 @@
     "native": "اشتراک‌گذاری…",
     "title": "اشتراک‌گذاری این صفحه"
   },
+  "notifications": {
+    "review.replied": {
+      "title": "پاسخ جدید به نقد شما",
+      "body": "{actor} به نقد شما دربارهٔ {business} پاسخ داد."
+    },
+    "review.voted": {
+      "title": "نقد شما مفید ارزیابی شد",
+      "body": "یک کاربر نقد شما دربارهٔ {business} را مفید ارزیابی کرد."
+    },
+    "question.answered": {
+      "title": "پاسخ جدید به پرسش شما",
+      "body": "پرسش شما دربارهٔ {business} پاسخ داده شد."
+    },
+    "follow.created": {
+      "title": "دنبال‌کنندهٔ جدید",
+      "body": "{actor} شما را دنبال کرد."
+    },
+    "business.favorited": {
+      "title": "کسب‌وکار شما ذخیره شد",
+      "body": "{actor} کسب‌وکار {business} را در علاقه‌مندی‌های خود ذخیره کرد."
+    }
+  },
   "register": {
     "title": "ثبت کسب‌وکار جدید",
     "step": "گام {n} از {total}",

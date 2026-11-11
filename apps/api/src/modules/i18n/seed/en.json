@@ -1237,6 +1237,28 @@
     "native": "Share…",
     "title": "Share this page"
   },
+  "notifications": {
+    "review.replied": {
+      "title": "New reply to your review",
+      "body": "{actor} replied to your review of {business}."
+    },
+    "review.voted": {
+      "title": "Your review was marked helpful",
+      "body": "A user marked your review of {business} as helpful."
+    },
+    "question.answered": {
+      "title": "New answer to your question",
+      "body": "Your question about {business} has been answered."
+    },
+    "follow.created": {
+      "title": "New follower",
+      "body": "{actor} started following you."
+    },
+    "business.favorited": {
+      "title": "Your business was saved",
+      "body": "{actor} saved {business} to their favorites."
+    }
+  },
   "register": {
     "title": "Register a new business",
     "step": "Step {n} of {total}",
