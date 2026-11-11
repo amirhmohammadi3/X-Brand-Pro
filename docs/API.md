@@ -905,6 +905,20 @@ Errors: `NOT_FOUND` (404), `RATE_LIMITED` (429).
 - Schemas: `publicProfileSchema`, `publicProfileReviewsResultSchema` (`reputationStatsSchema`/`reputationLevelSchema` reused from B4.7 — no duplication).
 - No migration — reads over existing tables (`users`, `reviews`, `review_votes`).
 
+## Event → notification wiring (B5.7)
+
+No new HTTP surface — the notifications module consumes the EXISTING domain events through the @Global EventEmitter2 and calls the B5.3 `notify()` (fail-soft, best-effort: a lookup failure never breaks the source write). The catalog v1 (contracts `NOTIFICATION_EVENT_KEYS`) is wired 1:1:
+
+| Domain event (emitted by)  | Recipient                                              | Template vars           | Suppressions                        |
+| -------------------------- | ------------------------------------------------------ | ----------------------- | ----------------------------------- |
+| `review.replied` (B4.3)    | the review author                                      | `{actor}`, `{business}` | self-reply, non-active author/actor |
+| `review.voted` (B4.2)      | the review author (payload `authorId`)                 | `{business}`            | self-vote                           |
+| `question.answered` (B4.8) | the asker                                              | `{business}`            | owner answering own question        |
+| `follow.created` (B5.2)    | the followed USER (business follows stay silent in v1) | `{actor}`               | — (self-follow refused upstream)    |
+| `favorite.added` (B5.1)    | the business OWNER (from the businesses repository)    | `{actor}`, `{business}` | self-save, unclaimed business       |
+
+Recipients must be `active` users; the `{actor}` var renders `displayName ?? username`. Claim results («نتیجهٔ ادعا») join the catalog when the claims module starts emitting domain events — one contracts key + defaults entry + i18n pair each, no migration.
+
 ## Realtime gateway — Socket.IO at /api/v1/socket.io (B5.5)
 
 One authenticated WebSocket channel for the whole platform, served by Socket.IO 4.8.4 (`engine.io` under the hood) mounted at **`/api/v1/socket.io`** on the API origin (same port, same global prefix — reverse proxies that forward `/api/v1/*` also forward the upgrade). `serveClient` is off; CORS mirrors the HTTP rule (only `PUBLIC_WEB_URL`'s origin, credentials allowed).

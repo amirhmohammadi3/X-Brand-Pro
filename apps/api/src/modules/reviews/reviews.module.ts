@@ -54,6 +54,8 @@ export class ReviewsJobsInit implements OnModuleInit {
     ReviewsRatingSubscriber,
     ReviewsJobsInit,
   ],
-  exports: [ReviewsService],
+  // REVIEWS_REPOSITORY exported for B5.7's notification subscriber (the review
+  // author lookup must not detour through ReviewsService's DTO mapping).
+  exports: [ReviewsService, REVIEWS_REPOSITORY],
 })
 export class ReviewsModule {}

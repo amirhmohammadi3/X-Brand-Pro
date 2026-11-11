@@ -16,6 +16,7 @@ import { QaService } from './qa.service.js';
   imports: [AuditModule, AuthModule],
   controllers: [QaController],
   providers: [{ provide: QA_REPOSITORY, useClass: QaRepository }, QaService],
-  exports: [QaService],
+  // QA_REPOSITORY exported for B5.7's notification subscriber (asker lookup).
+  exports: [QaService, QA_REPOSITORY],
 })
 export class QaModule {}

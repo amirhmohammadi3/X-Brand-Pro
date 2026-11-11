@@ -19,6 +19,8 @@ import { UsersJobsInit } from './users.jobs.js';
     UsersService,
     UsersJobsInit,
   ],
-  exports: [UsersService],
+  // USERS_REPOSITORY exported for B5.7's notification subscriber (actor name
+  // + recipient status probes without UsersService's throwing semantics).
+  exports: [UsersService, USERS_REPOSITORY],
 })
 export class UsersModule {}

@@ -1,11 +1,16 @@
 import { Module } from '@nestjs/common';
 import { AuditModule } from '../audit/audit.module.js';
+import { BusinessModule } from '../business/businesses.module.js';
 import { EmailModule } from '../email/email.module.js';
 import { I18nModule } from '../i18n/i18n.module.js';
+import { QaModule } from '../qa/qa.module.js';
+import { ReviewsModule } from '../reviews/reviews.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
 import { SmsModule } from '../sms/sms.module.js';
+import { UsersModule } from '../users/users.module.js';
 import { NOTIFICATIONS_REPOSITORY, NotificationsRepository } from './notifications.repository.js';
 import { NotificationsController } from './notifications.controller.js';
+import { NotificationsEventsSubscriber } from './notifications-events.subscriber.js';
 import { NotificationsService } from './notifications.service.js';
 import {
   PUSH_SUBSCRIPTIONS_REPOSITORY,
@@ -28,10 +33,27 @@ import { PUSH_SENDER, PushService } from './push/push.service.js';
  * and the fail-soft sender wired into notify() via the PUSH_SENDER
  * contract (useExisting keeps one instance).
  *
+ * B5.7 adds NotificationsEventsSubscriber: the module now imports
+ * Reviews/Qa/Business/Users for their EXPORTED REPOSITORY tokens (the
+ * recipient lookups must not detour through services' DTO mapping) and
+ * consumes the EXISTING domain events through the @Global EventEmitter2.
+ * None of those modules imports this one, so the graph stays cycle-free;
+ * the source modules never learn notifications exist.
+ *
  * The service is EXPORTED — B5.7's event subscribers inject it.
  */
 @Module({
-  imports: [AuditModule, EmailModule, SmsModule, I18nModule, SettingsModule],
+  imports: [
+    AuditModule,
+    EmailModule,
+    SmsModule,
+    I18nModule,
+    SettingsModule,
+    UsersModule,
+    BusinessModule,
+    ReviewsModule,
+    QaModule,
+  ],
   controllers: [NotificationsController],
   providers: [
     { provide: NOTIFICATIONS_REPOSITORY, useClass: NotificationsRepository },
@@ -39,6 +61,7 @@ import { PUSH_SENDER, PushService } from './push/push.service.js';
     { provide: PUSH_SUBSCRIPTIONS_REPOSITORY, useClass: PushSubscriptionsRepository },
     PushService,
     { provide: PUSH_SENDER, useExisting: PushService },
+    NotificationsEventsSubscriber,
   ],
   exports: [NotificationsService, PushService],
 })
