@@ -1048,5 +1048,57 @@
     "empty": "No businesses registered yet.",
     "cityTagline": "Discover the businesses of this city",
     "neighborhoods": "Neighborhoods"
+  },
+  "businessPage": {
+    "notFound": {
+      "title": "Business not found",
+      "body": "This business does not exist or is no longer active.",
+      "backHome": "Back to home"
+    },
+    "claimed": "Verified owner",
+    "unclaimed": "Claim this business",
+    "reviewsCount": "{count} reviews",
+    "noReviews": "No reviews yet",
+    "rating": "Rating",
+    "openNow": "Open now",
+    "closed": "Closed",
+    "closingSoon": "Closing soon",
+    "openingSoon": "Opening soon",
+    "breadcrumb": "Breadcrumb",
+    "sections": {
+      "info": "Information",
+      "hours": "Opening hours",
+      "map": "Location on map",
+      "contact": "Contact"
+    },
+    "contact": {
+      "call": "Call",
+      "whatsapp": "WhatsApp",
+      "telegram": "Telegram",
+      "instagram": "Instagram",
+      "website": "Website",
+      "email": "Email",
+      "directions": "Directions",
+      "noContacts": "No contact details available."
+    },
+    "hours": {
+      "closed": "Closed",
+      "allDay": "24 hours",
+      "open": "Open",
+      "close": "Close",
+      "noSchedule": "No opening hours set.",
+      "today": "Today"
+    },
+    "amenities": "Amenities",
+    "tags": "Tags",
+    "categories": "Categories",
+    "description": "About {name}",
+    "mapAria": "Business location map",
+    "directionsTitle": "Directions to {name}",
+    "coverAlt": "Photo of {name}",
+    "addressLabel": "Address",
+    "neighborhoodLabel": "Neighborhood",
+    "cityLabel": "City",
+    "categoryLabel": "Category"
   }
 }

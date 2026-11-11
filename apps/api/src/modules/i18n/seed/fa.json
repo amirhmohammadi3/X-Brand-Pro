@@ -1048,5 +1048,57 @@
     "empty": "هنوز کسب‌وکاری ثبت نشده است.",
     "cityTagline": "کسب‌وکارهای این شهر را کشف کنید",
     "neighborhoods": "محله‌ها"
+  },
+  "businessPage": {
+    "notFound": {
+      "title": "کسب‌وکار یافت نشد",
+      "body": "این کسب‌وکار وجود ندارد یا دیگر فعال نیست.",
+      "backHome": "بازگشت به خانه"
+    },
+    "claimed": "تأیید مالکیت",
+    "unclaimed": "ادعای مالکیت",
+    "reviewsCount": "{count} نظر",
+    "noReviews": "هنوز نظری ثبت نشده است",
+    "rating": "امتیاز",
+    "openNow": "باز است",
+    "closed": "بسته",
+    "closingSoon": "به‌زودی بسته می‌شود",
+    "openingSoon": "به‌زودی باز می‌شود",
+    "breadcrumb": "مسیر",
+    "sections": {
+      "info": "اطلاعات",
+      "hours": "ساعات کاری",
+      "map": "موقعیت روی نقشه",
+      "contact": "تماس و ارتباط"
+    },
+    "contact": {
+      "call": "تماس",
+      "whatsapp": "واتس‌اپ",
+      "telegram": "تلگرام",
+      "instagram": "اینستاگرام",
+      "website": "وب‌سایت",
+      "email": "ایمیل",
+      "directions": "مسیر‌یابی",
+      "noContacts": "راه تماسی ثبت نشده است."
+    },
+    "hours": {
+      "closed": "تعطیل",
+      "allDay": "۲۴ ساعته",
+      "open": "باز",
+      "close": "بسته",
+      "noSchedule": "ساعات کاری ثبت نشده است.",
+      "today": "امروز"
+    },
+    "amenities": "امکانات",
+    "tags": "برچسب‌ها",
+    "categories": "دسته‌ها",
+    "description": "دربارهٔ {name}",
+    "mapAria": "نقشهٔ موقعیت کسب‌وکار",
+    "directionsTitle": "مسیر تا {name}",
+    "coverAlt": "تصویر {name}",
+    "addressLabel": "نشانی",
+    "neighborhoodLabel": "محله",
+    "cityLabel": "شهر",
+    "categoryLabel": "دسته"
   }
 }
