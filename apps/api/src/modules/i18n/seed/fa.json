@@ -1182,6 +1182,26 @@
         "replySubmitting": "در حال ثبت…",
         "replySuccess": "پاسخ ثبت شد."
       }
+    },
+    "questions": {
+      "title": "پرسش و پاسخ",
+      "count": "{count} پرسش",
+      "noQuestions": "هنوز پرسشی پرسیده نشده است.",
+      "askTitle": "پرسش خود را بپرسید",
+      "askPlaceholder": "پرسش خود را بنویسید…",
+      "askSubmit": "ثبت پرسش",
+      "askSubmitting": "در حال ثبت…",
+      "askSuccess": "پرسش شما ثبت شد و پس از تأیید نمایش داده می‌شود.",
+      "askLoginRequired": "برای پرسش باید وارد شوید.",
+      "askLogin": "ورود / ثبت‌نام",
+      "answerLabel": "پاسخ صاحب کسب‌وکار",
+      "answerPlaceholder": "پاسخ به این پرسش…",
+      "answerSubmit": "ثبت پاسخ",
+      "answerSubmitting": "در حال ثبت…",
+      "notAnswered": "هنوز پاسخی داده نشده است.",
+      "loadMore": "پرسش‌های بیشتر",
+      "asker": "پرسشگر",
+      "error": "عملیات ناموفق بود؛ دوباره تلاش کنید."
     }
   }
 }

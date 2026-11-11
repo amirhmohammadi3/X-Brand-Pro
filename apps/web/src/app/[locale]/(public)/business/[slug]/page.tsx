@@ -14,6 +14,7 @@ import { BusinessGallery } from '@/components/business/business-gallery';
 import { BusinessMenu } from '@/components/business/business-menu';
 import { BusinessReviews } from '@/components/business/business-reviews';
 import { BusinessReviewForm } from '@/components/business/business-review-form';
+import { BusinessQuestions } from '@/components/business/business-questions';
 import { businessPageSchema, type BusinessPage } from '@app/contracts';
 
 /**
@@ -84,7 +85,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  const { business, hours, photos, menu, reviews, jsonLd } = page;
+  const { business, hours, photos, menu, reviews, questions, jsonLd } = page;
   const categoryName = pickLocalized(business.primaryCategory.name, locale);
   const cityName = pickLocalized(business.city.name, locale);
   const neighborhoodName = business.neighborhood
@@ -254,9 +255,19 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
         />
       </section>
 
-      <Separator />
+      {/* ── questions & answers (F4.7) ─────────────────────────────────── */}
+      <section aria-labelledby="business-questions-heading" className="flex flex-col gap-4">
+        <h2 id="business-questions-heading" className="text-xl font-semibold text-text">
+          {t('questions.title')}
+        </h2>
+        <BusinessQuestions
+          businessId={business.id}
+          ownerId={business.ownerId}
+          initialTotal={questions.total}
+        />
+      </section>
 
-      {/* ── hours ─────────────────────────────────────────────────────────── */}
+      <Separator />
       <section aria-labelledby="business-hours" className="flex flex-col gap-3">
         <h2 id="business-hours" className="text-xl font-semibold text-text">
           {t('sections.hours')}

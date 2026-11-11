@@ -1182,6 +1182,26 @@
         "replySubmitting": "Submitting…",
         "replySuccess": "Reply submitted."
       }
+    },
+    "questions": {
+      "title": "Questions & answers",
+      "count": "{count} questions",
+      "noQuestions": "No questions asked yet.",
+      "askTitle": "Ask a question",
+      "askPlaceholder": "Type your question…",
+      "askSubmit": "Submit question",
+      "askSubmitting": "Submitting…",
+      "askSuccess": "Your question was submitted and will appear once approved.",
+      "askLoginRequired": "You must be logged in to ask a question.",
+      "askLogin": "Log in / Register",
+      "answerLabel": "Owner's answer",
+      "answerPlaceholder": "Answer this question…",
+      "answerSubmit": "Submit answer",
+      "answerSubmitting": "Submitting…",
+      "notAnswered": "Not answered yet.",
+      "loadMore": "Load more questions",
+      "asker": "Asked by",
+      "error": "The action failed; please try again."
     }
   }
 }
