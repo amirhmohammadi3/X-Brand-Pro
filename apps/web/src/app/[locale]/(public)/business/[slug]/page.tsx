@@ -11,6 +11,7 @@ import { BusinessHours, OPEN_STATE_META } from '@/components/business/business-h
 import { BusinessContacts } from '@/components/business/business-contacts';
 import { BusinessMap } from '@/components/business/business-map';
 import { BusinessGallery } from '@/components/business/business-gallery';
+import { BusinessMenu } from '@/components/business/business-menu';
 import { businessPageSchema, type BusinessPage } from '@app/contracts';
 
 /**
@@ -81,7 +82,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  const { business, hours, photos, jsonLd } = page;
+  const { business, hours, photos, menu, jsonLd } = page;
   const categoryName = pickLocalized(business.primaryCategory.name, locale);
   const cityName = pickLocalized(business.city.name, locale);
   const neighborhoodName = business.neighborhood
@@ -226,6 +227,14 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
           ) : null}
         </section>
       ) : null}
+
+      {/* ── menu / services (F4.3) ─────────────────────────────────────── */}
+      <section aria-labelledby="business-menu" className="flex flex-col gap-3">
+        <h2 id="business-menu" className="text-xl font-semibold text-text">
+          {t('menu.title')}
+        </h2>
+        <BusinessMenu menu={menu} locale={locale} />
+      </section>
 
       <Separator />
 

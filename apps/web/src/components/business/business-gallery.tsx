@@ -11,11 +11,10 @@ import type { BusinessPhoto } from '@app/contracts';
  * opens a lightbox `Modal` with the full image, a `{i} of {n}` counter, and
  * prev/next buttons that cycle modulo the gallery length.
  *
- * RTL: in `fa` the reading direction is right-to-left, so the visual "next"
- * (بعدی) sits on the LEFT and ArrowLeft advances forward; the chevrons and
- * arrow-key mapping flip accordingly (`useLocale`). Raw `<img>`: media URLs
- * are same-origin /media proxies (B2.7 pattern — no Next Image round-trip for
- * user content).
+ * RTL: in `fa` the layout is reversed, so the visual "next" (بعدی) leads
+ * and ArrowLeft advances forward; the chevron glyphs and arrow-key mapping
+ * flip accordingly (`useLocale`). Raw `<img>`: media URLs are same-origin
+ * /media proxies (B2.7 pattern — no Next Image round-trip for user content).
  *
  * Client component: the lightbox open index and keyboard nav are interactive
  * state. The section heading is rendered by the server page; this component
