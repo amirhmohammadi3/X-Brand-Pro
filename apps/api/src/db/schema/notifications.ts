@@ -110,3 +110,42 @@ export const notifications = pgTable(
 
 export type NotificationRow = typeof notifications.$inferSelect;
 export type NewNotificationRow = typeof notifications.$inferInsert;
+
+/**
+ * Web push subscriptions (B5.4). One row per (user, browser) — the
+ * `endpoint` (the push service URL, e.g. an FCM endpoint) is UNIQUE:
+ * re-subscribing the same browser REPLACES the row (new keys + latest
+ * user agent) instead of piling up duplicates, and a subscription that
+ * moved to another account simply moves with it. `p256dh`/`auth` are the
+ * per-subscription encryption keys the W3C Push API mandates (NOT user
+ * secrets in the settings sense — they are useless without the endpoint
+ * and are rotated by the browser on every re-subscription). A dead
+ * subscription (404/410 from the push service) is deleted at first send —
+ * the table self-cleans, no sweep job.
+ *
+ * The FK cascades on user deletion (anonymization takes subscriptions
+ * with it); the (user, created) index serves the "my devices" list.
+ */
+export const pushSubscriptions = pgTable(
+  'push_subscriptions',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    userId: uuid('user_id')
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    // ONE row per push endpoint — the re-subscribe upsert target.
+    uniqueIndex('push_subscriptions_endpoint_unq').on(table.endpoint),
+    // The "my devices" list + fan-out per user, newest first.
+    index('push_subscriptions_user_idx').on(table.userId, table.createdAt.desc(), table.id),
+  ],
+);
+
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
+export type NewPushSubscriptionRow = typeof pushSubscriptions.$inferInsert;

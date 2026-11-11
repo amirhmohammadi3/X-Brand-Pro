@@ -26,6 +26,7 @@ import {
   type NotificationEventCatalogRow,
   type NotificationsRepositoryLike,
 } from './notifications.repository.js';
+import { PUSH_SENDER, type PushSenderLike } from './push/push.service.js';
 
 /**
  * Domain events (AGENTS.md 6) — the notifications module's own signal.
@@ -76,6 +77,9 @@ export class NotificationsService {
     private readonly i18n: I18nService,
     @Optional() private readonly email?: EmailService,
     @Optional() private readonly sms?: SmsService,
+    // B5.4 — bound via useExisting(PushService) in the module; optional so
+    // unit tests (and a push-less boot) stay valid.
+    @Optional() @Inject(PUSH_SENDER) private readonly pushSender?: PushSenderLike,
   ) {}
 
   private emitter?: NotificationEmitterLike;
@@ -155,11 +159,11 @@ export class NotificationsService {
       return {
         eventKey,
         channels: { inApp: false, email: false, sms: false, push: false },
-        delivered: { inApp: false, email: false, sms: false },
+        delivered: { inApp: false, email: false, sms: false, push: false },
       };
     }
     const channels = await this.resolveChannels(input.userId, eventKey);
-    const delivered = { inApp: false, email: false, sms: false };
+    const delivered = { inApp: false, email: false, sms: false, push: false };
 
     if (channels.inApp) {
       try {
@@ -178,7 +182,7 @@ export class NotificationsService {
       }
     }
 
-    if (channels.email || channels.sms) {
+    if (channels.email || channels.sms || channels.push) {
       const contact = await this.safeContact(input.userId);
       const locale = contact?.locale || DEFAULT_LOCALE;
       if (channels.email && contact?.email) {
@@ -207,6 +211,20 @@ export class NotificationsService {
           }
         } catch {
           delivered.sms = false;
+        }
+      }
+      // B5.4 — the push sender translates and self-cleans dead subscriptions;
+      // an absent sender (push-less boot) simply reports undelivered.
+      if (channels.push && this.pushSender) {
+        try {
+          delivered.push = await this.pushSender.sendToUser({
+            userId: input.userId,
+            eventKey,
+            vars: input.vars,
+            locale,
+          });
+        } catch {
+          delivered.push = false;
         }
       }
     }

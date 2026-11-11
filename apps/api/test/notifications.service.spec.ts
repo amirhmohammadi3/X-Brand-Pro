@@ -282,6 +282,7 @@ describe('NotificationsService — B5.3', () => {
     expect(result.delivered.inApp).toBe(false);
     expect(result.delivered.email).toBe(false);
     expect(result.delivered.sms).toBe(false);
+    expect(result.delivered.push).toBe(false);
     // catalog/preference reads also degrade to defaults
     const catalog = await failing.service.listCatalog();
     expect(catalog.events.every((e) => e.channels.inApp === true)).toBe(true);
@@ -299,7 +300,7 @@ describe('NotificationsService — B5.3', () => {
     });
     const result = await service.notify({ userId: USER, eventKey: 'review.replied', vars: {} });
     expect(result.channels).toEqual({ inApp: false, email: false, sms: false, push: false });
-    expect(result.delivered).toEqual({ inApp: false, email: false, sms: false });
+    expect(result.delivered).toEqual({ inApp: false, email: false, sms: false, push: false });
   });
 
   it('an unknown event key is a no-op result, never a throw', async () => {
@@ -309,7 +310,7 @@ describe('NotificationsService — B5.3', () => {
       eventKey: 'not.a.key' as never,
       vars: {},
     });
-    expect(result.delivered).toEqual({ inApp: false, email: false, sms: false });
+    expect(result.delivered).toEqual({ inApp: false, email: false, sms: false, push: false });
   });
 
   it('inbox pages newest-first with the unread total, and markRead batches', async () => {
@@ -331,5 +332,38 @@ describe('NotificationsService — B5.3', () => {
     const empty = await service.listInbox(USER, { page: 1, pageSize: 20 });
     expect(empty.unread).toBe(0);
     expect(empty.items.every((i) => i.readAt !== null)).toBe(true);
+  });
+
+  it('the push channel (B5.4) delivers through the PUSH_SENDER contract and reports the outcome', async () => {
+    const { service, events } = makeService();
+    events.set('review.voted', {
+      key: 'review.voted',
+      inApp: false,
+      email: false,
+      sms: false,
+      push: true,
+      isActive: true,
+    });
+    // a sender bound like the module wires it (useExisting PushService)
+    const sent: Array<{ userId: string; eventKey: string; locale: string }> = [];
+    (service as unknown as { pushSender?: unknown }).pushSender = {
+      async sendToUser(input: { userId: string; eventKey: string; locale: string }) {
+        sent.push(input);
+        return true;
+      },
+    };
+    const result = await service.notify({ userId: USER, eventKey: 'review.voted', vars: {} });
+    expect(result.delivered.push).toBe(true);
+    expect(result.delivered.inApp).toBe(false);
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({ userId: USER, eventKey: 'review.voted', locale: 'fa' });
+    // a throwing sender degrades to delivered:false (fail-soft holds)
+    (service as unknown as { pushSender?: unknown }).pushSender = {
+      async sendToUser() {
+        throw new Error('push down');
+      },
+    };
+    const failed = await service.notify({ userId: USER, eventKey: 'review.voted', vars: {} });
+    expect(failed.delivered.push).toBe(false);
   });
 });

@@ -1,4 +1,15 @@
-import { Controller, Get, Inject, Post, Put, Query, Req, Body } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  Inject,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  Body,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import type {
   PageQuery,
@@ -8,13 +19,18 @@ import type {
 import {
   NOTIFICATION_READ_LIMIT_PER_MIN,
   NOTIFICATION_WRITE_LIMIT_PER_MIN,
+  PUSH_WRITE_LIMIT_PER_MIN,
+  createPushSubscriptionBodySchema,
   markNotificationsReadBodySchema,
   pageQuerySchema,
   updateNotificationPreferenceBodySchema,
+  type CreatePushSubscriptionBody,
   type NotificationPreferencesResult,
   type NotificationEventsCatalogResult,
   type NotificationInboxResult,
   type MarkNotificationsReadResult,
+  type PushSubscriptionItem,
+  type PushSubscriptionsResult,
 } from '@app/contracts';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
@@ -22,6 +38,9 @@ import { AUDIT_SERVICE, type AuditService } from '../audit/audit.service.js';
 // Value import: Nest reads the type at runtime via emitDecoratorMetadata.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { NotificationsService } from './notifications.service.js';
+// Value import: Nest reads the constructor type at runtime via emitDecoratorMetadata.
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { PushService } from './push/push.service.js';
 
 /** The req.user shape set by JwtAuthGuard (this module has no @Public routes). */
 function requireUser(req: Request): { id: string; role: string } {
@@ -49,6 +68,7 @@ function requireUser(req: Request): { id: string; role: string } {
 export class NotificationsController {
   constructor(
     private readonly notifications: NotificationsService,
+    private readonly push: PushService,
     @Inject(AUDIT_SERVICE) private readonly audit: AuditService,
   ) {}
 
@@ -105,6 +125,53 @@ export class NotificationsController {
   ) {
     const user = requireUser(req);
     return this.notifications.updatePreference(user.id, body);
+  }
+
+  // ─── web push subscriptions (B5.4) ───────────────────────────────────────
+
+  @Post('notifications/me/push/subscriptions')
+  @RateLimit({
+    name: 'notifications.push.write',
+    limit: PUSH_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async subscribe(
+    @Req() req: Request,
+    @Body(new ZodValidationPipe(createPushSubscriptionBodySchema)) body: CreatePushSubscriptionBody,
+  ): Promise<PushSubscriptionItem> {
+    const user = requireUser(req);
+    const ua = req.headers['user-agent'];
+    const userAgent = Array.isArray(ua) ? (ua[0] ?? undefined) : (ua ?? undefined);
+    return this.push.subscribe(user.id, {
+      endpoint: body.endpoint,
+      keys: body.keys,
+      userAgent: userAgent ?? body.userAgent,
+    });
+  }
+
+  @Get('notifications/me/push/subscriptions')
+  @RateLimit({
+    name: 'notifications.read',
+    limit: NOTIFICATION_READ_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async pushSubscriptions(@Req() req: Request): Promise<PushSubscriptionsResult> {
+    const user = requireUser(req);
+    return this.push.listMine(user.id);
+  }
+
+  @Delete('notifications/me/push/subscriptions/:id')
+  @RateLimit({
+    name: 'notifications.push.write',
+    limit: PUSH_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async unsubscribe(@Req() req: Request, @Param('id') id: string) {
+    const user = requireUser(req);
+    return this.push.unsubscribe(user.id, id);
   }
 
   @Post('notifications/me/read')

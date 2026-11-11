@@ -12,6 +12,7 @@ import { REDIS } from '../src/redis/redis.client.js';
 import { QUEUES_SERVICE } from '../src/queue/queue.module.js';
 import { SETTINGS_REPOSITORY } from '../src/modules/settings/settings.service.js';
 import { NOTIFICATIONS_REPOSITORY } from '../src/modules/notifications/notifications.repository.js';
+import { PUSH_SUBSCRIPTIONS_REPOSITORY } from '../src/modules/notifications/push/push-subscriptions.repository.js';
 import { NotificationsService } from '../src/modules/notifications/notifications.service.js';
 import { NOTIFICATION_EVENT_DEFAULTS, NOTIFICATION_EVENT_KEYS } from '@app/contracts';
 import { FakeRedis } from './fake-redis.js';
@@ -126,6 +127,60 @@ function makeMemoryNotificationsRepo() {
 
 type NotificationsRepoFake = ReturnType<typeof makeMemoryNotificationsRepo>;
 
+/** In-memory push-subscriptions repo (endpoint upsert semantics). */
+function makeMemoryPushRepo() {
+  const rows = new Map<
+    string,
+    {
+      id: string;
+      userId: string;
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+      userAgent: string | null;
+      createdAt: Date;
+    }
+  >();
+  let seq = 0;
+  return {
+    rows,
+    async upsertByEndpoint(input: {
+      userId: string;
+      endpoint: string;
+      p256dh: string;
+      auth: string;
+      userAgent: string | null;
+    }) {
+      const existing = [...rows.values()].find((r) => r.endpoint === input.endpoint);
+      const row = {
+        id: existing?.id ?? `e${String(++seq).padStart(7, '0')}-eeee-4eee-8eee-eeeeeeeeeeee`,
+        userId: input.userId,
+        endpoint: input.endpoint,
+        p256dh: input.p256dh,
+        auth: input.auth,
+        userAgent: input.userAgent,
+        createdAt: existing?.createdAt ?? new Date(),
+      };
+      rows.set(row.id, row);
+      return { ...row };
+    },
+    async listByUser(userId: string) {
+      return [...rows.values()].filter((r) => r.userId === userId).map((r) => ({ ...r }));
+    },
+    async deleteByIdAndUser(id: string, userId: string) {
+      const row = rows.get(id);
+      if (!row || row.userId !== userId) return false;
+      rows.delete(id);
+      return true;
+    },
+    async deleteByIds(ids: string[]) {
+      for (const id of ids) rows.delete(id);
+    },
+  };
+}
+
+type PushRepoFake = ReturnType<typeof makeMemoryPushRepo>;
+
 function makeFakeSettingsRepo() {
   const store = new Map<
     string,
@@ -150,6 +205,7 @@ function makeFakeSettingsRepo() {
 
 let app: INestApplication;
 let notificationsRepo: NotificationsRepoFake;
+let pushRepo: PushRepoFake;
 const auditActions: string[] = [];
 let user: LoginSession;
 let notificationsService: NotificationsService;
@@ -158,6 +214,7 @@ let userId = '';
 beforeAll(async () => {
   const redis = new FakeRedis();
   notificationsRepo = makeMemoryNotificationsRepo();
+  pushRepo = makeMemoryPushRepo();
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(REDIS)
@@ -170,6 +227,8 @@ beforeAll(async () => {
     .useValue({ add: vi.fn(async () => undefined), route: vi.fn() })
     .overrideProvider(NOTIFICATIONS_REPOSITORY)
     .useValue(notificationsRepo)
+    .overrideProvider(PUSH_SUBSCRIPTIONS_REPOSITORY)
+    .useValue(pushRepo)
     .overrideProvider(SETTINGS_REPOSITORY)
     .useValue(makeFakeSettingsRepo())
     .overrideProvider(AUDIT_SERVICE)
@@ -344,5 +403,64 @@ describe('Notifications HTTP — B5.3', () => {
 
   it('the mark-read write is audited', async () => {
     expect(auditActions).toContain('notification.read');
+  });
+
+  // ─── web push subscriptions (B5.4) ───────────────────────────────────────
+
+  it('push subscriptions: 401 anonymous, https-only endpoint, upsert on re-subscribe, keys never echoed', async () => {
+    const subscribe = (body: object, bearer = user.bearer) =>
+      request(app.getHttpServer())
+        .post('/api/v1/notifications/me/push/subscriptions')
+        .set({ Authorization: bearer })
+        .send(body);
+
+    expect(
+      (await request(app.getHttpServer()).post('/api/v1/notifications/me/push/subscriptions'))
+        .status,
+    ).toBe(401);
+
+    // non-https endpoint → 400 (push endpoints must be https)
+    const insecure = await subscribe({
+      endpoint: 'http://fcm.googleapis.com/fcm/send/x',
+      keys: { p256dh: 'k', auth: 'a' },
+    });
+    expect(insecure.status).toBe(400);
+
+    const first = await subscribe({
+      endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
+      keys: { p256dh: 'key1', auth: 'auth1' },
+      userAgent: 'Firefox/128',
+    });
+    expect(first.status).toBe(201);
+    expect(first.body.data).toMatchObject({
+      endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
+      userAgent: 'Firefox/128',
+    });
+
+    // re-subscribe the SAME endpoint → same row id, new keys (no duplicate)
+    const again = await subscribe({
+      endpoint: 'https://fcm.googleapis.com/fcm/send/abc',
+      keys: { p256dh: 'key2', auth: 'auth2' },
+    });
+    expect(again.status).toBe(201);
+    expect(again.body.data.id).toBe(first.body.data.id);
+    expect(pushRepo.rows.size).toBe(1);
+
+    // the list echoes no key material
+    const list = await request(app.getHttpServer())
+      .get('/api/v1/notifications/me/push/subscriptions')
+      .set({ Authorization: user.bearer });
+    expect(list.status).toBe(200);
+    expect(list.body.data.items).toHaveLength(1);
+    expect(JSON.stringify(list.body)).not.toContain('key2');
+    expect(JSON.stringify(list.body)).not.toContain('auth2');
+
+    // owner-scoped delete (this spec has a single user — a foreign id answers deleted:false)
+    const del = await request(app.getHttpServer())
+      .delete(`/api/v1/notifications/me/push/subscriptions/${first.body.data.id}`)
+      .set({ Authorization: user.bearer });
+    expect(del.status).toBe(200);
+    expect(del.body.data).toEqual({ deleted: true });
+    expect(pushRepo.rows.size).toBe(0);
   });
 });

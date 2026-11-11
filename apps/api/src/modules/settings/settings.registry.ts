@@ -173,6 +173,37 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     isSecret: false,
     description: 'Kavenegar sender line, e.g. 10004346; empty = provider default.',
   },
+  // Web push (B5.4) — the VAPID identity every push send is signed with.
+  // The public key + subject are served to browsers (subscription + UI);
+  // the private key NEVER leaves the server and is masked in admin
+  // listings. All three empty = web push disabled (PushService skips).
+  'push.vapid.publicKey': {
+    key: 'push.vapid.publicKey',
+    schema: z.string().max(200),
+    default: '',
+    group: 'integrations',
+    public: true,
+    isSecret: false,
+    description: 'VAPID public key (Base64 URL-safe) — shipped to browsers for subscribe.',
+  },
+  'push.vapid.privateKey': {
+    key: 'push.vapid.privateKey',
+    schema: z.string().max(200),
+    default: '',
+    group: 'integrations',
+    public: false,
+    isSecret: true,
+    description: 'VAPID private key (Base64 URL-safe) — signs every push send.',
+  },
+  'push.vapid.subject': {
+    key: 'push.vapid.subject',
+    schema: z.string().max(200),
+    default: '',
+    group: 'integrations',
+    public: true,
+    isSecret: false,
+    description: 'VAPID subject — a mailto: or https: contact URI push services require.',
+  },
   'sms.kavenegar.otpTemplate': {
     key: 'sms.kavenegar.otpTemplate',
     schema: z.string().max(60),

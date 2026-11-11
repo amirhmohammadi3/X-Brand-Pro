@@ -173,6 +173,56 @@ export const markNotificationsReadResultSchema = z
   .strict();
 export type MarkNotificationsReadResult = z.infer<typeof markNotificationsReadResultSchema>;
 
+// ─── Web push subscriptions (B5.4) ─────────────────────────────────────────
+
+/** The browser-generated encryption keys the W3C Push API mandates. */
+export const pushSubscriptionKeysSchema = z
+  .object({
+    p256dh: z.string().min(1).max(200),
+    auth: z.string().min(1).max(200),
+  })
+  .strict();
+export type PushSubscriptionKeys = z.infer<typeof pushSubscriptionKeysSchema>;
+
+/** POST /notifications/me/push/subscriptions body (the PushSubscription the browser hands over). */
+export const createPushSubscriptionBodySchema = z
+  .object({
+    /** The push service URL (FCM/Mozilla) — must be https. */
+    endpoint: z
+      .string()
+      .url()
+      .max(500)
+      .refine((v) => v.startsWith('https://'), {
+        message: 'endpoint must be https',
+      }),
+    keys: pushSubscriptionKeysSchema,
+    userAgent: z.string().max(300).optional(),
+  })
+  .strict();
+export type CreatePushSubscriptionBody = z.infer<typeof createPushSubscriptionBodySchema>;
+
+/** One saved subscription as the "my devices" list serves it (keys NEVER echoed). */
+export const pushSubscriptionItemSchema = z
+  .object({
+    id: uuidSchema,
+    endpoint: z.string().max(500),
+    userAgent: z.string().max(300).nullable(),
+    createdAt: z.string(),
+  })
+  .strict();
+export type PushSubscriptionItem = z.infer<typeof pushSubscriptionItemSchema>;
+
+export const pushSubscriptionsResultSchema = z
+  .object({ items: z.array(pushSubscriptionItemSchema) })
+  .strict();
+export type PushSubscriptionsResult = z.infer<typeof pushSubscriptionsResultSchema>;
+
+export const deletePushSubscriptionResultSchema = z.object({ deleted: z.boolean() }).strict();
+export type DeletePushSubscriptionResult = z.infer<typeof deletePushSubscriptionResultSchema>;
+
+/** Push subscription writes are the same one-row budget as the rest of the module. */
+export const PUSH_WRITE_LIMIT_PER_MIN = 30;
+
 /**
  * Rate-limit rules (single source of truth for controller + tests):
  * - preference writes + mark-read → 30/min per user (the B5.1 write budget);
@@ -192,6 +242,8 @@ export const notificationDeliveryResultSchema = z
       inApp: z.boolean(),
       email: z.boolean(),
       sms: z.boolean(),
+      /** B5.4 — a push send RESOLVED to at least one subscription. */
+      push: z.boolean(),
     }),
   })
   .strict();
