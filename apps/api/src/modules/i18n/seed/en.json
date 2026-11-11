@@ -1158,6 +1158,29 @@
         "loginRequired": "You must be logged in to write a review.",
         "login": "Log in / Register",
         "error": "Submitting the review failed; please try again."
+      },
+      "actions": {
+        "helpful": "Helpful",
+        "unhelpful": "Not helpful",
+        "voted": "Voted",
+        "report": "Report",
+        "reportTitle": "Report this review",
+        "reportCategory": {
+          "spam": "Spam",
+          "offensive": "Offensive",
+          "false_info": "False info",
+          "other": "Other"
+        },
+        "reportDetailsLabel": "Details (required for «Other»)",
+        "reportDetailsPlaceholder": "Explain the issue…",
+        "reportSubmit": "Submit report",
+        "reportSuccess": "Your report was submitted and will be reviewed by moderators.",
+        "reportLoginRequired": "You must be logged in to report a review.",
+        "reply": "Reply to this review",
+        "replyPlaceholder": "Write your reply…",
+        "replySubmit": "Submit reply",
+        "replySubmitting": "Submitting…",
+        "replySuccess": "Reply submitted."
       }
     }
   }

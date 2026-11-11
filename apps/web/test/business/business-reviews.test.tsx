@@ -13,6 +13,12 @@ import type { BusinessReviewsProps } from '../../src/components/business/busines
 
 const apiFetchMock = vi.fn();
 vi.mock('../../src/lib/api/client', () => ({ apiFetch: apiFetchMock }));
+// ReviewItem now renders the F4.6 actions (vote/report/reply), which call
+// useAuth — stub it as a non-owner authenticated user so the static reply
+// display path is taken and the actions render enabled.
+vi.mock('../../src/lib/auth/auth-context', () => ({
+  useAuth: () => ({ status: 'authenticated', user: { id: 'u-other' } }),
+}));
 
 const { BusinessReviews } = await import('../../src/components/business/business-reviews');
 

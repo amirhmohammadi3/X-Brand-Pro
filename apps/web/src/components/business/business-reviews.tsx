@@ -5,6 +5,8 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Rating, Badge } from '@/components/ui';
 import { createFormatters } from '@/lib/format';
 import { apiFetch } from '@/lib/api/client';
+import { useAuth } from '@/lib/auth/auth-context';
+import { ReviewVoteButtons, ReviewReportButton, ReviewReplyForm } from './business-review-actions';
 import { reviewListResultSchema, type Review, type PageMeta } from '@app/contracts';
 
 /**
@@ -29,6 +31,9 @@ type SortKey = 'newest' | 'helpful' | 'highRating' | 'lowRating';
 
 export interface BusinessReviewsProps {
   businessId: string;
+  /** The business's owner user id — when the current user matches, each review
+   * shows the editable owner-reply form instead of the static reply display. */
+  ownerId?: string | null;
   avgRating: number;
   reviewCount: number;
   initialReviews: Review[];
@@ -37,6 +42,7 @@ export interface BusinessReviewsProps {
 
 export function BusinessReviews({
   businessId,
+  ownerId,
   avgRating,
   reviewCount,
   initialReviews,
@@ -209,7 +215,7 @@ export function BusinessReviews({
       ) : (
         <ul className="flex flex-col gap-4" data-testid="business-reviews-list">
           {filtered.map((r) => (
-            <ReviewItem key={r.id} review={r} locale={locale} />
+            <ReviewItem key={r.id} review={r} locale={locale} ownerId={ownerId} />
           ))}
         </ul>
       )}
@@ -234,9 +240,19 @@ export function BusinessReviews({
 
 /** One review card. Calls its own `useTranslations` (avoids threading the
  * typed translation fn as a prop). */
-function ReviewItem({ review, locale }: { review: Review; locale: string }) {
+function ReviewItem({
+  review,
+  locale,
+  ownerId,
+}: {
+  review: Review;
+  locale: string;
+  ownerId?: string | null;
+}) {
   const t = useTranslations('businessPage.reviews');
   const { formatNumber, formatRelative } = createFormatters(locale);
+  const { user } = useAuth();
+  const isOwner = ownerId != null && user?.id === ownerId;
   const author = review.authorName ?? review.authorUsername;
   return (
     <li
@@ -279,7 +295,16 @@ function ReviewItem({ review, locale }: { review: Review; locale: string }) {
         {review.editedAt ? <span>{t('item.edited')}</span> : null}
       </div>
 
-      {review.reply ? (
+      {/* vote + report (F4.6) */}
+      <div className="flex flex-wrap items-center gap-3">
+        <ReviewVoteButtons review={review} />
+        <ReviewReportButton reviewId={review.id} />
+      </div>
+
+      {/* owner reply: editable form for the owner, static display for others */}
+      {isOwner ? (
+        <ReviewReplyForm reviewId={review.id} existingReply={review.reply} />
+      ) : review.reply ? (
         <div
           className="mt-1 rounded-lg border-s-2 border-primary bg-surface-alt p-3 text-sm"
           data-testid="business-review-reply"

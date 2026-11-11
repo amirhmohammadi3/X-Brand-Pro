@@ -1158,6 +1158,29 @@
         "loginRequired": "برای ثبت نظر باید وارد شوید.",
         "login": "ورود / ثبت‌نام",
         "error": "ثبت نظر ناموفق بود؛ دوباره تلاش کنید."
+      },
+      "actions": {
+        "helpful": "کاربردی",
+        "unhelpful": "نکاربردی",
+        "voted": "ثبت شد",
+        "report": "گزارش تخلف",
+        "reportTitle": "گزارش این نظر",
+        "reportCategory": {
+          "spam": "اسپم",
+          "offensive": "توهین‌آمیز",
+          "false_info": "اطلاعات نادرست",
+          "other": "سایر"
+        },
+        "reportDetailsLabel": "توضیحات (الزامی برای «سایر»)",
+        "reportDetailsPlaceholder": "توضیح بنویسید…",
+        "reportSubmit": "ثبت گزارش",
+        "reportSuccess": "گزارش شما ثبت شد و توسط ناظران بررسی می‌شود.",
+        "reportLoginRequired": "برای گزارش دادن باید وارد شوید.",
+        "reply": "پاسخ به این نظر",
+        "replyPlaceholder": "پاسخ خود را بنویسید…",
+        "replySubmit": "ثبت پاسخ",
+        "replySubmitting": "در حال ثبت…",
+        "replySuccess": "پاسخ ثبت شد."
       }
     }
   }

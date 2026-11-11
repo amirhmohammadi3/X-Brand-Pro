@@ -246,6 +246,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
         <BusinessReviewForm businessId={business.id} />
         <BusinessReviews
           businessId={business.id}
+          ownerId={business.ownerId}
           avgRating={business.avgRating}
           reviewCount={business.reviewCount}
           initialReviews={reviews.items}
