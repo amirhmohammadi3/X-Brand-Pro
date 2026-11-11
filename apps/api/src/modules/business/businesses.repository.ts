@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { DrizzleClient } from '../../db/drizzle.client.js';
 import { businessAmenities, businessCategories, businesses } from '../../db/schema/business.js';
 import { categories, amenities } from '../../db/schema/catalog.js';
@@ -93,6 +93,12 @@ export interface BusinessesRepositoryLike {
   setStatus(id: string, status: BusinessStatus, publishedAt?: Date | null): Promise<void>;
   softDelete(id: string): Promise<void>;
   listByOwner(ownerId: string): Promise<BusinessSummary[]>;
+  /** B5.1 - full summary cards for the given ids, order NOT preserved (the
+   * caller re-orders around its own pagination). Missing/soft-deleted ids
+   * are simply absent from the result. Used by the favorites list read
+   * (saved businesses are joined into cards by the module that owns the
+   * business rows - the favorites module never duplicates this join). */
+  findSummariesByIds(ids: string[]): Promise<BusinessSummary[]>;
   /* --- B2.6 existence/bbox lookups (the service validates create/update input).
    * These query the already-joined cities/neighborhoods/categories/amenities
    * tables directly so the business module stays self-contained (no circular
@@ -235,6 +241,21 @@ export class BusinessesRepository implements BusinessesRepositoryLike {
       .leftJoin(mediaFiles, eq(mediaFiles.id, businesses.coverMediaId))
       .where(and(eq(businesses.ownerId, ownerId), isNull(businesses.deletedAt)))
       .orderBy(desc(businesses.createdAt), asc(businesses.id));
+    return (rows as unknown as SummaryRow[]).map((r) => this.toSummary(r));
+  }
+
+  /** B5.1 - cards for an explicit id list (the favorites list read). The
+   * same join set as listByOwner; soft-deleted rows are excluded. */
+  async findSummariesByIds(ids: string[]): Promise<BusinessSummary[]> {
+    if (ids.length === 0) return [];
+    const rows = await this.client.db
+      .select(SUMMARY_SELECT)
+      .from(businesses)
+      .innerJoin(cities, eq(cities.id, businesses.cityId))
+      .innerJoin(categories, eq(categories.id, businesses.primaryCategoryId))
+      .leftJoin(neighborhoods, eq(neighborhoods.id, businesses.neighborhoodId))
+      .leftJoin(mediaFiles, eq(mediaFiles.id, businesses.coverMediaId))
+      .where(and(inArray(businesses.id, ids), isNull(businesses.deletedAt)));
     return (rows as unknown as SummaryRow[]).map((r) => this.toSummary(r));
   }
 

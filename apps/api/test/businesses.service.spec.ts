@@ -158,6 +158,11 @@ function makeFakeRepo(opts: FakeOpts = {}): BusinessesRepositoryLike & {
     async listByOwner(ownerId: string) {
       return [...store.values()].filter((b) => b.ownerId === ownerId) as BusinessSummary[];
     },
+    async findSummariesByIds(ids: string[]) {
+      return ids
+        .filter((id) => store.has(id))
+        .map((id) => store.get(id) as unknown as BusinessSummary);
+    },
     async findCityForBusiness() {
       return opts.city === undefined ? CITY : opts.city;
     },

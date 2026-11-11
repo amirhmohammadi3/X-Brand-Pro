@@ -29,3 +29,4 @@ export * from './theme.js';
 export * from './search.js';
 export * from './reviews.js';
 export * from './qa.js';
+export * from './favorites.js';

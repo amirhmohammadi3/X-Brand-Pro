@@ -26,6 +26,7 @@ export * from './search-history.js';
 export * from './reviews.js';
 export * from './reputation.js';
 export * from './qa.js';
+export * from './favorites.js';
 export * from './business-page.js';
 export * from './public-profile.js';
 export * from './moderation.js';
