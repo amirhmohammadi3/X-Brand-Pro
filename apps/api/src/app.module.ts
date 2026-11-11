@@ -23,6 +23,7 @@ import { ReviewsModule } from './modules/reviews/reviews.module.js';
 import { ModerationModule } from './modules/moderation/moderation.module.js';
 import { QaModule } from './modules/qa/qa.module.js';
 import { FavoritesModule } from './modules/favorites/favorites.module.js';
+import { FollowsModule } from './modules/follows/follows.module.js';
 import { PostgresHealthIndicator } from './modules/health/postgres.health.js';
 import { I18nModule } from './modules/i18n/i18n.module.js';
 import { MediaModule } from './modules/media/media.module.js';
@@ -91,6 +92,7 @@ import { RedisModule } from './redis/redis.module.js';
     ReviewsModule,
     QaModule,
     FavoritesModule,
+    FollowsModule,
     ModerationModule,
     SearchModule,
     MapModule,

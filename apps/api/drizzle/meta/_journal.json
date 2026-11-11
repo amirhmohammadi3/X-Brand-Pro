@@ -204,6 +204,13 @@
       "when": 1794415233421,
       "tag": "0028_favorites",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1794416601125,
+      "tag": "0029_follows_activity",
+      "breakpoints": true
     }
   ]
 }
