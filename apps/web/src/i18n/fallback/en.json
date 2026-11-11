@@ -1139,7 +1139,26 @@
       "noReviews": "No reviews yet.",
       "noMatches": "No reviews match these filters.",
       "authorFallback": "Anonymous user",
-      "starsLabel": "{n} stars"
+      "starsLabel": "{n} stars",
+      "form": {
+        "title": "Write a review",
+        "ratingLabel": "Your rating",
+        "bodyLabel": "Your review",
+        "bodyPlaceholder": "Share your experience…",
+        "photoLabel": "Add a photo",
+        "photoRemove": "Remove photo",
+        "photoUploading": "Uploading photo…",
+        "checkinLabel": "I'm at this business right now",
+        "checkinLocating": "Finding your location…",
+        "checkinDenied": "Location permission was denied.",
+        "checkinUnavailable": "Geolocation is not available in this browser.",
+        "submit": "Submit review",
+        "submitting": "Submitting…",
+        "success": "Your review was submitted and will appear in the list once approved.",
+        "loginRequired": "You must be logged in to write a review.",
+        "login": "Log in / Register",
+        "error": "Submitting the review failed; please try again."
+      }
     }
   }
 }

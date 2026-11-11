@@ -13,6 +13,7 @@ import { BusinessMap } from '@/components/business/business-map';
 import { BusinessGallery } from '@/components/business/business-gallery';
 import { BusinessMenu } from '@/components/business/business-menu';
 import { BusinessReviews } from '@/components/business/business-reviews';
+import { BusinessReviewForm } from '@/components/business/business-review-form';
 import { businessPageSchema, type BusinessPage } from '@app/contracts';
 
 /**
@@ -242,6 +243,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
         <h2 id="business-reviews-heading" className="text-xl font-semibold text-text">
           {t('reviews.title')}
         </h2>
+        <BusinessReviewForm businessId={business.id} />
         <BusinessReviews
           businessId={business.id}
           avgRating={business.avgRating}
