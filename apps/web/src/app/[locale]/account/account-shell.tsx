@@ -13,9 +13,10 @@ import { cn } from '../../../lib/cn';
 
 // F1.9: the account sidebar exposes the profile and settings tabs. Later
 // prompts append reviews, bookmarks, following, messages, notifications and
-// reservations.
+// reservations. F5.1 appends the favorites tab.
 const SIDEBAR_ITEMS = [
   { key: 'profile', href: '/account/profile' },
+  { key: 'favorites', href: '/account/favorites' },
   { key: 'settings', href: '/account/settings' },
 ] as const;
 

@@ -65,4 +65,23 @@ export const qk = {
     map: (bbox?: string, zoom?: number, cityId?: string) =>
       ['search', 'map', bbox, zoom, cityId ?? 'all'] as const,
   },
+  /**
+   * Favorites (F5.1). The lists index key `['favorites','lists']` is a PREFIX
+   * of every list-items page key `['favorites','lists',listId,'items',…]`, so
+   * one `invalidateQueries({ queryKey: qk.favorites.lists() })` refreshes the
+   * index AND every items page in a single pass — used by item moves/removes
+   * where the source list is unknown to the caller.
+   */
+  favorites: {
+    all: () => ['favorites'] as const,
+    /** `GET /favorites/me` — the caller's lists (default first). */
+    lists: () => ['favorites', 'lists'] as const,
+    /** `GET /favorites/lists/:id/items` — one items page (newest first). */
+    listItems: (listId: string, page: number, pageSize: number) =>
+      ['favorites', 'lists', listId, 'items', page, pageSize] as const,
+    /** Prefix of every items page of one list — used by add-item (target known). */
+    listItemsAll: (listId: string) => ['favorites', 'lists', listId, 'items'] as const,
+    /** `GET /favorites/me/check?businessId=` — the heart state, one probe. */
+    status: (businessId: string) => ['favorites', 'status', businessId] as const,
+  },
 };

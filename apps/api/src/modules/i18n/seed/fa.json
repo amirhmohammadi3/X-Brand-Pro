@@ -445,7 +445,8 @@
       "logout": "خروج",
       "login": "ورود",
       "register": "ثبت‌نام",
-      "settings": "تنظیمات"
+      "settings": "تنظیمات",
+      "favorites": "علاقه‌مندی‌ها"
     },
     "lockedFor": "به دلیل تلاش‌های ناموفق، ورود برای {seconds} ثانیه در دسترس نیست.",
     "rateLimitedFor": "درخواست‌های شما زیاد است؛ {seconds} ثانیه دیگر دوباره تلاش کنید.",
@@ -651,6 +652,43 @@
         "deleted": "حساب حذف شد.",
         "typeMismatch": "عبارت تایپ‌شده با DELETE مطابقت ندارد."
       }
+    },
+    "favorites": {
+      "title": "علاقه‌مندی‌ها",
+      "listsTitle": "لیست‌ها",
+      "newListPlaceholder": "نام لیست جدید",
+      "newListLabel": "نام لیست",
+      "createAction": "ایجاد لیست",
+      "noLists": "هنوز لیستی نساخته‌اید.",
+      "defaultListName": "علاقه‌مندی‌ها",
+      "defaultBadge": "پیش‌فرض",
+      "defaultUndeletable": "لیست پیش‌فرض قابل حذف نیست.",
+      "renameAction": "تغییر نام {name}",
+      "deleteAction": "حذف {name}",
+      "listCreated": "لیست «{name}» ساخته شد.",
+      "listRenamed": "نام لیست به «{name}» تغییر کرد.",
+      "listDeleted": "لیست «{name}» حذف شد.",
+      "itemRemoved": "«{name}» از علاقه‌مندی‌ها برداشته شد.",
+      "itemMoved": "«{name}» به لیست دیگر منتقل شد.",
+      "renameModalTitle": "تغییر نام لیست",
+      "renameSubmit": "ذخیره",
+      "deleteModalTitle": "حذف لیست",
+      "deleteModalBody": "آیا «{name}» حذف شود؟ کسب‌وکارهای این لیست از علاقه‌مندی‌های شما برداشته می‌شوند.",
+      "deleteSubmit": "حذف",
+      "loadError": "بارگذاری علاقه‌مندی‌ها ناموفق بود.",
+      "emptyListTitle": "این لیست خالی است",
+      "emptyListBody": "با زدن دکمهٔ قلب روی صفحهٔ هر کسب‌وکار، اینجا ذخیره می‌شود.",
+      "emptyTitle": "هنوز علاقه‌مندی‌ای ندارید",
+      "emptyBody": "با زدن دکمهٔ قلب روی صفحهٔ هر کسب‌وکار، اینجا ذخیره می‌شود.",
+      "moveToLabel": "انتقال به لیست",
+      "removeItemAction": "حذف از علاقه‌مندی‌ها",
+      "serverError": "خطایی رخ داد؛ دوباره تلاش کنید.",
+      "listNameTaken": "لیستی با این نام دارید.",
+      "saved": "«{name}» به علاقه‌مندی‌ها اضافه شد.",
+      "removed": "«{name}» از علاقه‌مندی‌ها برداشته شد.",
+      "saveAction": "افزودن {name} به علاقه‌مندی‌ها",
+      "unsaveAction": "برداشتن {name} از علاقه‌مندی‌ها",
+      "alreadyFavorited": "این کسب‌وکار از قبل در لیست شماست."
     }
   },
   "admin": {

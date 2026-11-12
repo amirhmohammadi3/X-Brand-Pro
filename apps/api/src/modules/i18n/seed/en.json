@@ -445,7 +445,8 @@
       "logout": "Log out",
       "login": "Log in",
       "register": "Register",
-      "settings": "Settings"
+      "settings": "Settings",
+      "favorites": "Favorites"
     },
     "lockedFor": "Because of repeated failed attempts, sign-in is unavailable for {seconds} seconds.",
     "rateLimitedFor": "Too many requests; try again in {seconds} seconds.",
@@ -651,6 +652,43 @@
         "deleted": "Account deleted.",
         "typeMismatch": "The typed text does not match DELETE."
       }
+    },
+    "favorites": {
+      "title": "Favorites",
+      "listsTitle": "Lists",
+      "newListPlaceholder": "New list name",
+      "newListLabel": "List name",
+      "createAction": "Create list",
+      "noLists": "You haven't created any lists yet.",
+      "defaultListName": "Favorites",
+      "defaultBadge": "Default",
+      "defaultUndeletable": "The default list cannot be deleted.",
+      "renameAction": "Rename {name}",
+      "deleteAction": "Delete {name}",
+      "listCreated": "List “{name}” created.",
+      "listRenamed": "List renamed to “{name}”.",
+      "listDeleted": "List “{name}” deleted.",
+      "itemRemoved": "“{name}” removed from favorites.",
+      "itemMoved": "“{name}” moved to another list.",
+      "renameModalTitle": "Rename list",
+      "renameSubmit": "Save",
+      "deleteModalTitle": "Delete list",
+      "deleteModalBody": "Delete “{name}”? The businesses in this list will be removed from your favorites.",
+      "deleteSubmit": "Delete",
+      "loadError": "Couldn't load favorites.",
+      "emptyListTitle": "This list is empty",
+      "emptyListBody": "Tap the heart on a business page to save it here.",
+      "emptyTitle": "No favorites yet",
+      "emptyBody": "Tap the heart on a business page to save it here.",
+      "moveToLabel": "Move to list",
+      "removeItemAction": "Remove from favorites",
+      "serverError": "Something went wrong; try again.",
+      "listNameTaken": "You already have a list with this name.",
+      "saved": "“{name}” added to favorites.",
+      "removed": "“{name}” removed from favorites.",
+      "saveAction": "Add {name} to favorites",
+      "unsaveAction": "Remove {name} from favorites",
+      "alreadyFavorited": "This business is already in one of your lists."
     }
   },
   "admin": {
