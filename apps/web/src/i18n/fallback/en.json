@@ -742,7 +742,8 @@
       "bellAria": "Notifications ({count} unread)",
       "tabs": {
         "inbox": "Inbox",
-        "preferences": "Preferences"
+        "preferences": "Preferences",
+        "devices": "Devices"
       },
       "markAllRead": "Mark all as read",
       "markedAllToast": "{count} notifications marked as read.",
@@ -779,6 +780,26 @@
         "questionAnswered": "Answer to your question",
         "followCreated": "New follower",
         "businessFavorited": "Your business saved"
+      },
+      "devices": {
+        "enableTitle": "Enable push notifications on this device",
+        "enableBody": "Get notified about replies, votes and new followers even when this tab is closed.",
+        "enableAction": "Enable push",
+        "unsupported": "Push is not supported in this browser",
+        "emptyTitle": "No devices yet",
+        "emptyBody": "Enable push on a device you use to receive notifications here.",
+        "unknownDevice": "Unknown device",
+        "removeAria": "Remove this device",
+        "subscribedToast": "Push enabled for this device.",
+        "removedToast": "Device removed.",
+        "removeError": "Couldn't remove the device. Try again.",
+        "swError": "The service worker failed to start. Reload the page and try again.",
+        "loadError": "Couldn't load your devices.",
+        "errorUnsupported": "This browser doesn't support push notifications.",
+        "errorNoVapid": "Push isn't configured on the server yet. Try again later.",
+        "errorDenied": "You blocked notifications. Allow them in your browser settings.",
+        "errorNetwork": "Network error while subscribing. Try again.",
+        "errorUnknown": "Couldn't enable push. Try again."
       }
     }
   },
@@ -1450,5 +1471,25 @@
     "success": "Your claim was submitted and will be reviewed by moderators.",
     "loginRequired": "You must be logged in to claim a business.",
     "error": "Submitting the claim failed; please try again."
+  },
+  "pwa": {
+    "name": "X-Brand — Book trusted local services",
+    "shortName": "X-Brand",
+    "description": "Discover, save and book trusted local businesses on X-Brand.",
+    "shortcutSearch": "Search",
+    "shortcutFavorites": "Favorites",
+    "offline": {
+      "title": "You're offline",
+      "body": "We couldn't reach the network. Check your connection and try again.",
+      "retry": "Try again"
+    },
+    "install": {
+      "title": "Install X-Brand",
+      "body": "Add X-Brand to your home screen for faster access and offline support.",
+      "action": "Install",
+      "dismiss": "Not now",
+      "iosTitle": "Add to Home Screen",
+      "iosBody": "Tap the Share button, then «Add to Home Screen» to install X-Brand."
+    }
   }
 }

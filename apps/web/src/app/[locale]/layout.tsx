@@ -22,6 +22,7 @@ import {
   SYSTEM_MODE_INLINE_SCRIPT,
 } from '../../lib/theme/mode';
 import { ActiveThemeProvider } from '../../lib/theme/active-theme-context';
+import { PwaBootstrap } from '../../components/pwa/pwa-bootstrap';
 
 /**
  * Build-time prerender covers the build-safe fallback locales; languages an
@@ -35,14 +36,34 @@ export function generateStaticParams(): Array<{ locale: string }> {
 /**
  * Per-request metadata: the `theme-color` meta follows the active pack's
  * `bg` token (DESIGN.md section 10). Title/description are placeholders
- * replaced by real branding in a later prompt.
+ * replaced by real branding in a later prompt. F5.4 links the locale-scoped
+ * manifest (`/[locale]/manifest.webmanifest`) the SW precaches icons for and
+ * registers the apple-touch icon for iOS Safari «Add to Home Screen».
  */
-export async function generateMetadata(): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}): Promise<Metadata> {
+  const { locale } = await params;
   const theme = await getActiveTheme();
   return {
     title: 'X-Brand skeleton',
     description: 'Temporary skeleton title — replaced by real branding and i18n in phase 1.',
     other: { 'theme-color': theme.tokens.light.bg },
+    manifest: `/${locale}/manifest.webmanifest`,
+    icons: {
+      icon: [
+        { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+      ],
+      apple: [{ url: '/icons/icon-192.png', sizes: '192x192' }],
+    },
+    appleWebApp: {
+      capable: true,
+      statusBarStyle: 'default',
+      title: 'X-Brand',
+    },
   };
 }
 
@@ -113,6 +134,9 @@ export default async function LocaleLayout({
             <NextIntlClientProvider>{children}</NextIntlClientProvider>
           </Providers>
         </ActiveThemeProvider>
+        {/* F5.4: registers /sw.js in production + surfaces the install banner.
+            Rendered outside the main content so it never shifts layout. */}
+        <PwaBootstrap />
       </body>
     </html>
   );

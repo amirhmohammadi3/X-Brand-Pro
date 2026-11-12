@@ -93,6 +93,8 @@ export const qk = {
     unread: () => ['notifications', 'unread'] as const,
     /** `GET /notifications/me/preferences` — the merged channel matrix. */
     preferences: () => ['notifications', 'preferences'] as const,
+    /** `GET /notifications/me/push/subscriptions` — the F5.4 device list. */
+    pushDevices: () => ['notifications', 'push', 'devices'] as const,
   },
   /**
    * Favorites (F5.1). The lists index key `['favorites','lists']` is a PREFIX

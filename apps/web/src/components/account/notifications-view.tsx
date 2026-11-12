@@ -44,10 +44,12 @@ import {
   Tabs,
   useToast,
 } from '../ui';
+import { PushDevicesTab } from '../pwa/push-devices-tab';
 import { cn } from '../../lib/cn';
 
 const TAB_INBOX = 'inbox';
 const TAB_PREFERENCES = 'preferences';
+const TAB_DEVICES = 'devices';
 
 /**
  * The four channels — the MATRIX keys are camelCase (`inApp`), while the wire
@@ -156,6 +158,7 @@ export function NotificationsView() {
         tabs={[
           { value: TAB_INBOX, label: t('tabs.inbox') },
           { value: TAB_PREFERENCES, label: t('tabs.preferences') },
+          { value: TAB_DEVICES, label: t('tabs.devices') },
         ]}
       />
 
@@ -171,7 +174,7 @@ export function NotificationsView() {
           onPage={setPage}
           page={page}
         />
-      ) : (
+      ) : tab === TAB_PREFERENCES ? (
         <PreferencesTab
           prefs={prefs}
           pending={prefsPending}
@@ -180,6 +183,8 @@ export function NotificationsView() {
           togglePending={updatePref.isPending}
           onToggle={handleToggleChannel}
         />
+      ) : (
+        <PushDevicesTab />
       )}
     </div>
   );
