@@ -446,7 +446,9 @@
       "login": "Log in",
       "register": "Register",
       "settings": "Settings",
-      "favorites": "Favorites"
+      "favorites": "Favorites",
+      "following": "Following",
+      "feed": "Activity feed"
     },
     "lockedFor": "Because of repeated failed attempts, sign-in is unavailable for {seconds} seconds.",
     "rateLimitedFor": "Too many requests; try again in {seconds} seconds.",
@@ -689,6 +691,48 @@
       "saveAction": "Add {name} to favorites",
       "unsaveAction": "Remove {name} from favorites",
       "alreadyFavorited": "This business is already in one of your lists."
+    },
+    "following": {
+      "title": "Following",
+      "loadError": "Couldn't load your follows.",
+      "serverError": "Something went wrong on our side; please try again.",
+      "businessesTitle": "Followed businesses",
+      "usersTitle": "Followed users",
+      "noBusinesses": "You don't follow any businesses yet.",
+      "noUsers": "You don't follow any users yet.",
+      "unfollow": "Unfollow",
+      "unfollowAction": "Unfollow {name}",
+      "unfollowedToast": "“{name}” removed from your following list.",
+      "followedSince": "since {date}",
+      "emptyTitle": "You don't follow anyone yet",
+      "emptyBody": "Follow businesses and users to see their latest activity here.",
+      "followButton": {
+        "follow": "Follow",
+        "following": "Following",
+        "followAria": "Follow {name}",
+        "unfollowAria": "Unfollow {name}",
+        "loginPrompt": "Sign in to follow",
+        "toastFollowed": "“{name}” is now followed.",
+        "toastUnfollowed": "“{name}” removed from your following list.",
+        "selfFollow": "You cannot follow yourself.",
+        "serverError": "Something went wrong on our side; please try again."
+      }
+    },
+    "feed": {
+      "title": "Activity feed",
+      "loadError": "Couldn't load the feed.",
+      "tabAll": "All",
+      "tabReviews": "Reviews",
+      "tabQuestions": "Questions",
+      "tabAnswers": "Answers",
+      "tabFavorites": "Favorites",
+      "itemReviewCreated": "{actor} posted a review for “{business}”.",
+      "itemQuestionCreated": "{actor} asked a question about “{business}”.",
+      "itemQuestionAnswered": "{actor} answered a question about “{business}”.",
+      "itemFavoriteAdded": "{actor} added “{business}” to favorites.",
+      "itemFallback": "New activity from {actor}.",
+      "emptyTitle": "Your feed is empty",
+      "emptyBody": "Follow businesses and users to see their activity show up here."
     }
   },
   "admin": {

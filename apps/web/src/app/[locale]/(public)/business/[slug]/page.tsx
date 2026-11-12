@@ -19,6 +19,7 @@ import { BusinessReviewForm } from '@/components/business/business-review-form';
 import { BusinessQuestions } from '@/components/business/business-questions';
 import { BusinessShare } from '@/components/business/business-share';
 import { BusinessClaimButton } from '@/components/business/business-claim-button';
+import { FollowButton } from '@/components/account/follow-button';
 import { businessPageSchema, type BusinessPage } from '@app/contracts';
 
 /**
@@ -163,7 +164,17 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
               >
                 {t(business.isClaimed ? 'claimed' : 'unclaimed')}
               </Badge>
-              {!business.isClaimed ? <BusinessClaimButton businessId={business.id} /> : null}
+              {/* F5.2: follow toggle in the hero actions row (next to the
+               * claim button — both are client islands inside the server
+               * hero). The membership probe is the shared /follows/me cache. */}
+              <div className="flex items-center gap-2">
+                <FollowButton
+                  targetType="business"
+                  targetId={business.id}
+                  targetName={business.name}
+                />
+                {!business.isClaimed ? <BusinessClaimButton businessId={business.id} /> : null}
+              </div>
             </div>
           </div>
 

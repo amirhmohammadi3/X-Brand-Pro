@@ -12,11 +12,13 @@ import type { CurrentUser } from '@app/contracts';
 import { cn } from '../../../lib/cn';
 
 // F1.9: the account sidebar exposes the profile and settings tabs. Later
-// prompts append reviews, bookmarks, following, messages, notifications and
-// reservations. F5.1 appends the favorites tab.
+// prompts append reviews, bookmarks, messages, notifications and
+// reservations. F5.1 appends the favorites tab; F5.2 appends following + feed.
 const SIDEBAR_ITEMS = [
   { key: 'profile', href: '/account/profile' },
   { key: 'favorites', href: '/account/favorites' },
+  { key: 'following', href: '/account/following' },
+  { key: 'feed', href: '/account/feed' },
   { key: 'settings', href: '/account/settings' },
 ] as const;
 

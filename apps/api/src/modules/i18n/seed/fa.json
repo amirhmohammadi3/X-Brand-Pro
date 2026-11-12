@@ -446,7 +446,9 @@
       "login": "ورود",
       "register": "ثبت‌نام",
       "settings": "تنظیمات",
-      "favorites": "علاقه‌مندی‌ها"
+      "favorites": "علاقه‌مندی‌ها",
+      "following": "دنبال‌شده‌ها",
+      "feed": "فید فعالیت"
     },
     "lockedFor": "به دلیل تلاش‌های ناموفق، ورود برای {seconds} ثانیه در دسترس نیست.",
     "rateLimitedFor": "درخواست‌های شما زیاد است؛ {seconds} ثانیه دیگر دوباره تلاش کنید.",
@@ -689,6 +691,48 @@
       "saveAction": "افزودن {name} به علاقه‌مندی‌ها",
       "unsaveAction": "برداشتن {name} از علاقه‌مندی‌ها",
       "alreadyFavorited": "این کسب‌وکار از قبل در لیست شماست."
+    },
+    "following": {
+      "title": "دنبال‌شده‌ها",
+      "loadError": "بارگذاری دنبال‌شده‌ها ممکن نشد.",
+      "serverError": "خطایی از سمت ما رخ داد؛ دوباره تلاش کنید.",
+      "businessesTitle": "کسب‌وکارهای دنبال‌شده",
+      "usersTitle": "کاربران دنبال‌شده",
+      "noBusinesses": "هنوز هیچ کسب‌وکاری را دنبال نمی‌کنید.",
+      "noUsers": "هنوز هیچ کاربری را دنبال نمی‌کنید.",
+      "unfollow": "لغو دنبال‌کردن",
+      "unfollowAction": "لغو دنبال‌کردن {name}",
+      "unfollowedToast": "«{name}» از فهرست دنبال‌شده‌ها حذف شد.",
+      "followedSince": "از {date}",
+      "emptyTitle": "هنوز کسی را دنبال نمی‌کنید",
+      "emptyBody": "کسب‌وکارها و کاربران را دنبال کنید تا آخرین فعالیت‌شان این‌جا ببینید.",
+      "followButton": {
+        "follow": "دنبال‌کردن",
+        "following": "دنبال‌شده",
+        "followAria": "دنبال‌کردن {name}",
+        "unfollowAria": "لغو دنبال‌کردن {name}",
+        "loginPrompt": "برای دنبال‌کردن وارد شوید",
+        "toastFollowed": "«{name}» دنبال شد.",
+        "toastUnfollowed": "«{name}» از دنبال‌شده‌ها حذف شد.",
+        "selfFollow": "نمی‌توانید خودتان را دنبال کنید.",
+        "serverError": "خطایی از سمت ما رخ داد؛ دوباره تلاش کنید."
+      }
+    },
+    "feed": {
+      "title": "فید فعالیت",
+      "loadError": "بارگذاری فید ممکن نشد.",
+      "tabAll": "همه",
+      "tabReviews": "نظرها",
+      "tabQuestions": "پرسش‌ها",
+      "tabAnswers": "پاسخ‌ها",
+      "tabFavorites": "علاقه‌مندی‌ها",
+      "itemReviewCreated": "{actor} نظری برای «{business}» ثبت کرد.",
+      "itemQuestionCreated": "{actor} پرسشی دربارهٔ «{business}» پرسید.",
+      "itemQuestionAnswered": "{actor} به پرسشی دربارهٔ «{business}» پاسخ داد.",
+      "itemFavoriteAdded": "{actor} «{business}» را به علاقه‌مندی‌ها افزود.",
+      "itemFallback": "فعالیت جدیدی از {actor}.",
+      "emptyTitle": "فید شما خالی است",
+      "emptyBody": "کسب‌وکارها و کاربران را دنبال کنید تا فعالیت‌های‌شان این‌جا نمایش داده شود."
     }
   },
   "admin": {

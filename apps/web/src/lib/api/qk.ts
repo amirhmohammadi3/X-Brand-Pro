@@ -66,6 +66,20 @@ export const qk = {
       ['search', 'map', bbox, zoom, cityId ?? 'all'] as const,
   },
   /**
+   * Follows + feed (F5.2). `mine` covers BOTH follow lists (users +
+   * businesses) in one row set, so a single key serves the account page and
+   * every follow-button membership probe. `feed` is keyed by the active type
+   * tab + page like any paginated list.
+   */
+  follows: {
+    all: () => ['follows'] as const,
+    /** `GET /follows/me` — the caller's followed users + businesses. */
+    mine: () => ['follows', 'mine'] as const,
+    /** `GET /feed` — one page of the home feed (optionally type-filtered). */
+    feed: (type: string | null, page: number, pageSize: number) =>
+      ['follows', 'feed', type ?? 'all', page, pageSize] as const,
+  },
+  /**
    * Favorites (F5.1). The lists index key `['favorites','lists']` is a PREFIX
    * of every list-items page key `['favorites','lists',listId,'items',…]`, so
    * one `invalidateQueries({ queryKey: qk.favorites.lists() })` refreshes the
