@@ -80,6 +80,21 @@ export const qk = {
       ['follows', 'feed', type ?? 'all', page, pageSize] as const,
   },
   /**
+   * Notifications (F5.3). `unread` is a deliberately cheap probe (page size
+   * 1) for the header bell; the inbox pages and the preferences matrix key
+   * separately. Mark-read invalidates the whole subtree so the bell count,
+   * the page and the read/unread styling move together.
+   */
+  notifications: {
+    all: () => ['notifications'] as const,
+    /** `GET /notifications/me/inbox` — one page (newest first, + unread total). */
+    inbox: (page: number, pageSize: number) => ['notifications', 'inbox', page, pageSize] as const,
+    /** The cheap unread probe the header bell polls. */
+    unread: () => ['notifications', 'unread'] as const,
+    /** `GET /notifications/me/preferences` — the merged channel matrix. */
+    preferences: () => ['notifications', 'preferences'] as const,
+  },
+  /**
    * Favorites (F5.1). The lists index key `['favorites','lists']` is a PREFIX
    * of every list-items page key `['favorites','lists',listId,'items',…]`, so
    * one `invalidateQueries({ queryKey: qk.favorites.lists() })` refreshes the

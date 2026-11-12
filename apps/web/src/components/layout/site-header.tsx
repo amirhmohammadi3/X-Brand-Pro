@@ -9,6 +9,7 @@ import { Container } from './container';
 import { LanguageSwitcher } from './language-switcher';
 import { ThemeModeToggle } from './theme-mode-toggle';
 import { UserMenu } from './user-menu';
+import { NotificationBell } from './notification-bell';
 import { cn } from '../../lib/cn';
 import type { UserRole } from '@app/contracts';
 
@@ -82,6 +83,7 @@ export function SiteHeader() {
         <div className="flex items-center gap-1">
           <LanguageSwitcher />
           <ThemeModeToggle />
+          {authenticated ? <NotificationBell /> : null}
           <div className="ms-1">
             <UserMenu />
           </div>

@@ -448,7 +448,8 @@
       "settings": "Settings",
       "favorites": "Favorites",
       "following": "Following",
-      "feed": "Activity feed"
+      "feed": "Activity feed",
+      "notifications": "Notifications"
     },
     "lockedFor": "Because of repeated failed attempts, sign-in is unavailable for {seconds} seconds.",
     "rateLimitedFor": "Too many requests; try again in {seconds} seconds.",
@@ -733,6 +734,52 @@
       "itemFallback": "New activity from {actor}.",
       "emptyTitle": "Your feed is empty",
       "emptyBody": "Follow businesses and users to see their activity show up here."
+    },
+    "notifications": {
+      "title": "Notifications",
+      "loadError": "Couldn't load notifications.",
+      "serverError": "Something went wrong on our side; please try again.",
+      "bellAria": "Notifications ({count} unread)",
+      "tabs": {
+        "inbox": "Inbox",
+        "preferences": "Preferences"
+      },
+      "markAllRead": "Mark all as read",
+      "markedAllToast": "{count} notifications marked as read.",
+      "unreadSummary": "You have {count} unread notifications.",
+      "unreadBadge": "Unread",
+      "readBadge": "Read",
+      "markOneAria": "Mark as read",
+      "emptyTitle": "No notifications yet",
+      "emptyBody": "We'll let you know here when there's activity on your reviews and questions.",
+      "preferencesIntro": "Choose the delivery channels for each event.",
+      "customBadge": "Customized",
+      "prefSavedToast": "Preferences saved.",
+      "channels": {
+        "inApp": "In-app",
+        "email": "Email",
+        "sms": "SMS",
+        "push": "Browser push"
+      },
+      "templates": {
+        "reviewRepliedTitle": "New reply to your review",
+        "reviewRepliedBody": "{actor} replied to your review about {business}.",
+        "reviewVotedTitle": "Your review was voted helpful",
+        "reviewVotedBody": "A user voted your review about {business} as helpful.",
+        "questionAnsweredTitle": "New answer to your question",
+        "questionAnsweredBody": "Your question about {business} received an answer.",
+        "followCreatedTitle": "New follower",
+        "followCreatedBody": "{actor} started following you.",
+        "businessFavoritedTitle": "Your business was saved",
+        "businessFavoritedBody": "{actor} saved {business} to their favorites."
+      },
+      "events": {
+        "reviewReplied": "Reply to your review",
+        "reviewVoted": "Helpful vote on your review",
+        "questionAnswered": "Answer to your question",
+        "followCreated": "New follower",
+        "businessFavorited": "Your business saved"
+      }
     }
   },
   "admin": {

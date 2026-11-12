@@ -448,7 +448,8 @@
       "settings": "تنظیمات",
       "favorites": "علاقه‌مندی‌ها",
       "following": "دنبال‌شده‌ها",
-      "feed": "فید فعالیت"
+      "feed": "فید فعالیت",
+      "notifications": "اعلان‌ها"
     },
     "lockedFor": "به دلیل تلاش‌های ناموفق، ورود برای {seconds} ثانیه در دسترس نیست.",
     "rateLimitedFor": "درخواست‌های شما زیاد است؛ {seconds} ثانیه دیگر دوباره تلاش کنید.",
@@ -733,6 +734,52 @@
       "itemFallback": "فعالیت جدیدی از {actor}.",
       "emptyTitle": "فید شما خالی است",
       "emptyBody": "کسب‌وکارها و کاربران را دنبال کنید تا فعالیت‌های‌شان این‌جا نمایش داده شود."
+    },
+    "notifications": {
+      "title": "اعلان‌ها",
+      "loadError": "بارگذاری اعلان‌ها ممکن نشد.",
+      "serverError": "خطایی از سمت ما رخ داد؛ دوباره تلاش کنید.",
+      "bellAria": "اعلان‌ها ({count} خوانده‌نشده)",
+      "tabs": {
+        "inbox": "صندوق ورودی",
+        "preferences": "ترجیحات"
+      },
+      "markAllRead": "علامت‌گذاری همه به‌عنوان خوانده‌شده",
+      "markedAllToast": "{count} اعلان خوانده‌شده علامت‌گذاری شد.",
+      "unreadSummary": "{count} اعلان خوانده‌نشده دارید.",
+      "unreadBadge": "خوانده‌نشده",
+      "readBadge": "خوانده‌شده",
+      "markOneAria": "علامت‌گذاری به‌عنوان خوانده‌شده",
+      "emptyTitle": "اعلانی ندارید",
+      "emptyBody": "وقتی فعالیت جدیدی روی نقدها و پرسش‌های شما اتفاق بیفتد، این‌جا خبر می‌دهیم.",
+      "preferencesIntro": "برای هر رویداد، کانال‌های اطلاع‌رسانی را انتخاب کنید.",
+      "customBadge": "شخصی‌سازی‌شده",
+      "prefSavedToast": "ترجیحات ذخیره شد.",
+      "channels": {
+        "inApp": "درون‌برنامه‌ای",
+        "email": "ایمیل",
+        "sms": "پیامک",
+        "push": "اعلان مرورگر"
+      },
+      "templates": {
+        "reviewRepliedTitle": "پاسخ جدید به نقد شما",
+        "reviewRepliedBody": "{actor} به نقد شما دربارهٔ {business} پاسخ داد.",
+        "reviewVotedTitle": "نقد شما مفید ارزیابی شد",
+        "reviewVotedBody": "یک کاربر نقد شما دربارهٔ {business} را مفید ارزیابی کرد.",
+        "questionAnsweredTitle": "پاسخ جدید به پرسش شما",
+        "questionAnsweredBody": "پرسش شما دربارهٔ {business} پاسخ داده شد.",
+        "followCreatedTitle": "دنبال‌کنندهٔ جدید",
+        "followCreatedBody": "{actor} شما را دنبال کرد.",
+        "businessFavoritedTitle": "کسب‌وکار شما ذخیره شد",
+        "businessFavoritedBody": "{actor} کسب‌وکار {business} را در علاقه‌مندی‌های خود ذخیره کرد."
+      },
+      "events": {
+        "reviewReplied": "پاسخ به نقد شما",
+        "reviewVoted": "رأی مفید به نقد شما",
+        "questionAnswered": "پاسخ به پرسش شما",
+        "followCreated": "دنبال‌کنندهٔ جدید",
+        "businessFavorited": "ذخیرهٔ کسب‌وکار شما"
+      }
     }
   },
   "admin": {
