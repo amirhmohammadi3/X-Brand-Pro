@@ -2,15 +2,26 @@
 
 /**
  * NotificationBell (F5.3) — the header island. Renders the bell with the
- * unread badge (60 s poll via `useUnreadCount`) for AUTHENTICATED users and
- * nothing for guests (the notifications endpoints are private). The badge
- * caps at 99+ so a flood never breaks the header layout.
+ * unread badge for AUTHENTICATED users and nothing for guests (the
+ * notifications endpoints are private). The badge caps at 99+ so a flood
+ * never breaks the header layout.
+ *
+ * F5.5: the bell is also the natural mount point for the realtime
+ * `notification` event — when the gateway pushes one, the bell invalidates
+ * the notifications query cache so the badge refreshes INSTANTLY (the 60 s
+ * poll stays as a backstop for missed pushes). The socket is ref-counted:
+ * other realtime subscribers (F5.6 conversation view) share the same
+ * connection.
  */
 import { useLocale, useTranslations } from 'next-intl';
 import { Link } from '@/i18n/navigation';
 import { Bell } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { REALTIME_EVENTS } from '@app/contracts';
 import { useUnreadCount } from '../../lib/api/notifications';
 import { useAuth } from '../../lib/auth/auth-context';
+import { useRealtimeEvent } from '../../lib/realtime/use-realtime';
+import { qk } from '../../lib/api/qk';
 import { createFormatters } from '../../lib/format';
 import { cn } from '../../lib/cn';
 
@@ -21,6 +32,19 @@ export function NotificationBell() {
   const authenticated = status === 'authenticated';
   const { unread } = useUnreadCount(authenticated);
   const { formatNumber } = createFormatters(locale);
+  const queryClient = useQueryClient();
+
+  // F5.5: invalidate the notifications subtree when the gateway pushes a
+  // `notification` event so the badge + inbox refetch immediately. The hook
+  // is a no-op when `authenticated` is false (it short-circuits via the
+  // `deps` guard below so the socket is not acquired for guests).
+  useRealtimeEvent(
+    REALTIME_EVENTS.notification,
+    () => {
+      void queryClient.invalidateQueries({ queryKey: qk.notifications.all() });
+    },
+    [authenticated, queryClient],
+  );
 
   if (!authenticated) return null;
 
