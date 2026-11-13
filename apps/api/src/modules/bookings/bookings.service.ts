@@ -3,9 +3,12 @@ import { HttpException, HttpStatus, Inject, Injectable } from '@nestjs/common';
 // runtime via emitDecoratorMetadata — type-only would break DI (B1.3).
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { randomInt } from 'node:crypto';
+import { createHmac, randomInt, timingSafeEqual } from 'node:crypto';
+import { APP_CONFIG } from '../../config/config.module.js';
+import type { AppConfig } from '../../config/env.js';
 import {
   BOOKING_EVENTS,
+  BOOKING_FEED_MAX_EVENTS,
   BOOKING_MAX_ACTIVE_PER_USER_PER_BUSINESS,
   BOOKING_REMINDER_LEAD_MINUTES,
   crossesMidnight,
@@ -25,6 +28,7 @@ import {
 } from './bookings.repository.js';
 import { canManageBusiness } from '../business/business-access.js';
 import { ForbiddenException } from '@nestjs/common';
+import { buildIcsCalendar, type IcsBooking } from './bookings.ics.js';
 
 /**
  * Booking availability engine + conflict-free creation (B6.2). The rules:
@@ -271,6 +275,7 @@ export class BookingsService {
   constructor(
     @Inject(BOOKINGS_REPOSITORY) private readonly repo: BookingsRepositoryLike,
     private readonly events: EventEmitter2,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
   ) {}
 
   /**
@@ -660,6 +665,105 @@ export class BookingsService {
       });
     }
     return due.length;
+  }
+
+  // ─── ICS calendar feed (B6.4) ───────────────────────────────────────────
+
+  /**
+   * The feed token: HMAC-SHA256 over `calendar-feed:<scope>:<id>` with the
+   * OTP HMAC secret, hex-truncated to 32 chars. Stateless (no storage, no
+   * revocation list) — rotating the secret kills every feed at once, which
+   * is the right granularity for a personal calendar URL.
+   */
+  private feedToken(scope: 'user' | 'business', id: string): string {
+    return createHmac('sha256', this.config.otpHmacSecret)
+      .update(`calendar-feed:${scope}:${id}`)
+      .digest('hex')
+      .slice(0, 32);
+  }
+
+  /** Constant-time token check; a wrong/garbage token answers 404-shaped 403. */
+  private verifyFeedToken(scope: 'user' | 'business', id: string, token: string): boolean {
+    const expected = Buffer.from(this.feedToken(scope, id));
+    const provided = Buffer.from(token);
+    if (expected.length !== provided.length) return false;
+    return timingSafeEqual(expected, provided);
+  }
+
+  /** GET /bookings/me/calendar-token (authenticated) — the user's feed URL token. */
+  userFeedTokenFor(userId: string): string {
+    return this.feedToken('user', userId);
+  }
+
+  /** GET /bookings/business/:id/calendar-token (owner) — the owner feed token. */
+  async businessFeedTokenFor(actor: LifecycleActor, businessId: string): Promise<string> {
+    await this.verifyBusinessOwner(actor, businessId);
+    return this.feedToken('business', businessId);
+  }
+
+  /** GET /bookings/me/calendar.ics?token=… — the user's calendar (public + token). */
+  async userIcs(userId: string, token: string): Promise<string> {
+    if (!this.verifyFeedToken('user', userId, token)) {
+      throw new ForbiddenException();
+    }
+    const rows = await this.repo.listUserFeedBookings(userId, BOOKING_FEED_MAX_EVENTS);
+    return buildIcsCalendar(
+      rows.map((row) => this.toIcsBooking(row)),
+      'رزروهای من',
+    );
+  }
+
+  /** GET /bookings/business/:id/calendar.ics?token=… — the owner's calendar. */
+  async businessIcs(businessId: string, token: string): Promise<string> {
+    if (!this.verifyFeedToken('business', businessId, token)) {
+      throw new ForbiddenException();
+    }
+    const rows = await this.repo.listBusinessFeedBookings(businessId, BOOKING_FEED_MAX_EVENTS);
+    const calName = rows[0]?.businessName ?? 'رزروهای کسب‌وکار';
+    return buildIcsCalendar(
+      rows.map((row) => this.toIcsBooking(row)),
+      calName,
+    );
+  }
+
+  /** Wall clock (row's city timezone) → the UTC stamps the builder needs. */
+  private toIcsBooking(row: BookingDetailRow): IcsBooking {
+    const toUtc = (time: string): string => {
+      const { year, month, day } = dateParts(row.date);
+      const instant = wallMinutesToInstant(
+        year,
+        month,
+        day,
+        minutesOf(time.slice(0, 5)),
+        row.timezone,
+      );
+      return `${instant.toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`;
+    };
+    return {
+      id: row.id,
+      startUtc: toUtc(row.startTime),
+      endUtc: toUtc(row.endTime),
+      status: row.status,
+      partySize: row.partySize,
+      code: row.code,
+      note: row.note,
+      serviceName: row.serviceName,
+      businessName: row.businessName,
+    };
+  }
+
+  /** Owner gate for the business feed token (throws 403/404). */
+  private async verifyBusinessOwner(actor: LifecycleActor, businessId: string): Promise<void> {
+    const ctx = await this.repo.findBusinessContext(businessId);
+    if (!ctx) throw notFoundException();
+    if (
+      !canManageBusiness(actor, {
+        ownerId: ctx.ownerId,
+        status: ctx.status as never,
+      })
+    ) {
+      throw new ForbiddenException();
+    }
   }
 
   /** 404 unless the booking exists; 403 unless the actor manages its business. */

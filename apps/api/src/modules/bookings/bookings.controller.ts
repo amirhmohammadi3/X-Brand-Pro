@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   Inject,
   Param,
   Post,
@@ -12,11 +13,13 @@ import {
 import type { Request } from 'express';
 import { uuidSchema } from '@app/contracts';
 import {
+  BOOKING_FEED_LIMIT_PER_MIN,
   BOOKING_READ_LIMIT_PER_MIN,
   BOOKING_WRITE_LIMIT_PER_MIN,
   availabilityQuerySchema,
   bookingDecisionBodySchema,
   bookingRejectBodySchema,
+  calendarFeedQuerySchema,
   createBookingBodySchema,
   myBookingsQuerySchema,
   type AvailabilityQuery,
@@ -24,6 +27,7 @@ import {
   type Booking,
   type BookingDecisionBody,
   type BookingRejectBody,
+  type CalendarFeedQuery,
   type CreateBookingBody,
   type CreateBookingResult,
   type MyBookingsQuery,
@@ -246,5 +250,69 @@ export class BookingsController {
       },
       request,
     });
+  }
+
+  // ─── ICS calendar feed (B6.4) ──────────────────────────────────────────
+
+  /** GET /bookings/me/calendar-token — the subscriber's private feed token. */
+  @Get('bookings/me/calendar-token')
+  @RateLimit({
+    name: 'bookings.feed',
+    limit: BOOKING_FEED_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async myFeedToken(@Req() req: Request): Promise<{ token: string }> {
+    const user = requireUser(req);
+    return { token: this.bookings.userFeedTokenFor(user.id) };
+  }
+
+  /** GET /bookings/business/:id/calendar-token — the owner's feed token. */
+  @Get('bookings/business/:id/calendar-token')
+  @RateLimit({
+    name: 'bookings.feed',
+    limit: BOOKING_FEED_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async businessFeedToken(
+    @Req() req: Request,
+    @Param('id') id: string,
+  ): Promise<{ token: string }> {
+    const user = requireUser(req);
+    const token = await this.bookings.businessFeedTokenFor(user, assertUuid(id, 'businessId'));
+    return { token };
+  }
+
+  /** GET /bookings/user/:id/calendar.ics?token=… — public feed (token = auth). */
+  @Public()
+  @Header('Content-Type', 'text/calendar; charset=utf-8')
+  @Get('bookings/user/:id/calendar.ics')
+  @RateLimit({
+    name: 'bookings.feed',
+    limit: BOOKING_FEED_LIMIT_PER_MIN,
+    windowSec: 60,
+  })
+  async userIcs(
+    @Param('id') id: string,
+    @Query(new ZodValidationPipe(calendarFeedQuerySchema)) query: CalendarFeedQuery,
+  ): Promise<string> {
+    return this.bookings.userIcs(assertUuid(id, 'userId'), query.token);
+  }
+
+  /** GET /bookings/business/:id/calendar.ics?token=… — public owner feed. */
+  @Public()
+  @Header('Content-Type', 'text/calendar; charset=utf-8')
+  @Get('bookings/business/:id/calendar.ics')
+  @RateLimit({
+    name: 'bookings.feed',
+    limit: BOOKING_FEED_LIMIT_PER_MIN,
+    windowSec: 60,
+  })
+  async businessIcs(
+    @Param('id') id: string,
+    @Query(new ZodValidationPipe(calendarFeedQuerySchema)) query: CalendarFeedQuery,
+  ): Promise<string> {
+    return this.bookings.businessIcs(assertUuid(id, 'businessId'), query.token);
   }
 }

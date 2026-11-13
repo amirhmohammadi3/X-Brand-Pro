@@ -103,6 +103,16 @@ export const BOOKING_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]
 /** How long before the slot the reminder job fires (B6.3 یادآوری). */
 export const BOOKING_REMINDER_LEAD_MINUTES = 120;
 
+/**
+ * ICS feed caps (B6.4): the calendar answers the newest/nearest bookings
+ * up to this count — calendar clients resync fine and the query stays
+ * indexed and bounded.
+ */
+export const BOOKING_FEED_MAX_EVENTS = 200;
+
+/** Feed-token rate limit (public endpoints, ip-scoped). */
+export const BOOKING_FEED_LIMIT_PER_MIN = 30;
+
 // ─── Primitives ─────────────────────────────────────────────────────────────
 
 /** Business-local calendar date `YYYY-MM-DD` (shape only; ranges are service logic). */
@@ -324,7 +334,7 @@ export const bookingRejectBodySchema = z
   .strict();
 export type BookingRejectBody = z.infer<typeof bookingRejectBodySchema>;
 
-/** POST /bookings/:id/decision — owner confirm/reject in one endpoint. */
+/** POST /bookings/:id/decision body (owner confirm/reject). */
 export const bookingDecisionBodySchema = z
   .object({
     action: z.enum(['confirm', 'reject']),
@@ -336,6 +346,16 @@ export type BookingDecisionBody = z.infer<typeof bookingDecisionBodySchema>;
 /** PATCH result for transitions. */
 export const bookingStatusResultSchema = z.object({ booking: bookingSchema }).strict();
 export type BookingStatusResult = z.infer<typeof bookingStatusResultSchema>;
+
+// ─── ICS calendar feed (B6.4) ───────────────────────────────────────────────
+
+/** The ICS feed token — HMAC over the feed scope, no storage. */
+export const calendarTokenSchema = z.object({ token: z.string().min(16).max(128) }).strict();
+export type CalendarToken = z.infer<typeof calendarTokenSchema>;
+
+/** GET /bookings/me/calendar.ics?token=… — the query the feeds accept. */
+export const calendarFeedQuerySchema = z.object({ token: z.string().min(16).max(128) }).strict();
+export type CalendarFeedQuery = z.infer<typeof calendarFeedQuerySchema>;
 
 // ─── Domain events (B6.3 wires these to notify()) ───────────────────────────
 

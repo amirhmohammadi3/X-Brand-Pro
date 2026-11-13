@@ -160,6 +160,16 @@ export interface BookingsRepositoryLike {
   findReminderCandidates(today: string, tomorrow: string): Promise<ReminderCandidate[]>;
   /** Stamp the reminder as sent (idempotent — the scan filters on NULL). */
   stampReminderSent(ids: string[]): Promise<void>;
+  /** The user's bookings for the ICS feed (B6.4), oldest slot first. */
+  listUserFeedBookings(userId: string, limit: number): Promise<BookingDetailRow[]>;
+  /** The business's bookings for the owner ICS feed (B6.4). */
+  listBusinessFeedBookings(businessId: string, limit: number): Promise<BookingDetailRow[]>;
+  /** Business lifecycle + owner (the feed-token owner gate). */
+  findBusinessContext(businessId: string): Promise<{
+    ownerId: string | null;
+    status: string;
+    deletedAt: Date | null;
+  } | null>;
   /** Page over the user's bookings, newest first, optional status + scope. */
   listUserBookings(
     userId: string,
@@ -487,6 +497,85 @@ export class BookingsRepository implements BookingsRepositoryLike {
       .update(bookings)
       .set({ reminderSentAt: new Date(), updatedAt: new Date() })
       .where(inArray(bookings.id, ids));
+  }
+
+  async listUserFeedBookings(userId: string, limit: number): Promise<BookingDetailRow[]> {
+    const rows = await this.client.db
+      .select({
+        row: bookings,
+        serviceName: bookingServices.name,
+        businessName: businesses.name,
+        businessSlug: businesses.slug,
+        businessOwnerId: businesses.ownerId,
+        businessStatus: businesses.status,
+        timezone: cities.timezone,
+        cancelWindowMinutes: bookingServices.cancelWindowMinutes,
+      })
+      .from(bookings)
+      .innerJoin(bookingServices, eq(bookingServices.id, bookings.serviceId))
+      .innerJoin(businesses, eq(businesses.id, bookings.businessId))
+      .innerJoin(cities, eq(cities.id, businesses.cityId))
+      .where(eq(bookings.userId, userId))
+      .orderBy(asc(bookings.date), asc(bookings.startTime), asc(bookings.id))
+      .limit(limit);
+    return rows.map((found) => ({
+      ...found.row,
+      serviceName: found.serviceName,
+      businessName: found.businessName,
+      businessSlug: found.businessSlug,
+      businessOwnerId: found.businessOwnerId,
+      businessStatus: found.businessStatus,
+      timezone: found.timezone,
+      cancelWindowMinutes: found.cancelWindowMinutes,
+    }));
+  }
+
+  async listBusinessFeedBookings(businessId: string, limit: number): Promise<BookingDetailRow[]> {
+    const rows = await this.client.db
+      .select({
+        row: bookings,
+        serviceName: bookingServices.name,
+        businessName: businesses.name,
+        businessSlug: businesses.slug,
+        businessOwnerId: businesses.ownerId,
+        businessStatus: businesses.status,
+        timezone: cities.timezone,
+        cancelWindowMinutes: bookingServices.cancelWindowMinutes,
+      })
+      .from(bookings)
+      .innerJoin(bookingServices, eq(bookingServices.id, bookings.serviceId))
+      .innerJoin(businesses, eq(businesses.id, bookings.businessId))
+      .innerJoin(cities, eq(cities.id, businesses.cityId))
+      .where(eq(bookings.businessId, businessId))
+      .orderBy(asc(bookings.date), asc(bookings.startTime), asc(bookings.id))
+      .limit(limit);
+    return rows.map((found) => ({
+      ...found.row,
+      serviceName: found.serviceName,
+      businessName: found.businessName,
+      businessSlug: found.businessSlug,
+      businessOwnerId: found.businessOwnerId,
+      businessStatus: found.businessStatus,
+      timezone: found.timezone,
+      cancelWindowMinutes: found.cancelWindowMinutes,
+    }));
+  }
+
+  async findBusinessContext(businessId: string): Promise<{
+    ownerId: string | null;
+    status: string;
+    deletedAt: Date | null;
+  } | null> {
+    const rows = await this.client.db
+      .select({
+        ownerId: businesses.ownerId,
+        status: businesses.status,
+        deletedAt: businesses.deletedAt,
+      })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1);
+    return rows[0] ?? null;
   }
 
   async listUserBookings(

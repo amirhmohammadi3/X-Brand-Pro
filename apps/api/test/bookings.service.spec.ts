@@ -181,6 +181,9 @@ function makeRepo(
     async findBookingDetail() {
       return repo.transitionResult;
     },
+    async findBusinessContext() {
+      return { ownerId: OWNER, status: 'active', deletedAt: null };
+    },
     async transitionStatus(
       id: string,
       from: string[],
@@ -210,7 +213,8 @@ function makeService(repo: BookingsRepositoryLike) {
       events.push({ name, payload });
     },
   } as unknown as EventEmitter2;
-  const service = new BookingsService(repo, emitter);
+  const config = { otpHmacSecret: 'test-otp-hmac-secret-0123456789abcdef' };
+  const service = new BookingsService(repo, emitter, config as never);
   return { service, events };
 }
 
@@ -691,5 +695,93 @@ describe('reminders — B6.3', () => {
     expect(await service.runReminders()).toBe(0);
     expect(events).toHaveLength(0);
     expect(repo.stampedReminderIds).toEqual([]);
+  });
+});
+
+describe('ICS calendar feed — B6.4', () => {
+  function feedRepo(rows: BookingDetailRow[]) {
+    return makeRepo(serviceContext(), {
+      async listUserFeedBookings() {
+        return rows;
+      },
+      async listBusinessFeedBookings() {
+        return rows;
+      },
+    });
+  }
+
+  it('user feed token round-trips; a wrong token is rejected with 403', async () => {
+    const repo = feedRepo([]);
+    const { service } = makeService(repo);
+    const token = service.userFeedTokenFor(USER);
+    expect(token).toMatch(/^[0-9a-f]{32}$/);
+    expect(service.userFeedTokenFor(USER)).toBe(token); // stateless, stable
+    await expect(service.userIcs(USER, token)).resolves.toContain('BEGIN:VCALENDAR');
+    await expect(service.userIcs(USER, '0'.repeat(32))).rejects.toMatchObject({ status: 403 });
+    await expect(service.userIcs(USER, 'short')).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('the owner feed token requires management; a stranger gets 403/404', async () => {
+    const repo = feedRepo([]);
+    const { service } = makeService(repo);
+    await expect(
+      service.businessFeedTokenFor({ id: OWNER, role: 'user' }, BIZ),
+    ).resolves.toBeDefined();
+    await expect(
+      service.businessFeedTokenFor(
+        { id: '66666666-6666-4666-8666-666666666666', role: 'user' },
+        BIZ,
+      ),
+    ).rejects.toMatchObject({ status: 403 });
+    const missingBizRepo = makeRepo(serviceContext(), {
+      async findBusinessContext() {
+        return null;
+      },
+    });
+    await expect(
+      makeService(missingBizRepo).service.businessFeedTokenFor(
+        { id: OWNER, role: 'user' },
+        '99999999-9999-4999-8999-999999999999',
+      ),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('renders a valid VCALENDAR: UTC times, STATUS per lifecycle, folded lines', async () => {
+    const rows = [
+      bookingDetail({
+        status: 'confirmed',
+        date: '2026-11-20',
+        startTime: '19:00:00',
+        endTime: '20:30:00',
+        code: 'ABCD2345',
+        note: 'کنار پنجره',
+      }),
+      bookingDetail({
+        id: '45454545-4545-4545-8545-454545454545',
+        status: 'pending',
+        date: '2026-11-21',
+        startTime: '10:00:00',
+        endTime: '11:00:00',
+      }),
+    ];
+    const repo = feedRepo(rows);
+    const { service } = makeService(repo);
+    const ics = await service.userIcs(USER, service.userFeedTokenFor(USER));
+    // Structure.
+    expect(ics.startsWith('BEGIN:VCALENDAR\r\n')).toBe(true);
+    expect(ics).toContain('VERSION:2.0');
+    expect(ics).toContain('X-WR-CALNAME:رزروهای من');
+    expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
+    expect(ics.match(/BEGIN:VEVENT/g)).toHaveLength(2);
+    expect(ics).toContain('UID:44444444-4444-4444-8444-444444444444@xbrand');
+    // Tehran 19:00 = 15:30 UTC in winter.
+    expect(ics).toContain('DTSTART:20261120T153000Z');
+    expect(ics).toContain('DTEND:20261120T170000Z');
+    // STATUS mapping.
+    expect(ics).toContain('STATUS:CONFIRMED');
+    expect(ics).toContain('STATUS:TENTATIVE');
+    // TEXT escaping + CRLF-only line endings (no bare LF anywhere).
+    expect(ics).toContain('کنار پنجره');
+    expect(ics.split('\r\n').every((line) => !line.includes('\n'))).toBe(true);
   });
 });
