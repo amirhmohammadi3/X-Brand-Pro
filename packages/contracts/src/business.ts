@@ -184,6 +184,18 @@ export const businessDetailSchema = businessSummarySchema.extend({
 });
 export type BusinessDetail = z.infer<typeof businessDetailSchema>;
 
+/**
+ * `GET /businesses/me` response (F7.1). Every business the caller owns, in
+ * every status (pending/active/...), so the owner dashboard can list and
+ * switch between them. The shape is a single `items` array of summaries —
+ * the same `BusinessSummary` the public catalog uses, so the dashboard
+ * cards reuse the public card component verbatim.
+ */
+export const myBusinessesResultSchema = z
+  .object({ items: z.array(businessSummarySchema) })
+  .strict();
+export type MyBusinessesResult = z.infer<typeof myBusinessesResultSchema>;
+
 /** The subset of contact fields a create/update body may carry (B2.6 owns the
  * full CRUD; B2.4 only defines the normalisers + repository so later prompts
  * reuse them). Each field is optional + nullable so partial updates work. */

@@ -1608,5 +1608,69 @@
       "unprocessable": "The submitted data is invalid.",
       "not_found": "Booking or service not found."
     }
+  },
+  "dashboard": {
+    "title": "Owner dashboard",
+    "loading": "Loading…",
+    "nav": {
+      "soon": "Soon",
+      "overview": "Overview",
+      "profile": "Profile & hours",
+      "gallery": "Gallery",
+      "menu": "Menu",
+      "reviews": "Reviews",
+      "qa": "Q&A",
+      "bookings": "Bookings",
+      "messages": "Messages",
+      "analytics": "Analytics"
+    },
+    "group": {
+      "overview": "Overview",
+      "manage": "Manage",
+      "engagement": "Engagement"
+    },
+    "selector": {
+      "label": "Business:",
+      "loading": "Loading businesses",
+      "empty": "No businesses yet"
+    },
+    "overview": {
+      "subtitle": "Manage your businesses.",
+      "register": "Register a business",
+      "unclaimed": "Unclaimed",
+      "manage": "Manage",
+      "error": "Failed to load businesses.",
+      "empty": {
+        "title": "No businesses yet",
+        "description": "Register your first business to manage it from here."
+      }
+    },
+    "business": {
+      "title": "Business dashboard",
+      "viewPublic": "View public page",
+      "status": {
+        "draft": "Draft",
+        "pending": "Pending review",
+        "active": "Active",
+        "suspended": "Suspended",
+        "rejected": "Rejected",
+        "closed": "Closed"
+      },
+      "stats": {
+        "title": "Last 30 days",
+        "views": "Views",
+        "calls": "Call clicks",
+        "directions": "Direction clicks",
+        "shares": "Share clicks",
+        "impressions": "Impressions",
+        "empty": "No events recorded yet.",
+        "window": "Range: {from} to {to}"
+      },
+      "sections": {
+        "title": "Manage sections",
+        "description": "Reach each section from the sidebar. Sections marked “Soon” open in later phases.",
+        "open": "Open"
+      }
+    }
   }
 }

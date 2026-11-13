@@ -193,11 +193,7 @@ export function MyBookingsView() {
               >
                 {feedUrl}
               </code>
-              <CopyButton
-                value={feedUrl}
-                label={t('mine.feedCopy')}
-                copiedLabel={t('common.copied')}
-              />
+              <CopyButton value={feedUrl} label={t('mine.feedCopy')} />
             </div>
           ) : (
             <Spinner size="sm" />

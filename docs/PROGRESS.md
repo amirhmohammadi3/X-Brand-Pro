@@ -168,7 +168,7 @@
 
 - [x] B7.1 🔴 دریافت رویدادهای آنالیتیکس (بازدید، کلیک تماس/مسیر/اشتراک، impression) با batch و Redis
 - [x] B7.2 🟡 job تجمیع و API آمار (سری زمانی، قیف، آمار کلی بدون هویت)
-- [ ] F7.1 🟡 قالب داشبورد + انتخاب کسب‌وکار
+- [x] F7.1 🟡 قالب داشبورد + انتخاب کسب‌وکار
 - [ ] F7.2 🟡 ویرایش پروفایل، ساعات و موقعیت
 - [ ] F7.3 🟡 مدیریت گالری و منو
 - [ ] F7.4 🟡 نظرات، پاسخ و پرسش‌وپاسخ
@@ -310,6 +310,7 @@
 - [ ] (B0.3) Add a Redis probe to the health endpoint (ping + latency) once a liveness/readiness split exists; the limiter and cache fail open until then.
 - [ ] (B0.4) Verify the worker end to end against live Redis (enqueue → consume → retry on failure) on a machine with Docker; unit tests use a BullMQ mock, and the SIGTERM drain path was verified only with an empty registry.
 - [ ] (I0.2) Observe the first real CI run on GitHub (push-triggered) and fix any Actions-environment quirks; the workflow was validated locally (YAML parse + every step reproduced: pnpm verify green, prod-mode e2e 5/5) but the sandbox cannot execute GitHub Actions.
+- [ ] (B6.x) `docs/API.md` has no `/api/v1/bookings/*` section yet — the B6.1–B6.4 endpoints (services, availability, create, lifecycle, ICS feed) are implemented and tested but undocumented. Add the section (mirror the businesses/analytics tables) so the F7.5 booking-calendar management page has a reference. The analytics section was added with F7.1.
 
 ## Known issues
 

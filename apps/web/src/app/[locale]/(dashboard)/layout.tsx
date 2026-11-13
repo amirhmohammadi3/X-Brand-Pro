@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { headers } from 'next/headers';
 import { requireUser } from '../../../lib/auth/guard';
 import { Forbidden } from '../../../components/layout/forbidden';
+import { DashboardShell } from './dashboard-shell';
 import type { UserRole } from '@app/contracts';
 
 const DASHBOARD_ROLES: ReadonlyArray<UserRole> = ['owner', 'admin', 'super_admin'];
@@ -23,9 +24,11 @@ async function readPathname(): Promise<string> {
 
 /**
  * `(dashboard)` route group (F1.7). Owner area guard: role owner or admin.
- * Anonymous → redirect to login; authenticated but wrong role → 403. The
- * actual dashboard shell is filled by F7.1; this layout only enforces the
- * guard and renders children (or the forbidden page).
+ * Anonymous → redirect to login; authenticated but wrong role → 403. F7.1
+ * wraps every `/dashboard/*` page in {@link DashboardShell} (header + business
+ * selector + section sidebar) so the per-business pages share one chrome;
+ * the guard still runs before the shell mounts, and every dashboard endpoint
+ * re-checks ownership on the API.
  */
 export default async function DashboardLayout({ children }: { children: ReactNode }) {
   const pathname = await readPathname();
@@ -35,5 +38,10 @@ export default async function DashboardLayout({ children }: { children: ReactNod
     return <Forbidden />;
   }
 
-  return <>{children}</>;
+  const user = decision.kind === 'allow' ? decision.user : null;
+  return (
+    <DashboardShell initialUser={user} initialApiError={false}>
+      {children}
+    </DashboardShell>
+  );
 }

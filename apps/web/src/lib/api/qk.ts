@@ -150,4 +150,24 @@ export const qk = {
     ) => ['bookings', 'mine', scope ?? 'all', status ?? 'none', page ?? 1, pageSize ?? 20] as const,
     calendarToken: () => ['bookings', 'calendar-token'] as const,
   },
+  /**
+   * Owner dashboard (F7.1). `mine` is the caller's businesses (every status)
+   * — one key serves the `/dashboard` overview cards AND every per-business
+   * selector dropdown, so a registration / status change refreshes both in a
+   * single invalidate. `stats(businessId, window)` is the B7.2 owner read
+   * (series + totals); the per-business overview and the F7.8 charts page
+   * share the same key so a window change refetches once.
+   */
+  businesses: {
+    all: () => ['businesses'] as const,
+    /** `GET /businesses/me` — the owner's businesses (every status). */
+    mine: () => ['businesses', 'mine'] as const,
+  },
+  /** Analytics reads (F7.1 overview + F7.8 dashboard). */
+  analytics: {
+    all: () => ['analytics'] as const,
+    /** `GET /analytics/business/:id/stats` — series + totals for a window. */
+    stats: (businessId: string, from?: string, to?: string) =>
+      ['analytics', 'stats', businessId, from ?? 'default', to ?? 'default'] as const,
+  },
 };
