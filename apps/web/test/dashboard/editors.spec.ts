@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { buildUpdateBody } from '../../src/components/dashboard/profile-editor';
 import { buildWeekly } from '../../src/components/dashboard/hours-editor';
 import type { DayState } from '../../src/components/dashboard/hours-editor';
+import { buildMenuBody } from '../../src/components/dashboard/menu-editor';
 
 describe('buildUpdateBody', () => {
   it('trims name/address and converts empty contact strings to null', () => {
@@ -111,5 +112,33 @@ describe('buildWeekly', () => {
     const weekly = buildWeekly(days);
     expect(weekly).toHaveLength(1);
     expect(weekly[0]?.intervals).toHaveLength(2);
+  });
+});
+
+describe('buildMenuBody', () => {
+  it('converts Toman to Rials (×10), empty price → null, drops blank sections/items', () => {
+    const body = buildMenuBody([
+      {
+        name: 'نوشیدنی‌ها',
+        items: [
+          { name: 'چای', description: '', price: '15', isAvailable: true },
+          { name: 'قهوه', description: 'دوبله', price: '', isAvailable: true },
+          { name: '', description: '', price: '', isAvailable: true }, // blank → dropped
+        ],
+      },
+      { name: '', items: [] }, // blank section → dropped
+    ]);
+    expect(body.sections).toHaveLength(1);
+    const section = body.sections[0];
+    expect(section?.name).toBe('نوشیدنی‌ها');
+    expect(section?.items).toHaveLength(2);
+    expect(section?.items[0]?.price).toBe(150); // 15 Toman → 150 Rials
+    expect(section?.items[0]?.description).toBeNull();
+    expect(section?.items[1]?.price).toBeNull();
+    expect(section?.items[1]?.description).toBe('دوبله');
+  });
+
+  it('returns an empty sections array for an empty editor', () => {
+    expect(buildMenuBody([])).toEqual({ sections: [] });
   });
 });

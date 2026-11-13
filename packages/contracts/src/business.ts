@@ -296,6 +296,12 @@ export const businessPhotoSchema = z.object({
 });
 export type BusinessPhoto = z.infer<typeof businessPhotoSchema>;
 
+/** `GET /businesses/:id/photos` — the gallery, ordered by `sortOrder`. */
+export const businessPhotosResultSchema = z
+  .object({ items: z.array(businessPhotoSchema) })
+  .strict();
+export type BusinessPhotosResult = z.infer<typeof businessPhotosResultSchema>;
+
 /** Attach body — the media id returned by POST /media/upload. */
 export const attachBusinessPhotoBodySchema = z.object({ mediaId: uuidSchema }).strict();
 export type AttachBusinessPhotoBody = z.infer<typeof attachBusinessPhotoBodySchema>;

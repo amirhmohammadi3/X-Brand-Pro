@@ -1713,6 +1713,38 @@
       "pending": "New location: {lat}, {lng}",
       "save": "Save location",
       "saved": "Location saved."
+    },
+    "gallery": {
+      "title": "Photo gallery",
+      "capHint": "Up to {count} photos per business.",
+      "atCap": "You reached the photo cap.",
+      "upload": "Upload",
+      "attached": "Photo added.",
+      "empty": "No photos yet.",
+      "emptyHint": "Upload your first business photo.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "setCover": "Cover",
+      "coverSet": "Cover photo set.",
+      "delete": "Delete photo",
+      "deleted": "Photo deleted.",
+      "count": "{count} photos"
+    },
+    "menu": {
+      "title": "Menu",
+      "empty": "No sections yet.",
+      "sectionName": "Section name",
+      "itemName": "Item name",
+      "itemDescription": "Description (optional)",
+      "priceToman": "Price (Toman)",
+      "available": "Available",
+      "addSection": "Add section",
+      "removeSection": "Remove section",
+      "addItem": "Add item",
+      "removeItem": "Remove item",
+      "save": "Save menu",
+      "saved": "Menu saved.",
+      "sectionsCount": "{count} sections"
     }
   }
 }

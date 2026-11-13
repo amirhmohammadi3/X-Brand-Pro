@@ -166,6 +166,10 @@ export const qk = {
     detail: (id: string) => ['businesses', 'detail', id] as const,
     /** `GET /businesses/:id/hours` — weekly schedule + special days + open status. */
     hours: (id: string) => ['businesses', 'hours', id] as const,
+    /** `GET /businesses/:id/photos` — the gallery (ordered by sortOrder). */
+    photos: (id: string) => ['businesses', 'photos', id] as const,
+    /** `GET /businesses/:id/menu` — sections + items (full replace on save). */
+    menu: (id: string) => ['businesses', 'menu', id] as const,
   },
   /** Analytics reads (F7.1 overview + F7.8 dashboard). */
   analytics: {
