@@ -34,5 +34,6 @@ export * from './public-profile.js';
 export * from './moderation.js';
 export * from './messaging.js';
 export * from './bookings.js';
+export * from './analytics.js';
 export * from './realtime.js';
 export * from './theme/index.js';
