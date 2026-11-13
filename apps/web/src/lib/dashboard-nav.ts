@@ -48,7 +48,7 @@ export function dashboardNavGroups(businessId: string): ReadonlyArray<DashboardN
     {
       key: 'manage',
       items: [
-        { key: 'profile', href: `${base}/profile`, labelKey: 'profile', available: false }, // F7.2
+        { key: 'profile', href: `${base}/profile`, labelKey: 'profile', available: true }, // F7.2
         { key: 'gallery', href: `${base}/gallery`, labelKey: 'gallery', available: false }, // F7.3
         { key: 'menu', href: `${base}/menu`, labelKey: 'menu', available: false }, // F7.3
         { key: 'reviews', href: `${base}/reviews`, labelKey: 'reviews', available: false }, // F7.4

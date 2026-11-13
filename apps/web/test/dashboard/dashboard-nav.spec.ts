@@ -35,15 +35,14 @@ describe('dashboardNavGroups structure', () => {
     expect(overview?.available).toBe(true);
   });
 
-  it('only the overview is built in F7.1; every other section is "soon"', () => {
+  it('the overview + profile are built (F7.1 + F7.2); every other section is "soon"', () => {
     const items = flattenItems(dashboardNavGroups(BIZ_ID));
     const available = items.filter((i) => i.available).map((i) => i.key);
-    expect(available).toEqual(['overview']);
+    expect(available).toEqual(['overview', 'profile']);
     const soon = items.filter((i) => !i.available).map((i) => i.key);
-    // The F7.2–F7.8 sections, all disabled until their prompt lands.
+    // The F7.3–F7.8 sections, all disabled until their prompt lands.
     expect(soon).toEqual(
       expect.arrayContaining([
-        'profile',
         'gallery',
         'menu',
         'reviews',
@@ -63,9 +62,9 @@ describe('dashboardNavGroups structure', () => {
 });
 
 describe('availableDashboardItems', () => {
-  it('returns only linkable items (overview in F7.1)', () => {
+  it('returns only linkable items (overview + profile in F7.1/F7.2)', () => {
     const items = availableDashboardItems(BIZ_ID);
-    expect(items.map((i) => i.key)).toEqual(['overview']);
+    expect(items.map((i) => i.key)).toEqual(['overview', 'profile']);
   });
 });
 

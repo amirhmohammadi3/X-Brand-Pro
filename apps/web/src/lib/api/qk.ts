@@ -162,6 +162,10 @@ export const qk = {
     all: () => ['businesses'] as const,
     /** `GET /businesses/me` — the owner's businesses (every status). */
     mine: () => ['businesses', 'mine'] as const,
+    /** `GET /businesses/:id` — full detail (owner-gated). */
+    detail: (id: string) => ['businesses', 'detail', id] as const,
+    /** `GET /businesses/:id/hours` — weekly schedule + special days + open status. */
+    hours: (id: string) => ['businesses', 'hours', id] as const,
   },
   /** Analytics reads (F7.1 overview + F7.8 dashboard). */
   analytics: {

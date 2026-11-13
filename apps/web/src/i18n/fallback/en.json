@@ -1671,6 +1671,48 @@
         "description": "Reach each section from the sidebar. Sections marked “Soon” open in later phases.",
         "open": "Open"
       }
+    },
+    "profile": {
+      "title": "Edit profile",
+      "name": "Name",
+      "nameAlt": "Alt name (Latin)",
+      "description": "Description",
+      "address": "Address",
+      "phone": "Phone",
+      "whatsapp": "WhatsApp",
+      "telegram": "Telegram",
+      "instagram": "Instagram",
+      "website": "Website",
+      "email": "Email",
+      "priceLevel": "Price level",
+      "priceNone": "Unspecified",
+      "price1": "Cheap",
+      "price2": "Moderate",
+      "price3": "Above moderate",
+      "price4": "Pricey",
+      "tags": "Tags",
+      "tagsHint": "Separate with commas.",
+      "save": "Save profile",
+      "saved": "Profile saved."
+    },
+    "hours": {
+      "title": "Opening hours",
+      "closed": "Closed",
+      "allDay": "24 hours",
+      "intervals": "Intervals",
+      "open": "Open",
+      "close": "Close",
+      "addInterval": "Add interval",
+      "removeInterval": "Remove interval",
+      "save": "Save hours",
+      "saved": "Opening hours saved."
+    },
+    "location": {
+      "title": "Map location",
+      "description": "Drag the point on the map to update the business's exact location.",
+      "pending": "New location: {lat}, {lng}",
+      "save": "Save location",
+      "saved": "Location saved."
     }
   }
 }

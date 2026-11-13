@@ -17,7 +17,7 @@ import type { HoursResponse, OpenState, WeeklyDay } from '@app/contracts';
  * already normalized; for fa they are run through `toPersianDigits`.
  */
 
-const WEEKDAY_NAMES: Readonly<Record<string, Record<number, string>>> = {
+export const WEEKDAY_NAMES: Readonly<Record<string, Record<number, string>>> = {
   fa: {
     1: 'دوشنبه',
     2: 'سه‌شنبه',

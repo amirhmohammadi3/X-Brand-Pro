@@ -15,15 +15,19 @@
  *   the F7.1 overview and the F7.8 charts page share the key so a window
  *   change refetches once.
  */
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   analyticsStatsResultSchema,
+  businessDetailSchema,
   myBusinessesResultSchema,
   type AnalyticsStatsResult,
+  type BusinessDetail,
   type BusinessSummary,
   type MyBusinessesResult,
+  type UpdateBusinessBody,
 } from '@app/contracts';
 import { apiFetch } from './client';
+import { useApiMutation } from './use-api-mutation';
 import { qk } from './qk';
 
 /**
@@ -79,4 +83,50 @@ export function useBusinessStats(
     staleTime: 60_000,
   });
   return { stats: query.data ?? null, isPending: query.isPending, error: query.error };
+}
+
+/**
+ * `GET /businesses/:id` — the owner's full detail (ownership gated by the
+ * API). Used by the F7.2 profile editor to populate the form. Disabled until
+ * a businessId is known.
+ */
+export function useBusinessDetail(businessId: string | null | undefined): {
+  business: BusinessDetail | null;
+  isPending: boolean;
+  error: unknown;
+} {
+  const query = useQuery<BusinessDetail>({
+    queryKey: qk.businesses.detail(businessId ?? ''),
+    queryFn: async () => {
+      const result = await apiFetch(`/businesses/${businessId as string}`, businessDetailSchema);
+      return result.data;
+    },
+    enabled: Boolean(businessId),
+    staleTime: 30_000,
+  });
+  return { business: query.data ?? null, isPending: query.isPending, error: query.error };
+}
+
+/**
+ * `PATCH /businesses/:id` — partial update of the editable scalar fields
+ * (F7.2). On success invalidates the detail, the owner list (the summary's
+ * name/rating may change) and the analytics stats (a rename doesn't change
+ * stats but the invalidate is cheap and keeps the overview fresh).
+ */
+export function useUpdateBusiness(businessId: string) {
+  const queryClient = useQueryClient();
+  return useApiMutation(
+    async (body: UpdateBusinessBody) => {
+      const result = await apiFetch(`/businesses/${businessId}`, businessDetailSchema, {
+        method: 'PATCH',
+        body,
+      });
+      return result.data;
+    },
+    {
+      onSuccess: () => {
+        void queryClient.invalidateQueries({ queryKey: ['businesses'] });
+      },
+    },
+  );
 }
