@@ -232,6 +232,13 @@
       "when": 1794429322214,
       "tag": "0032_messaging",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794530742465,
+      "tag": "0033_bookings",
+      "breakpoints": true
     }
   ]
 }
