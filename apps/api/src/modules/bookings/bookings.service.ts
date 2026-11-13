@@ -15,6 +15,7 @@ import {
   timeToMinutes,
   type AvailabilityResult,
   type Booking,
+  type BookingService,
   type BookingSlot,
   type CreateBookingBody,
   type MyBookingsQuery,
@@ -791,7 +792,37 @@ export class BookingsService {
   }
 
   /**
-   * GET /bookings/me — the user's bookings, newest first. The scope split
+   * GET /bookings/services?businessId=… — the business's ACTIVE bookable
+   * services (public — the booking flow's first step, F6.1). 404-never-leak:
+   * a missing/deleted/non-active business answers the same 404.
+   */
+  async listPublicServices(businessId: string): Promise<BookingService[]> {
+    const ctx = await this.repo.findBusinessContext(businessId);
+    if (!ctx || ctx.deletedAt !== null || ctx.status !== 'active') {
+      throw notFoundException();
+    }
+    const rows = await this.repo.listActiveServices(businessId);
+    return rows.map((row) => ({
+      id: row.id,
+      businessId: row.businessId,
+      name: row.name,
+      description: row.description,
+      durationMinutes: row.durationMinutes,
+      slotStepMinutes: row.slotStepMinutes,
+      capacity: row.capacity,
+      minPartySize: row.minPartySize,
+      maxPartySize: row.maxPartySize,
+      minLeadMinutes: row.minLeadMinutes,
+      cancelWindowMinutes: row.cancelWindowMinutes,
+      maxAdvanceDays: row.maxAdvanceDays,
+      isActive: row.isActive,
+      sortOrder: row.sortOrder,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    }));
+  }
+
+  /** GET /bookings/me — the user's bookings, newest first. The scope split
    * (upcoming = active AND not started) is computed against the business-
    * local wall clock; rows carry the display joins for the list UI (F6.2).
    */

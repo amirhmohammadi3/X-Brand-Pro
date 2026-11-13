@@ -295,6 +295,15 @@ export const bookingSchema = z
   .strict();
 export type Booking = z.infer<typeof bookingSchema>;
 
+/** GET /bookings/services — the public services query (F6.1). */
+export const businessServicesQuerySchema = z.object({ businessId: uuidSchema }).strict();
+export type BusinessServicesQuery = z.infer<typeof businessServicesQuerySchema>;
+
+export const businessServicesResultSchema = z
+  .object({ services: z.array(bookingServiceSchema) })
+  .strict();
+export type BusinessServicesResult = z.infer<typeof businessServicesResultSchema>;
+
 /** GET /bookings/me — page-based, newest first, optional status filter. */
 export const myBookingsQuerySchema = pageQuerySchema
   .extend({

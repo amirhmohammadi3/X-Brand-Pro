@@ -15,6 +15,7 @@ import { BusinessMap } from '@/components/business/business-map';
 import { BusinessGallery } from '@/components/business/business-gallery';
 import { BusinessMenu } from '@/components/business/business-menu';
 import { BusinessReviews } from '@/components/business/business-reviews';
+import { BookingWidget } from '@/components/business/booking-widget';
 import { BusinessReviewForm } from '@/components/business/business-review-form';
 import { BusinessQuestions } from '@/components/business/business-questions';
 import { BusinessShare } from '@/components/business/business-share';
@@ -67,6 +68,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
   const { slug } = await params;
   const locale = await getLocale();
   const t = await getTranslations('businessPage');
+  const tB = await getTranslations('bookings');
   const tA11y = await getTranslations('a11y');
   const { formatNumber } = createFormatters(locale);
 
@@ -253,6 +255,14 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
           ) : null}
         </section>
       ) : null}
+
+      {/* ── booking (F6.1) — renders nothing without active services ──── */}
+      <section aria-labelledby="business-booking" className="flex flex-col gap-3">
+        <h2 id="business-booking" className="text-xl font-semibold text-text">
+          {tB('widget.title')}
+        </h2>
+        <BookingWidget businessId={business.id} />
+      </section>
 
       {/* ── menu / services (F4.3) ─────────────────────────────────────── */}
       <section aria-labelledby="business-menu" className="flex flex-col gap-3">

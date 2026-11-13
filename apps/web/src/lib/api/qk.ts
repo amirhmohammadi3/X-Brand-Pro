@@ -131,4 +131,23 @@ export const qk = {
     /** `GET /favorites/me/check?businessId=` — the heart state, one probe. */
     status: (businessId: string) => ['favorites', 'status', businessId] as const,
   },
+  /**
+   * Bookings (F6.1/F6.2). `mine(scope,…)` keys keep the upcoming/past split;
+   * the invalidate prefix `['bookings','mine']` (used by create/cancel)
+   * covers every scope+status+page variant in one call. Availability is
+   * keyed per (serviceId, date) so the slot grid refetches on every step.
+   */
+  bookings: {
+    all: () => ['bookings'] as const,
+    services: (businessId: string) => ['bookings', 'services', businessId] as const,
+    availability: (serviceId: string, date: string) =>
+      ['bookings', 'availability', serviceId, date] as const,
+    mine: (
+      scope?: 'all' | 'upcoming' | 'past',
+      status?: string,
+      page?: number,
+      pageSize?: number,
+    ) => ['bookings', 'mine', scope ?? 'all', status ?? 'none', page ?? 1, pageSize ?? 20] as const,
+    calendarToken: () => ['bookings', 'calendar-token'] as const,
+  },
 };

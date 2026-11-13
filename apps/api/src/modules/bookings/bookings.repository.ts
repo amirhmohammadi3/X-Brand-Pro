@@ -170,6 +170,8 @@ export interface BookingsRepositoryLike {
     status: string;
     deletedAt: Date | null;
   } | null>;
+  /** The business's ACTIVE services, ordered (public flow, F6.1). */
+  listActiveServices(businessId: string): Promise<PublicBookingServiceRow[]>;
   /** Page over the user's bookings, newest first, optional status + scope. */
   listUserBookings(
     userId: string,
@@ -202,6 +204,12 @@ export interface ReminderCandidate {
   startTime: string;
   timezone: string;
 }
+
+/** An active service row as the public services endpoint serves it (F6.1). */
+export type PublicBookingServiceRow = BookingServiceContext['service'] & {
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 const ACTIVE = [...BOOKING_ACTIVE_STATUSES] as ['pending', 'confirmed'];
 
@@ -576,6 +584,31 @@ export class BookingsRepository implements BookingsRepositoryLike {
       .where(eq(businesses.id, businessId))
       .limit(1);
     return rows[0] ?? null;
+  }
+
+  async listActiveServices(businessId: string): Promise<PublicBookingServiceRow[]> {
+    return this.client.db
+      .select({
+        id: bookingServices.id,
+        businessId: bookingServices.businessId,
+        name: bookingServices.name,
+        description: bookingServices.description,
+        durationMinutes: bookingServices.durationMinutes,
+        slotStepMinutes: bookingServices.slotStepMinutes,
+        capacity: bookingServices.capacity,
+        minPartySize: bookingServices.minPartySize,
+        maxPartySize: bookingServices.maxPartySize,
+        minLeadMinutes: bookingServices.minLeadMinutes,
+        cancelWindowMinutes: bookingServices.cancelWindowMinutes,
+        maxAdvanceDays: bookingServices.maxAdvanceDays,
+        isActive: bookingServices.isActive,
+        sortOrder: bookingServices.sortOrder,
+        createdAt: bookingServices.createdAt,
+        updatedAt: bookingServices.updatedAt,
+      })
+      .from(bookingServices)
+      .where(and(eq(bookingServices.businessId, businessId), eq(bookingServices.isActive, true)))
+      .orderBy(asc(bookingServices.sortOrder), asc(bookingServices.id));
   }
 
   async listUserBookings(

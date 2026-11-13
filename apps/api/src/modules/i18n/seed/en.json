@@ -15,7 +15,8 @@
     "currency": {
       "toman": "Toman"
     },
-    "language": "Language"
+    "language": "Language",
+    "copied": "Copied"
   },
   "errors": {
     "validation_failed": "The input is invalid — please fix the highlighted fields.",
@@ -1536,6 +1537,76 @@
       "dismiss": "Not now",
       "iosTitle": "Add to Home Screen",
       "iosBody": "Tap the Share button, then «Add to Home Screen» to install X-Brand."
+    }
+  },
+  "bookings": {
+    "widget": {
+      "title": "Online booking",
+      "service": "Service",
+      "date": "Date",
+      "slots": "Available slots",
+      "closed": "No bookings are taken on this date.",
+      "allTaken": "Every slot for this day is taken.",
+      "party": "Party size",
+      "partyMinus": "Fewer people",
+      "partyPlus": "More people",
+      "contactName": "Contact name",
+      "contactPhone": "Contact phone",
+      "note": "Note (optional)",
+      "submit": "Book",
+      "loginHint": "Sign in to complete the booking.",
+      "login": "Sign in",
+      "successTitle": "Booking received",
+      "successBody": "You will be notified once the business confirms.",
+      "created": "Booking created with code {code}.",
+      "code": "Booking code: {code}"
+    },
+    "mine": {
+      "title": "My bookings",
+      "scopeLabel": "Booking range",
+      "scope": {
+        "upcoming": "Upcoming",
+        "past": "Past"
+      },
+      "allStatuses": "All statuses",
+      "empty": "No bookings yet.",
+      "cancel": "Cancel booking",
+      "cancelAria": "Cancel this booking",
+      "cancelTitle": "Cancel booking",
+      "cancelBody": "Cancel booking {code}? The slot is released and this cannot be undone.",
+      "cancelConfirm": "Yes, cancel it",
+      "cancelDismiss": "Keep it",
+      "cancelled": "Booking cancelled.",
+      "cancelReason": "Reason: {reason}",
+      "feedTitle": "Calendar feed",
+      "feedHint": "Add this URL to Google or Apple Calendar and your bookings appear automatically.",
+      "feedCopy": "Copy feed URL",
+      "pagination": "Bookings pagination"
+    },
+    "status": {
+      "pending": "Pending",
+      "confirmed": "Confirmed",
+      "rejected": "Rejected",
+      "cancelled": "Cancelled",
+      "completed": "Completed",
+      "no_show": "No-show"
+    },
+    "errors": {
+      "generic": "Something went wrong. Please try again.",
+      "cancelWindow": "The free cancellation window has passed.",
+      "slot_full": "That slot just filled up. Pick another one.",
+      "party_size": "Party size is outside this service's bounds.",
+      "past": "That date is in the past.",
+      "horizon": "That date is beyond the booking horizon.",
+      "closed_day": "Bookings are closed on that date.",
+      "grid": "That time is off the slot grid.",
+      "outside_hours": "That slot falls outside the opening hours.",
+      "lead_time": "That slot is inside the minimum notice window.",
+      "too_many_active": "You reached the cap of active bookings at this business.",
+      "stale_status": "The booking status changed. Refresh the page.",
+      "conflict": "The request conflicts with the current state.",
+      "unprocessable": "The submitted data is invalid.",
+      "not_found": "Booking or service not found."
     }
   }
 }

@@ -20,6 +20,7 @@ import {
   bookingDecisionBodySchema,
   bookingRejectBodySchema,
   calendarFeedQuerySchema,
+  businessServicesQuerySchema,
   createBookingBodySchema,
   myBookingsQuerySchema,
   type AvailabilityQuery,
@@ -28,6 +29,8 @@ import {
   type BookingDecisionBody,
   type BookingRejectBody,
   type CalendarFeedQuery,
+  type BusinessServicesQuery,
+  type BusinessServicesResult,
   type CreateBookingBody,
   type CreateBookingResult,
   type MyBookingsQuery,
@@ -104,6 +107,16 @@ export class BookingsController {
     @Query(new ZodValidationPipe(availabilityQuerySchema)) query: AvailabilityQuery,
   ): Promise<AvailabilityResult> {
     return this.bookings.availability(query.serviceId, query.date);
+  }
+
+  @Public()
+  @Get('bookings/services')
+  @RateLimit({ name: 'bookings.availability', limit: BOOKING_READ_LIMIT_PER_MIN, windowSec: 60 })
+  async listServices(
+    @Query(new ZodValidationPipe(businessServicesQuerySchema)) query: BusinessServicesQuery,
+  ): Promise<BusinessServicesResult> {
+    const services = await this.bookings.listPublicServices(query.businessId);
+    return { services };
   }
 
   @Get('bookings/me')
