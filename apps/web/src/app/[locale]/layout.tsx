@@ -131,12 +131,16 @@ export default async function LocaleLayout({
         </a>
         <ActiveThemeProvider value={{ packId: theme.packId, tokens: theme.tokens, resolvedMode }}>
           <Providers>
-            <NextIntlClientProvider>{children}</NextIntlClientProvider>
+            <NextIntlClientProvider>
+              {children}
+              {/* F5.4: registers /sw.js in production + surfaces the install
+                  banner. Inside NextIntlClientProvider so InstallBanner can
+                  call useTranslations('pwa.install'); outside the main
+                  content flow so it never shifts layout. */}
+              <PwaBootstrap />
+            </NextIntlClientProvider>
           </Providers>
         </ActiveThemeProvider>
-        {/* F5.4: registers /sw.js in production + surfaces the install banner.
-            Rendered outside the main content so it never shifts layout. */}
-        <PwaBootstrap />
       </body>
     </html>
   );

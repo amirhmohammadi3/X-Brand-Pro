@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 import { Container } from '../../../components/layout/container';
-import { Link } from '../../../i18n/navigation';
 
 /**
  * Offline fallback page (F5.4). Served by the service worker when a
@@ -10,10 +9,12 @@ import { Link } from '../../../i18n/navigation';
  * SW fallback — the SW precaches `/fa/offline` and `/en/offline` at install
  * time, so the page exists in cache before it is ever needed.
  *
- * The page is intentionally tiny and link-free except for a "try again"
- * button: any client-side navigation would itself need the network, so the
- * retry is a hard reload via a plain `<a>` (the SW re-runs `handleNavigation`
- * and, if the network has returned, serves the real page).
+ * The retry is a PLAIN `<a href="/">` (not the next-intl `Link`): a hard
+ * reload re-runs the SW navigation handler, which retries the network and
+ * serves the real page on success. Client-side navigation would itself need
+ * the network, defeating the purpose; and next-intl's `Link` is a client
+ * component whose internal onClick handler cannot be serialized into a
+ * prerendered server component (the build fails on `/fa/offline` otherwise).
  */
 export const dynamic = 'force-static';
 
@@ -31,12 +32,12 @@ export default async function OfflinePage() {
         <p className="text-text-subtle">{t('body')}</p>
         {/* Plain anchor: a hard reload re-runs the SW navigation handler,
             which retries the network and serves the real page on success. */}
-        <Link
+        <a
           href="/"
           className="inline-block rounded-md bg-primary px-5 py-2.5 text-sm font-medium text-on-primary"
         >
           {t('retry')}
-        </Link>
+        </a>
       </div>
     </Container>
   );
