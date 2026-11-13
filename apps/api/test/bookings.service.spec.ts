@@ -11,7 +11,9 @@ import {
 import type {
   BookingsRepositoryLike,
   BookingServiceContext,
+  BookingDetailRow,
   CreateBookingOutcome,
+  ReminderCandidate,
 } from '../src/modules/bookings/bookings.repository.js';
 import type { BookingRow } from '../src/db/schema/bookings.js';
 import type { Booking, CreateBookingBody } from '@app/contracts';
@@ -97,9 +99,28 @@ function bookingRow(overrides: Partial<BookingRow> = {}): BookingRow {
   };
 }
 
+function bookingDetail(overrides: Partial<BookingRow> = {}): BookingDetailRow {
+  return {
+    ...bookingRow(overrides),
+    serviceName: 'میز دوتنفره',
+    businessName: 'کافه نمونه',
+    businessSlug: 'cafe-nemune',
+    businessOwnerId: OWNER,
+    businessStatus: 'active',
+    timezone: 'Asia/Tehran',
+    cancelWindowMinutes: 120,
+  };
+}
+
 type RepoStub = BookingsRepositoryLike & {
   createCalls: Array<{ code: string; startTime: string; capacity: number }>;
+  transitionCalls: Array<{ id: string; from: string[]; to: string }>;
+  transitionResult: BookingDetailRow | null;
+  reminderCandidates: ReminderCandidate[];
+  stampedReminderIds: string[];
 };
+
+const OWNER = '55555555-5555-4555-8555-555555555555';
 
 function makeRepo(
   ctx: BookingServiceContext | null,
@@ -112,6 +133,10 @@ function makeRepo(
   let attempts = 0;
   const repo: RepoStub = {
     createCalls: [],
+    transitionCalls: [],
+    transitionResult: null,
+    reminderCandidates: [],
+    stampedReminderIds: [],
     async findServiceContext() {
       return ctx;
     },
@@ -154,7 +179,21 @@ function makeRepo(
       return outcome;
     },
     async findBookingDetail() {
-      return null;
+      return repo.transitionResult;
+    },
+    async transitionStatus(
+      id: string,
+      from: string[],
+      patch: Parameters<BookingsRepositoryLike['transitionStatus']>[2],
+    ) {
+      repo.transitionCalls.push({ id, from, to: patch.status });
+      return repo.transitionResult;
+    },
+    async findReminderCandidates() {
+      return repo.reminderCandidates;
+    },
+    async stampReminderSent(ids: string[]) {
+      repo.stampedReminderIds.push(...ids);
     },
     async listUserBookings() {
       return { rows: [], total: 0 };
@@ -438,16 +477,18 @@ describe('create — B6.2', () => {
 describe('listMine — B6.2', () => {
   it('passes the Tehran wall clock to the repo and maps the page', async () => {
     const captured: { v: { today: string; nowTime: string; scope: string } | null } = { v: null };
-    const row = bookingRow();
-    const detail = {
-      ...row,
+    const detail: BookingDetailRow = {
+      ...bookingRow(),
       serviceName: 'میز دوتنفره',
       businessName: 'کافه نمونه',
       businessSlug: 'cafe-nemune',
       businessOwnerId: null,
+      businessStatus: 'active',
+      timezone: 'Asia/Tehran',
+      cancelWindowMinutes: 120,
     };
     const repo = makeRepo(serviceContext(), {
-      async listUserBookings(_userId, opts) {
+      async listUserBookings(_userId: string, opts) {
         captured.v = { today: opts.today, nowTime: opts.nowTime, scope: opts.scope };
         return { rows: [detail], total: 1 };
       },
@@ -460,7 +501,195 @@ describe('listMine — B6.2', () => {
     expect(result.meta).toEqual({ page: 2, pageSize: 10, total: 1, totalPages: 1 });
     const dto = result.bookings[0] as Booking;
     expect(dto.businessName).toBe('کافه نمونه');
-    expect(dto.createdAt).toBe(row.createdAt.toISOString());
+    expect(dto.createdAt).toBe(detail.createdAt.toISOString());
     expect(dto.confirmedAt).toBeNull();
+  });
+});
+
+describe('lifecycle — B6.3', () => {
+  const OWNER_ACTOR = { id: OWNER, role: 'user' };
+  const STRANGER_ACTOR = { id: '66666666-6666-4666-8666-666666666666', role: 'user' };
+  const ADMIN_ACTOR = { id: '77777777-7777-4777-8777-777777777777', role: 'admin' };
+
+  function lifecycleRepo(
+    detail: BookingDetailRow,
+    transition: BookingDetailRow | null | undefined = undefined,
+  ) {
+    const transitionCalls: Array<{ id: string; from: string[]; to: string }> = [];
+    const repo = makeRepo(serviceContext(), {
+      async findBookingDetail() {
+        return detail;
+      },
+      async transitionStatus(_id, _from, patch) {
+        transitionCalls.push({ id: _id, from: _from, to: patch.status });
+        // The real UPDATE is guarded: it misses when the row's status is
+        // not one of the legal `from` statuses.
+        if (!_from.includes(detail.status)) return null;
+        if (transition === null) return null; // guard miss → 409
+        // Default: echo the applied patch onto the row (the happy UPDATE).
+        return transition ?? ({ ...detail, ...patch, status: patch.status } as BookingDetailRow);
+      },
+    });
+    return Object.assign(repo, { transitionCalls });
+  }
+
+  it('confirm by the owner: pending → confirmed, stamp + event, guarded UPDATE', async () => {
+    const detail = bookingDetail({ status: 'pending' });
+    const repo = lifecycleRepo(detail);
+    const { service, events } = makeService(repo);
+    const result = await service.decide(OWNER_ACTOR, detail.id, 'confirm');
+    expect(result.status).toBe('confirmed');
+    expect(repo.transitionCalls[0]).toMatchObject({
+      id: detail.id,
+      from: ['pending'],
+      to: 'confirmed',
+    });
+    expect(events[0]?.name).toBe('booking.confirmed');
+  });
+
+  it('reject by the owner carries the reason; admin bypasses ownership', async () => {
+    const detail = bookingDetail({ status: 'pending' });
+    const repo = lifecycleRepo(detail);
+    const { service, events } = makeService(repo);
+    const result = await service.decide(ADMIN_ACTOR, detail.id, 'reject', 'ظرفیت کامل است');
+    expect(result.status).toBe('rejected');
+    expect(events[0]?.name).toBe('booking.rejected');
+    expect(repo.transitionCalls[0]?.to).toBe('rejected');
+  });
+
+  it('403 for a stranger decision; 404 for a missing booking', async () => {
+    const detail = bookingDetail({ status: 'pending' });
+    const { service } = makeService(lifecycleRepo(detail));
+    await expect(service.decide(STRANGER_ACTOR, detail.id, 'confirm')).rejects.toMatchObject({
+      status: 403,
+    });
+    const missingRepo = makeRepo(serviceContext(), {
+      async findBookingDetail() {
+        return null;
+      },
+    });
+    await expect(
+      makeService(missingRepo).service.decide(OWNER_ACTOR, detail.id, 'confirm'),
+    ).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('409 when the guard misses (another actor moved first)', async () => {
+    const detail = bookingDetail({ status: 'pending' });
+    const repo = lifecycleRepo(detail, null);
+    await expect(
+      makeService(repo).service.decide(OWNER_ACTOR, detail.id, 'confirm'),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('user cancel inside the window → cancelled with actor user', async () => {
+    // Start ~7 days out → far inside a 120-min window.
+    const detail = bookingDetail({ status: 'confirmed', userId: USER });
+    const repo = lifecycleRepo(detail);
+    const { service, events } = makeService(repo);
+    const result = await service.cancel({ id: USER, role: 'user' }, detail.id, 'plan changed');
+    expect(result.status).toBe('cancelled');
+    expect(result.cancelActor).toBe('user');
+    expect(repo.transitionCalls[0]).toMatchObject({
+      from: ['pending', 'confirmed'],
+      to: 'cancelled',
+    });
+    expect(events[0]?.name).toBe('booking.cancelled');
+    expect(events[0]?.payload).toMatchObject({ cancelledBy: 'user' });
+  });
+
+  it('user cancel inside the window past the policy deadline → 422', async () => {
+    // Start in ~60 minutes (Tehran) with a 120-min window → policy refusal.
+    const tehranNow = new Date(Date.now() + 3.5 * 3600_000);
+    const startWall = new Date(tehranNow.getTime() + 60 * 60_000);
+    const date = startWall.toISOString().slice(0, 10);
+    const startTime = `${startWall.toISOString().slice(11, 13)}:00:00`;
+    const detail = bookingDetail({ status: 'confirmed', userId: USER, date, startTime });
+    const { service } = makeService(lifecycleRepo(detail));
+    await expect(service.cancel({ id: USER, role: 'user' }, detail.id)).rejects.toMatchObject({
+      status: 422,
+    });
+  });
+
+  it('owner cancel skips the policy window and records actor business', async () => {
+    const detail = bookingDetail({ status: 'confirmed', userId: USER });
+    const repo = lifecycleRepo(detail);
+    const { service, events } = makeService(repo);
+    const result = await service.cancel(OWNER_ACTOR, detail.id, 'تعطیلی ناگهانی');
+    expect(result.cancelActor).toBe('business');
+    expect(events[0]?.payload).toMatchObject({ cancelledBy: 'business' });
+  });
+
+  it('a stranger cancel gets the same 404 as a missing booking', async () => {
+    const detail = bookingDetail({ status: 'confirmed' });
+    const { service } = makeService(lifecycleRepo(detail));
+    await expect(service.cancel(STRANGER_ACTOR, detail.id)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('no-show and complete only from confirmed, owner-only', async () => {
+    const confirmed = bookingDetail({ status: 'confirmed' });
+    const repo = lifecycleRepo(confirmed);
+    const { service } = makeService(repo);
+    const marked = await service.markNoShow(OWNER_ACTOR, confirmed.id);
+    expect(marked.status).toBe('no_show');
+    expect(repo.transitionCalls[0]).toMatchObject({ from: ['confirmed'], to: 'no_show' });
+    const done = await service.complete(OWNER_ACTOR, confirmed.id);
+    expect(done.status).toBe('completed');
+    await expect(
+      makeService(lifecycleRepo(bookingDetail({ status: 'pending' }))).service.complete(
+        OWNER_ACTOR,
+        confirmed.id,
+      ),
+    ).rejects.toMatchObject({ status: 409 });
+    await expect(
+      makeService(lifecycleRepo(confirmed)).service.markNoShow(STRANGER_ACTOR, confirmed.id),
+    ).rejects.toMatchObject({ status: 403 });
+  });
+});
+
+describe('reminders — B6.3', () => {
+  function candidate(overrides: Partial<ReminderCandidate> = {}): ReminderCandidate {
+    // Start in 60 minutes (Tehran wall clock) — inside the 120-min lead.
+    const startWall = new Date(Date.now() + 3.5 * 3600_000 + 60 * 60_000);
+    return {
+      id: '88888888-8888-4888-8888-888888888888',
+      userId: USER,
+      businessId: BIZ,
+      date: startWall.toISOString().slice(0, 10),
+      startTime: startWall.toISOString().slice(11, 16),
+      timezone: 'Asia/Tehran',
+      ...overrides,
+    };
+  }
+
+  it('stamps + emits only the due candidates', async () => {
+    const due = candidate();
+    const notYet = candidate({
+      id: '89898989-8989-4989-8989-898989898989',
+      startTime: '23:59',
+      date: addDays(candidate().date, 1),
+    });
+    const past = candidate({
+      id: '87878787-8787-4787-8787-878787878787',
+      date: addDays(candidate().date, -1),
+      startTime: '00:00',
+    });
+    const repo = makeRepo(serviceContext(), {}, () => ({ ok: true, row: bookingRow() }));
+    repo.reminderCandidates = [due, notYet, past];
+    const { service, events } = makeService(repo);
+    const count = await service.runReminders();
+    expect(count).toBe(1);
+    expect(repo.stampedReminderIds).toEqual([due.id]);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.name).toBe('booking.reminder');
+    expect(events[0]?.payload).toMatchObject({ bookingId: due.id, userId: USER });
+  });
+
+  it('returns 0 and emits nothing when nothing is due', async () => {
+    const repo = makeRepo(serviceContext(), {}, () => ({ ok: true, row: bookingRow() }));
+    repo.reminderCandidates = [];
+    const { service, events } = makeService(repo);
+    expect(await service.runReminders()).toBe(0);
+    expect(events).toHaveLength(0);
+    expect(repo.stampedReminderIds).toEqual([]);
   });
 });

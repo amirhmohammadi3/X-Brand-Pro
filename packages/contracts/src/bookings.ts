@@ -84,6 +84,25 @@ export type BookingCancelActor = z.infer<typeof bookingCancelActorSchema>;
 export const BOOKING_ACTIVE_STATUSES = ['pending', 'confirmed'] as const;
 export type BookingActiveStatus = (typeof BOOKING_ACTIVE_STATUSES)[number];
 
+/**
+ * The lifecycle transition table (B6.3) — the ONLY legal status moves.
+ * `pending → confirmed | rejected | cancelled`, `confirmed → completed |
+ * no_show | cancelled`; the rest are terminal. The API enforces it with a
+ * guarded UPDATE (`WHERE status IN (from)`), so a user-cancel racing an
+ * owner-confirm can only ever win once.
+ */
+export const BOOKING_TRANSITIONS: Record<BookingStatus, readonly BookingStatus[]> = {
+  pending: ['confirmed', 'rejected', 'cancelled'],
+  confirmed: ['completed', 'no_show', 'cancelled'],
+  rejected: [],
+  cancelled: [],
+  completed: [],
+  no_show: [],
+};
+
+/** How long before the slot the reminder job fires (B6.3 یادآوری). */
+export const BOOKING_REMINDER_LEAD_MINUTES = 120;
+
 // ─── Primitives ─────────────────────────────────────────────────────────────
 
 /** Business-local calendar date `YYYY-MM-DD` (shape only; ranges are service logic). */
@@ -327,4 +346,6 @@ export const BOOKING_EVENTS = {
   cancelled: 'booking.cancelled',
   noShow: 'booking.no_show',
   completed: 'booking.completed',
+  /** Fired by the reminder job for each due booking (notify wiring later). */
+  reminder: 'booking.reminder',
 } as const;

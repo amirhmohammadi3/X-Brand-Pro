@@ -7,6 +7,7 @@ import { randomInt } from 'node:crypto';
 import {
   BOOKING_EVENTS,
   BOOKING_MAX_ACTIVE_PER_USER_PER_BUSINESS,
+  BOOKING_REMINDER_LEAD_MINUTES,
   crossesMidnight,
   timeToMinutes,
   type AvailabilityResult,
@@ -22,6 +23,8 @@ import {
   type BookingsRepositoryLike,
   type BookingServiceContext,
 } from './bookings.repository.js';
+import { canManageBusiness } from '../business/business-access.js';
+import { ForbiddenException } from '@nestjs/common';
 
 /**
  * Booking availability engine + conflict-free creation (B6.2). The rules:
@@ -53,7 +56,8 @@ import {
 
 const DAY_MINUTES = 1440; // 24 * 60
 
-export const BOOKING_EVENTS_EXPORTED = BOOKING_EVENTS;
+/** The authenticated-actor shape (req.user) the lifecycle methods take. */
+export type LifecycleActor = { id: string; role: string };
 
 /** Unambiguous code alphabet (no I/O/0/1) — 8 chars, unique per business. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -469,6 +473,9 @@ export class BookingsService {
           businessName: business.name,
           businessSlug: business.slug,
           businessOwnerId: business.ownerId,
+          businessStatus: business.status,
+          timezone: tz,
+          cancelWindowMinutes: service.cancelWindowMinutes,
         };
       }
       if (outcome.reason === 'slot_full') {
@@ -484,6 +491,199 @@ export class BookingsService {
       },
       HttpStatus.INTERNAL_SERVER_ERROR,
     );
+  }
+
+  // ─── Lifecycle (B6.3) ────────────────────────────────────────────────────
+
+  /** The authenticated-actor shape (req.user) the lifecycle methods take. */
+
+  /**
+   * POST /bookings/:id/decision — the OWNER confirms or rejects a pending
+   * booking. Guarded UPDATE against `pending` so a racing user-cancel wins
+   * once (the loser sees 409, never a silent overwrite).
+   */
+  async decide(
+    actor: LifecycleActor,
+    bookingId: string,
+    action: 'confirm' | 'reject',
+    reason?: string,
+  ): Promise<Booking> {
+    const booking = await this.requireManagedBooking(actor, bookingId);
+    const now = new Date();
+    const next = action === 'confirm' ? 'confirmed' : 'rejected';
+    const row = await this.repo.transitionStatus(
+      bookingId,
+      ['pending'],
+      action === 'confirm'
+        ? { status: next, confirmedAt: now }
+        : { status: next, rejectedAt: now, cancelReason: reason ?? null },
+    );
+    if (!row) {
+      throw conflictException('the booking is no longer pending', { reason: 'stale_status' });
+    }
+    this.events.emit(action === 'confirm' ? BOOKING_EVENTS.confirmed : BOOKING_EVENTS.rejected, {
+      bookingId,
+      userId: booking.userId,
+      businessId: booking.businessId,
+      date: booking.date,
+      startTime: booking.startTime,
+    });
+    return this.toBookingDto(row);
+  }
+
+  /**
+   * POST /bookings/:id/cancel — the booking's USER (inside the service's
+   * cancel window, B6.3 سیاست لغو) or the business OWNER (any time) moves
+   * pending/confirmed → cancelled. A stranger gets the same 404 as a
+   * missing booking (404-never-leak).
+   */
+  async cancel(actor: LifecycleActor, bookingId: string, reason?: string): Promise<Booking> {
+    const booking = await this.requireExistingBooking(bookingId);
+    const isBookingUser = booking.userId === actor.id;
+    const isManager = canManageBusiness(actor, {
+      ownerId: booking.businessOwnerId,
+      status: booking.businessStatus as never,
+    });
+    if (!isBookingUser && !isManager) throw notFoundException();
+
+    if (isBookingUser && !isManager) {
+      // User-side policy: free cancel only while start − window is ahead.
+      const { year, month, day } = dateParts(booking.date);
+      const startInstant = wallMinutesToInstant(
+        year,
+        month,
+        day,
+        minutesOf(booking.startTime.slice(0, 5)),
+        booking.timezone,
+      ).getTime();
+      const freeUntil = startInstant - booking.cancelWindowMinutes * 60_000;
+      if (Date.now() >= freeUntil) {
+        throw ruleException('the free cancellation window has passed', {
+          reason: 'cancel_window',
+          cancelWindowMinutes: booking.cancelWindowMinutes,
+        });
+      }
+    }
+
+    const now = new Date();
+    const row = await this.repo.transitionStatus(bookingId, ['pending', 'confirmed'], {
+      status: 'cancelled',
+      cancelledAt: now,
+      cancelActor: isManager && !isBookingUser ? 'business' : 'user',
+      cancelReason: reason ?? null,
+    });
+    if (!row) {
+      throw conflictException('the booking is no longer active', { reason: 'stale_status' });
+    }
+    this.events.emit(BOOKING_EVENTS.cancelled, {
+      bookingId,
+      userId: booking.userId,
+      businessId: booking.businessId,
+      cancelledBy: isManager && !isBookingUser ? 'business' : 'user',
+    });
+    return this.toBookingDto(row);
+  }
+
+  /** POST /bookings/:id/no-show — owner marks a confirmed no-show (owner side). */
+  async markNoShow(actor: LifecycleActor, bookingId: string): Promise<Booking> {
+    await this.requireManagedBooking(actor, bookingId);
+    const row = await this.repo.transitionStatus(bookingId, ['confirmed'], {
+      status: 'no_show',
+      noShowAt: new Date(),
+    });
+    if (!row) {
+      throw conflictException('only confirmed bookings can be marked no-show', {
+        reason: 'stale_status',
+      });
+    }
+    this.events.emit(BOOKING_EVENTS.noShow, {
+      bookingId,
+      userId: row.userId,
+      businessId: row.businessId,
+    });
+    return this.toBookingDto(row);
+  }
+
+  /** POST /bookings/:id/complete — owner closes out a confirmed booking. */
+  async complete(actor: LifecycleActor, bookingId: string): Promise<Booking> {
+    await this.requireManagedBooking(actor, bookingId);
+    const row = await this.repo.transitionStatus(bookingId, ['confirmed'], {
+      status: 'completed',
+      completedAt: new Date(),
+    });
+    if (!row) {
+      throw conflictException('only confirmed bookings can be completed', {
+        reason: 'stale_status',
+      });
+    }
+    this.events.emit(BOOKING_EVENTS.completed, {
+      bookingId,
+      userId: row.userId,
+      businessId: row.businessId,
+    });
+    return this.toBookingDto(row);
+  }
+
+  /**
+   * The reminder pass (B6.3 یادآوری) — the maintenance job's handler.
+   * Stamps `reminder_sent_at` on every active booking whose business-local
+   * start falls inside the next BOOKING_REMINDER_LEAD_MINUTES and emits
+   * `booking.reminder` per row (notify wiring arrives with the catalog).
+   * The scan anchors on Tehran today/tomorrow, then filters per business
+   * timezone — date+start are wall clock, "due" is an instant comparison.
+   */
+  async runReminders(): Promise<number> {
+    const now = new Date();
+    const today = formatInTz(now, 'Asia/Tehran').dateStr;
+    const candidates = await this.repo.findReminderCandidates(today, addDays(today, 1));
+    const leadMs = BOOKING_REMINDER_LEAD_MINUTES * 60_000;
+    const due = candidates.filter((c) => {
+      const { year, month, day } = dateParts(c.date);
+      const startInstant = wallMinutesToInstant(
+        year,
+        month,
+        day,
+        minutesOf(c.startTime.slice(0, 5)),
+        c.timezone,
+      ).getTime();
+      return startInstant > now.getTime() && startInstant - now.getTime() <= leadMs;
+    });
+    if (due.length === 0) return 0;
+    await this.repo.stampReminderSent(due.map((c) => c.id));
+    for (const c of due) {
+      this.events.emit(BOOKING_EVENTS.reminder, {
+        bookingId: c.id,
+        userId: c.userId,
+        businessId: c.businessId,
+        date: c.date,
+        startTime: c.startTime,
+      });
+    }
+    return due.length;
+  }
+
+  /** 404 unless the booking exists; 403 unless the actor manages its business. */
+  private async requireManagedBooking(
+    actor: LifecycleActor,
+    bookingId: string,
+  ): Promise<BookingDetailRow> {
+    const booking = await this.requireExistingBooking(bookingId);
+    if (
+      !canManageBusiness(actor, {
+        ownerId: booking.businessOwnerId,
+        status: booking.businessStatus as never,
+      })
+    ) {
+      throw new ForbiddenException();
+    }
+    return booking;
+  }
+
+  /** 404-never-leak for a bare booking id. */
+  private async requireExistingBooking(bookingId: string): Promise<BookingDetailRow> {
+    const booking = await this.repo.findBookingDetail(bookingId);
+    if (!booking) throw notFoundException();
+    return booking;
   }
 
   /**

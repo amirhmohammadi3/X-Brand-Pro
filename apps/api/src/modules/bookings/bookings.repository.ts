@@ -8,6 +8,7 @@ import {
   gt,
   gte,
   inArray,
+  isNull,
   lte,
   not,
   or,
@@ -63,12 +64,18 @@ export interface BookingServiceContext {
   };
 }
 
-/** A booking row joined with display names (my-bookings, owner calendar). */
+/** A booking row joined with display names + the fields the lifecycle needs. */
 export interface BookingDetailRow extends BookingRow {
   serviceName: string;
   businessName: string;
   businessSlug: string;
   businessOwnerId: string | null;
+  /** Business lifecycle status (the canManageBusiness gate). */
+  businessStatus: string;
+  /** Business city timezone — wall-clock → instant conversions. */
+  timezone: string;
+  /** The service's cancellation policy (B6.3 user-cancel window). */
+  cancelWindowMinutes: number;
 }
 
 /** A page of detail rows. */
@@ -126,6 +133,33 @@ export interface BookingsRepositoryLike {
   }): Promise<CreateBookingOutcome>;
   /** One booking + display joins, by id (404-never-leak checks upstream). */
   findBookingDetail(id: string): Promise<BookingDetailRow | null>;
+  /**
+   * Guarded transition (B6.3): UPDATE ... WHERE id AND status IN (from) —
+   * returns the DETAIL row when the guard matched, null on a stale read
+   * (another actor moved the status first → the service answers 409).
+   */
+  transitionStatus(
+    id: string,
+    fromStatuses: string[],
+    patch: {
+      status: string;
+      confirmedAt?: Date;
+      rejectedAt?: Date;
+      completedAt?: Date;
+      noShowAt?: Date;
+      cancelledAt?: Date;
+      cancelActor?: 'user' | 'business' | 'system' | null;
+      cancelReason?: string | null;
+    },
+  ): Promise<BookingDetailRow | null>;
+  /**
+   * Reminder scan (B6.3): active bookings on today/tomorrow (Tehran anchor)
+   * with no reminder yet, joined with the business city's timezone — the
+   * due filter (start within the lead window) is computed in the service.
+   */
+  findReminderCandidates(today: string, tomorrow: string): Promise<ReminderCandidate[]>;
+  /** Stamp the reminder as sent (idempotent — the scan filters on NULL). */
+  stampReminderSent(ids: string[]): Promise<void>;
   /** Page over the user's bookings, newest first, optional status + scope. */
   listUserBookings(
     userId: string,
@@ -147,6 +181,16 @@ function readIntervals(raw: unknown): Interval[] {
     .map((iv) => intervalSchema.safeParse(iv))
     .filter((r) => r.success)
     .map((r) => (r as { success: true; data: Interval }).data);
+}
+
+/** A reminder-scan candidate (B6.3) — the service computes the due filter. */
+export interface ReminderCandidate {
+  id: string;
+  userId: string;
+  businessId: string;
+  date: string;
+  startTime: string;
+  timezone: string;
 }
 
 const ACTIVE = [...BOOKING_ACTIVE_STATUSES] as ['pending', 'confirmed'];
@@ -364,10 +408,14 @@ export class BookingsRepository implements BookingsRepositoryLike {
         businessName: businesses.name,
         businessSlug: businesses.slug,
         businessOwnerId: businesses.ownerId,
+        businessStatus: businesses.status,
+        timezone: cities.timezone,
+        cancelWindowMinutes: bookingServices.cancelWindowMinutes,
       })
       .from(bookings)
       .innerJoin(bookingServices, eq(bookingServices.id, bookings.serviceId))
       .innerJoin(businesses, eq(businesses.id, bookings.businessId))
+      .innerJoin(cities, eq(cities.id, businesses.cityId))
       .where(eq(bookings.id, id))
       .limit(1);
     const found = rows[0];
@@ -378,7 +426,67 @@ export class BookingsRepository implements BookingsRepositoryLike {
       businessName: found.businessName,
       businessSlug: found.businessSlug,
       businessOwnerId: found.businessOwnerId,
+      businessStatus: found.businessStatus,
+      timezone: found.timezone,
+      cancelWindowMinutes: found.cancelWindowMinutes,
     };
+  }
+
+  async transitionStatus(
+    id: string,
+    fromStatuses: string[],
+    patch: {
+      status: BookingRow['status'];
+      confirmedAt?: Date;
+      rejectedAt?: Date;
+      completedAt?: Date;
+      noShowAt?: Date;
+      cancelledAt?: Date;
+      cancelActor?: 'user' | 'business' | 'system' | null;
+      cancelReason?: string | null;
+    },
+  ): Promise<BookingDetailRow | null> {
+    const updated = await this.client.db
+      .update(bookings)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(
+        and(eq(bookings.id, id), inArray(bookings.status, fromStatuses as BookingRow['status'][])),
+      )
+      .returning();
+    const row = updated[0];
+    if (!row) return null; // guard missed — another actor moved first
+    return this.findBookingDetail(row.id);
+  }
+
+  async findReminderCandidates(today: string, tomorrow: string): Promise<ReminderCandidate[]> {
+    const rows = await this.client.db
+      .select({
+        id: bookings.id,
+        userId: bookings.userId,
+        businessId: bookings.businessId,
+        date: bookings.date,
+        startTime: bookings.startTime,
+        timezone: cities.timezone,
+      })
+      .from(bookings)
+      .innerJoin(businesses, eq(businesses.id, bookings.businessId))
+      .innerJoin(cities, eq(cities.id, businesses.cityId))
+      .where(
+        and(
+          inArray(bookings.date, [today, tomorrow]),
+          inArray(bookings.status, ACTIVE),
+          isNull(bookings.reminderSentAt),
+        ),
+      );
+    return rows;
+  }
+
+  async stampReminderSent(ids: string[]): Promise<void> {
+    if (ids.length === 0) return;
+    await this.client.db
+      .update(bookings)
+      .set({ reminderSentAt: new Date(), updatedAt: new Date() })
+      .where(inArray(bookings.id, ids));
   }
 
   async listUserBookings(
@@ -419,6 +527,9 @@ export class BookingsRepository implements BookingsRepositoryLike {
         businessName: businesses.name,
         businessSlug: businesses.slug,
         businessOwnerId: businesses.ownerId,
+        businessStatus: businesses.status,
+        timezone: cities.timezone,
+        cancelWindowMinutes: bookingServices.cancelWindowMinutes,
       })
       .from(bookings)
       .innerJoin(bookingServices, eq(bookingServices.id, bookings.serviceId))
@@ -440,6 +551,9 @@ export class BookingsRepository implements BookingsRepositoryLike {
         businessName: found.businessName,
         businessSlug: found.businessSlug,
         businessOwnerId: found.businessOwnerId,
+        businessStatus: found.businessStatus,
+        timezone: found.timezone,
+        cancelWindowMinutes: found.cancelWindowMinutes,
       })),
       total: Number(totalRows[0]?.cnt ?? 0),
     };

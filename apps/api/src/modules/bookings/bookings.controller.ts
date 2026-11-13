@@ -1,13 +1,29 @@
-import { Body, Controller, Get, Inject, Post, Query, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Inject,
+  Param,
+  Post,
+  Query,
+  Req,
+  UnprocessableEntityException,
+} from '@nestjs/common';
 import type { Request } from 'express';
+import { uuidSchema } from '@app/contracts';
 import {
   BOOKING_READ_LIMIT_PER_MIN,
   BOOKING_WRITE_LIMIT_PER_MIN,
   availabilityQuerySchema,
+  bookingDecisionBodySchema,
+  bookingRejectBodySchema,
   createBookingBodySchema,
   myBookingsQuerySchema,
   type AvailabilityQuery,
   type AvailabilityResult,
+  type Booking,
+  type BookingDecisionBody,
+  type BookingRejectBody,
   type CreateBookingBody,
   type CreateBookingResult,
   type MyBookingsQuery,
@@ -46,9 +62,21 @@ function auditInfo(req: Request): {
   };
 }
 
+/** Path params must be UUIDs — a garbage id answers 422, never a 500 from the DB. */
+function assertUuid(raw: string, what: string): string {
+  if (!uuidSchema.safeParse(raw).success) {
+    throw new UnprocessableEntityException({
+      code: 'UNPROCESSABLE' as const,
+      messageKey: 'errors.unprocessable',
+      message: `${what} must be a UUID`,
+      details: { [what]: raw },
+    });
+  }
+  return raw;
+}
+
 /**
- * Booking endpoints (B6.2 — engine + create + my list; B6.3 adds the
- * lifecycle transitions and owner calendar).
+ * Booking endpoints (B6.2 engine + create + my list; B6.3 lifecycle).
  *
  * Route layout:
  * - GET /bookings/availability?serviceId&date — public (the calendar shows
@@ -121,5 +149,102 @@ export class BookingsController {
       request,
     });
     return { booking: this.bookings.toBookingDto(booking) };
+  }
+
+  // ─── Lifecycle (B6.3) ──────────────────────────────────────────────────
+
+  /** POST /bookings/:id/decision — owner confirm/reject (audited). */
+  @Post('bookings/:id/decision')
+  @RateLimit({
+    name: 'bookings.write',
+    limit: BOOKING_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async decide(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(bookingDecisionBodySchema)) body: BookingDecisionBody,
+  ): Promise<{ booking: Booking }> {
+    const user = requireUser(req);
+    const booking = await this.bookings.decide(
+      user,
+      assertUuid(id, 'bookingId'),
+      body.action,
+      body.reason,
+    );
+    this.auditLog(req, 'booking.decision', booking, { action: body.action });
+    return { booking };
+  }
+
+  /** POST /bookings/:id/cancel — the booking's user (policy window) or owner. */
+  @Post('bookings/:id/cancel')
+  @RateLimit({
+    name: 'bookings.write',
+    limit: BOOKING_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async cancel(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(bookingRejectBodySchema)) body: BookingRejectBody,
+  ): Promise<{ booking: Booking }> {
+    const user = requireUser(req);
+    const booking = await this.bookings.cancel(user, assertUuid(id, 'bookingId'), body.reason);
+    this.auditLog(req, 'booking.cancel', booking, null);
+    return { booking };
+  }
+
+  /** POST /bookings/:id/no-show — owner marks a confirmed booking no-show. */
+  @Post('bookings/:id/no-show')
+  @RateLimit({
+    name: 'bookings.write',
+    limit: BOOKING_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async noShow(@Req() req: Request, @Param('id') id: string): Promise<{ booking: Booking }> {
+    const user = requireUser(req);
+    const booking = await this.bookings.markNoShow(user, assertUuid(id, 'bookingId'));
+    this.auditLog(req, 'booking.no_show', booking, null);
+    return { booking };
+  }
+
+  /** POST /bookings/:id/complete — owner closes out a confirmed booking. */
+  @Post('bookings/:id/complete')
+  @RateLimit({
+    name: 'bookings.write',
+    limit: BOOKING_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async complete(@Req() req: Request, @Param('id') id: string): Promise<{ booking: Booking }> {
+    const user = requireUser(req);
+    const booking = await this.bookings.complete(user, assertUuid(id, 'bookingId'));
+    this.auditLog(req, 'booking.complete', booking, null);
+    return { booking };
+  }
+
+  /** Shared audit row for the lifecycle writes. */
+  private auditLog(
+    req: Request,
+    action: string,
+    booking: Booking,
+    after: Record<string, unknown> | null,
+  ): void {
+    const { actor, request } = auditInfo(req);
+    this.audit.log({
+      actor,
+      action,
+      entityType: 'booking',
+      entityId: booking.id,
+      after: {
+        status: booking.status,
+        cancelActor: booking.cancelActor,
+        ...(after ?? {}),
+      },
+      request,
+    });
   }
 }
