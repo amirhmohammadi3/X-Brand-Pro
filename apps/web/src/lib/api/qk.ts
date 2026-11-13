@@ -97,6 +97,22 @@ export const qk = {
     pushDevices: () => ['notifications', 'push', 'devices'] as const,
   },
   /**
+   * Messaging (F5.6). `inboxAll` is the prefix every inbox page shares so a
+   * send / mark-read / delete invalidates the whole inbox in one pass (the
+   * last-message preview + unread count depend on the same rows as the
+   * thread). `threadAll` is the same idea per conversation; `blocksAll` for
+   * the blocked-users list.
+   */
+  messaging: {
+    inboxAll: () => ['messaging', 'inbox'] as const,
+    inbox: (page: number, pageSize: number) => ['messaging', 'inbox', page, pageSize] as const,
+    threadAll: (conversationId: string) => ['messaging', 'thread', conversationId] as const,
+    thread: (conversationId: string, page: number, pageSize: number) =>
+      ['messaging', 'thread', conversationId, page, pageSize] as const,
+    blocksAll: () => ['messaging', 'blocks'] as const,
+    blocks: () => ['messaging', 'blocks'] as const,
+  },
+  /**
    * Favorites (F5.1). The lists index key `['favorites','lists']` is a PREFIX
    * of every list-items page key `['favorites','lists',listId,'items',…]`, so
    * one `invalidateQueries({ queryKey: qk.favorites.lists() })` refreshes the

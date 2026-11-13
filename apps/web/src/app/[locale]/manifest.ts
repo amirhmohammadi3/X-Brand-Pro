@@ -37,7 +37,7 @@ export default async function manifest(): Promise<MetadataRoute.Manifest> {
     background_color: theme.tokens.light.bg,
     theme_color: theme.tokens.light.bg,
     // Both `fa` and `en` exist at build time (FALLBACK_LANGUAGES); the route
-    // is locale-scoped so Next stamps the right pair per manifest.
+    // is locale-scoped so Next stamps the matching pair per manifest.
     lang: 'fa',
     dir: 'rtl',
     categories: ['shopping', 'lifestyle', 'social'],

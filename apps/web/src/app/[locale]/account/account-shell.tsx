@@ -14,13 +14,14 @@ import { cn } from '../../../lib/cn';
 // F1.9: the account sidebar exposes the profile and settings tabs. Later
 // prompts append reviews, bookmarks, messages, notifications and
 // reservations. F5.1 appends favorites, F5.2 following + feed, F5.3
-// notifications.
+// notifications, F5.6 messages.
 const SIDEBAR_ITEMS = [
   { key: 'profile', href: '/account/profile' },
   { key: 'favorites', href: '/account/favorites' },
   { key: 'following', href: '/account/following' },
   { key: 'feed', href: '/account/feed' },
   { key: 'notifications', href: '/account/notifications' },
+  { key: 'messages', href: '/account/messages' },
   { key: 'settings', href: '/account/settings' },
 ] as const;
 

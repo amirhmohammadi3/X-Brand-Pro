@@ -449,7 +449,8 @@
       "favorites": "علاقه‌مندی‌ها",
       "following": "دنبال‌شده‌ها",
       "feed": "فید فعالیت",
-      "notifications": "اعلان‌ها"
+      "notifications": "اعلان‌ها",
+      "messages": "پیام‌ها"
     },
     "lockedFor": "به دلیل تلاش‌های ناموفق، ورود برای {seconds} ثانیه در دسترس نیست.",
     "rateLimitedFor": "درخواست‌های شما زیاد است؛ {seconds} ثانیه دیگر دوباره تلاش کنید.",
@@ -800,6 +801,51 @@
         "errorDenied": "اعلان‌ها را مسدود کرده‌اید. در تنظیمات مرورگر اجازه دهید.",
         "errorNetwork": "خطای شبکه هنگام اشتراک. دوباره تلاش کنید.",
         "errorUnknown": "فعال‌سازی پوش ممکن نشد. دوباره تلاش کنید."
+      }
+    },
+    "messages": {
+      "title": "پیام‌ها",
+      "emptyTitle": "هنوز گفتگویی ندارید",
+      "emptyBody": "از پروفایل یک کاربر گفتگو را آغاز کنید.",
+      "loadError": "بارگذاری گفتگوها ممکن نشد.",
+      "unreadBadge": "{count} خوانده‌نشده",
+      "startConversation": "ارسال پیام",
+      "thread": {
+        "replyPlaceholder": "پیام بنویسید…",
+        "send": "ارسال",
+        "loadError": "بارگذاری گفتگو ممکن نشد.",
+        "emptyBody": "هنوز پیامی نیست. سلام کنید!",
+        "markReadAria": "علامت‌گذاری خوانده‌شده",
+        "deleteAria": "حذف این پیام",
+        "deleteConfirm": "این پیام حذف شود؟",
+        "deletedPlaceholder": "این پیام حذف شد.",
+        "attachmentAlt": "پیوست",
+        "reportAria": "گزارش این پیام",
+        "reportTitle": "گزارش پیام",
+        "reportReason": {
+          "spam": "هرزنامه",
+          "abuse": "توهین",
+          "scam": "کلاهبرداری",
+          "other": "سایر"
+        },
+        "reportDetailsLabel": "جزئیات (اختیاری)",
+        "reportSubmit": "گزارش",
+        "sentToast": "پیام ارسال شد.",
+        "deletedToast": "پیام حذف شد.",
+        "reportedToast": "پیام گزارش شد.",
+        "realtimeReconnecting": "در حال اتصال مجدد…"
+      },
+      "block": {
+        "block": "مسدود کردن",
+        "unblock": "رفع مسدودی",
+        "blockedToast": "کاربر مسدود شد.",
+        "unblockedToast": "مسدودی کاربر رفع شد.",
+        "confirmTitle": "مسدود کردن این کاربر؟",
+        "confirmBody": "دیگر نمی‌تواند پیام تازه‌ای برایتان بفرستد."
+      },
+      "blocks": {
+        "title": "کاربران مسدودشده",
+        "empty": "هنوز کسی را مسدود نکرده‌اید."
       }
     }
   },

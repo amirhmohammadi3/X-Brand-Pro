@@ -449,7 +449,8 @@
       "favorites": "Favorites",
       "following": "Following",
       "feed": "Activity feed",
-      "notifications": "Notifications"
+      "notifications": "Notifications",
+      "messages": "Messages"
     },
     "lockedFor": "Because of repeated failed attempts, sign-in is unavailable for {seconds} seconds.",
     "rateLimitedFor": "Too many requests; try again in {seconds} seconds.",
@@ -800,6 +801,51 @@
         "errorDenied": "You blocked notifications. Allow them in your browser settings.",
         "errorNetwork": "Network error while subscribing. Try again.",
         "errorUnknown": "Couldn't enable push. Try again."
+      }
+    },
+    "messages": {
+      "title": "Messages",
+      "emptyTitle": "No conversations yet",
+      "emptyBody": "Start a conversation from a user's profile.",
+      "loadError": "Couldn't load conversations.",
+      "unreadBadge": "{count} unread",
+      "startConversation": "Send a message",
+      "thread": {
+        "replyPlaceholder": "Write a message…",
+        "send": "Send",
+        "loadError": "Couldn't load the conversation.",
+        "emptyBody": "No messages yet. Say hello!",
+        "markReadAria": "Mark as read",
+        "deleteAria": "Delete this message",
+        "deleteConfirm": "Delete this message?",
+        "deletedPlaceholder": "This message was deleted.",
+        "attachmentAlt": "Attachment",
+        "reportAria": "Report this message",
+        "reportTitle": "Report message",
+        "reportReason": {
+          "spam": "Spam",
+          "abuse": "Abuse",
+          "scam": "Scam",
+          "other": "Other"
+        },
+        "reportDetailsLabel": "Details (optional)",
+        "reportSubmit": "Report",
+        "sentToast": "Message sent.",
+        "deletedToast": "Message deleted.",
+        "reportedToast": "Message reported.",
+        "realtimeReconnecting": "Reconnecting…"
+      },
+      "block": {
+        "block": "Block",
+        "unblock": "Unblock",
+        "blockedToast": "User blocked.",
+        "unblockedToast": "User unblocked.",
+        "confirmTitle": "Block this user?",
+        "confirmBody": "They won't be able to send you new messages."
+      },
+      "blocks": {
+        "title": "Blocked users",
+        "empty": "You haven't blocked anyone."
       }
     }
   },
