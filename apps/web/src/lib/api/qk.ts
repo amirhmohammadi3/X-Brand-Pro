@@ -171,6 +171,23 @@ export const qk = {
     /** `GET /businesses/:id/menu` — sections + items (full replace on save). */
     menu: (id: string) => ['businesses', 'menu', id] as const,
   },
+  /**
+   * Owner dashboard per-business consoles (F7.4). The reviews and Q&A
+   * editors each read a paginated list and mutate a single reply/answer.
+   * Page-aware keys keep every open page's cache entry; the `reviewsPrefix`
+   * / `qaPrefix` helpers invalidate every page of one business at once
+   * (a reply write flips the review's `reply` field in every open page).
+   */
+  dashboard: {
+    reviews: (businessId: string, page: number, pageSize: number) =>
+      ['dashboard', 'reviews', businessId, page, pageSize] as const,
+    /** Invalidation key for EVERY page of one business's reviews. */
+    reviewsPrefix: (businessId: string) => ['dashboard', 'reviews', businessId] as const,
+    qa: (businessId: string, page: number, pageSize: number) =>
+      ['dashboard', 'qa', businessId, page, pageSize] as const,
+    /** Invalidation key for EVERY page of one business's Q&A. */
+    qaPrefix: (businessId: string) => ['dashboard', 'qa', businessId] as const,
+  },
   /** Analytics reads (F7.1 overview + F7.8 dashboard). */
   analytics: {
     all: () => ['analytics'] as const,
