@@ -187,6 +187,33 @@ export const qk = {
       ['dashboard', 'qa', businessId, page, pageSize] as const,
     /** Invalidation key for EVERY page of one business's Q&A. */
     qaPrefix: (businessId: string) => ['dashboard', 'qa', businessId] as const,
+    /** The owner's full service list (every is_active value) — F7.5. */
+    bookingsServices: (businessId: string) =>
+      ['dashboard', 'bookings', 'services', businessId] as const,
+    /** The business's booking closed days — F7.5. */
+    bookingsClosedDays: (businessId: string) =>
+      ['dashboard', 'bookings', 'closed-days', businessId] as const,
+    /** One page of the owner calendar — F7.5. */
+    bookingsCalendar: (
+      businessId: string,
+      date: string | null,
+      status: string | null,
+      page: number,
+      pageSize: number,
+    ) =>
+      [
+        'dashboard',
+        'bookings',
+        'calendar',
+        businessId,
+        date ?? 'all',
+        status ?? 'all',
+        page,
+        pageSize,
+      ] as const,
+    /** Invalidation key for EVERY calendar page of one business — F7.5. */
+    bookingsCalendarPrefix: (businessId: string) =>
+      ['dashboard', 'bookings', 'calendar', businessId] as const,
   },
   /** Analytics reads (F7.1 overview + F7.8 dashboard). */
   analytics: {

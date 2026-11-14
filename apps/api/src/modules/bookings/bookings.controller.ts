@@ -1,8 +1,11 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Header,
+  HttpCode,
+  HttpStatus,
   Inject,
   Param,
   Post,
@@ -22,7 +25,11 @@ import {
   calendarFeedQuerySchema,
   businessServicesQuerySchema,
   createBookingBodySchema,
+  createBookingClosedDayBodySchema,
+  createBookingServiceBodySchema,
   myBookingsQuerySchema,
+  ownerBookingsQuerySchema,
+  updateBookingServiceBodySchema,
   type AvailabilityQuery,
   type AvailabilityResult,
   type Booking,
@@ -31,10 +38,21 @@ import {
   type CalendarFeedQuery,
   type BusinessServicesQuery,
   type BusinessServicesResult,
+  type BookingClosedDaysResult,
   type CreateBookingBody,
+  type CreateBookingClosedDayBody,
+  type CreateBookingClosedDayResult,
   type CreateBookingResult,
+  type CreateBookingServiceBody,
+  type CreateBookingServiceResult,
+  type DeleteBookingClosedDayResult,
   type MyBookingsQuery,
   type MyBookingsResult,
+  type OwnerBookingsQuery,
+  type OwnerBookingsResult,
+  type OwnerBookingServicesResult,
+  type UpdateBookingServiceBody,
+  type UpdateBookingServiceResult,
 } from '@app/contracts';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
 import { Public } from '../../common/decorators/public.decorator.js';
@@ -263,6 +281,210 @@ export class BookingsController {
       },
       request,
     });
+  }
+
+  // ─── F7.5 — owner booking settings + reservation calendar ──────────────
+
+  /** GET /bookings/services/owner/:businessId — every service (incl. inactive). */
+  @Get('bookings/services/owner/:businessId')
+  @RateLimit({
+    name: 'bookings.read',
+    limit: BOOKING_READ_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async listOwnerServices(
+    @Req() req: Request,
+    @Param('businessId') businessId: string,
+  ): Promise<OwnerBookingServicesResult> {
+    const user = requireUser(req);
+    const services = await this.bookings.listOwnerServices(
+      user,
+      assertUuid(businessId, 'businessId'),
+    );
+    return { services };
+  }
+
+  /** POST /bookings/services/:businessId — create one bookable service. */
+  @Post('bookings/services/:businessId')
+  @RateLimit({
+    name: 'bookings.write',
+    limit: BOOKING_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async createOwnerService(
+    @Req() req: Request,
+    @Param('businessId') businessId: string,
+    @Body(new ZodValidationPipe(createBookingServiceBodySchema)) body: CreateBookingServiceBody,
+  ): Promise<CreateBookingServiceResult> {
+    const user = requireUser(req);
+    const result = await this.bookings.createOwnerService(
+      user,
+      assertUuid(businessId, 'businessId'),
+      body,
+    );
+    const { actor, request } = auditInfo(req);
+    this.audit.log({
+      actor,
+      action: 'booking_service.create',
+      entityType: 'booking_service',
+      entityId: result.service.id,
+      after: {
+        businessId: result.service.businessId,
+        name: result.service.name,
+        isActive: result.service.isActive,
+      },
+      request,
+    });
+    return result;
+  }
+
+  /** PATCH /bookings/services/:id — update one service's fields. */
+  @Post('bookings/services/:id')
+  @RateLimit({
+    name: 'bookings.write',
+    limit: BOOKING_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async updateOwnerService(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateBookingServiceBodySchema)) body: UpdateBookingServiceBody,
+  ): Promise<UpdateBookingServiceResult> {
+    const user = requireUser(req);
+    const result = await this.bookings.updateOwnerService(user, assertUuid(id, 'serviceId'), body);
+    const { actor, request } = auditInfo(req);
+    this.audit.log({
+      actor,
+      action: 'booking_service.update',
+      entityType: 'booking_service',
+      entityId: result.service.id,
+      after: body,
+      request,
+    });
+    return result;
+  }
+
+  /** DELETE /bookings/services/:id — remove a service (cascades its bookings). */
+  @Delete('bookings/services/:id')
+  @RateLimit({
+    name: 'bookings.write',
+    limit: BOOKING_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async deleteOwnerService(@Req() req: Request, @Param('id') id: string): Promise<void> {
+    const user = requireUser(req);
+    await this.bookings.deleteOwnerService(user, assertUuid(id, 'serviceId'));
+    const { actor, request } = auditInfo(req);
+    this.audit.log({
+      actor,
+      action: 'booking_service.delete',
+      entityType: 'booking_service',
+      entityId: id,
+      after: null,
+      request,
+    });
+  }
+
+  /** GET /bookings/closed-days/:businessId — the business's booking closures. */
+  @Get('bookings/closed-days/:businessId')
+  @RateLimit({
+    name: 'bookings.read',
+    limit: BOOKING_READ_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async listClosedDays(
+    @Req() req: Request,
+    @Param('businessId') businessId: string,
+  ): Promise<BookingClosedDaysResult> {
+    const user = requireUser(req);
+    const days = await this.bookings.listClosedDays(user, assertUuid(businessId, 'businessId'));
+    return { days };
+  }
+
+  /** POST /bookings/closed-days/:businessId — add a full-day booking closure. */
+  @Post('bookings/closed-days/:businessId')
+  @RateLimit({
+    name: 'bookings.write',
+    limit: BOOKING_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async createClosedDay(
+    @Req() req: Request,
+    @Param('businessId') businessId: string,
+    @Body(new ZodValidationPipe(createBookingClosedDayBodySchema)) body: CreateBookingClosedDayBody,
+  ): Promise<CreateBookingClosedDayResult> {
+    const user = requireUser(req);
+    const result = await this.bookings.createClosedDay(
+      user,
+      assertUuid(businessId, 'businessId'),
+      body,
+    );
+    const { actor, request } = auditInfo(req);
+    this.audit.log({
+      actor,
+      action: 'booking_closed_day.create',
+      entityType: 'booking_closed_day',
+      entityId: result.day.id,
+      after: { businessId: result.day.businessId, date: result.day.date },
+      request,
+    });
+    return result;
+  }
+
+  /** DELETE /bookings/closed-days/:businessId/:date — idempotent removal. */
+  @Delete('bookings/closed-days/:businessId/:date')
+  @RateLimit({
+    name: 'bookings.write',
+    limit: BOOKING_WRITE_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  @HttpCode(HttpStatus.OK)
+  async deleteClosedDay(
+    @Req() req: Request,
+    @Param('businessId') businessId: string,
+    @Param('date') date: string,
+  ): Promise<DeleteBookingClosedDayResult> {
+    const user = requireUser(req);
+    const result = await this.bookings.deleteClosedDay(
+      user,
+      assertUuid(businessId, 'businessId'),
+      date,
+    );
+    const { actor, request } = auditInfo(req);
+    this.audit.log({
+      actor,
+      action: 'booking_closed_day.delete',
+      entityType: 'booking_closed_day',
+      entityId: `${businessId}:${date}`,
+      after: { date },
+      request,
+    });
+    return result;
+  }
+
+  /** GET /bookings/business/:businessId — the owner calendar (one page). */
+  @Get('bookings/business/:businessId')
+  @RateLimit({
+    name: 'bookings.read',
+    limit: BOOKING_READ_LIMIT_PER_MIN,
+    windowSec: 60,
+    scope: 'user',
+  })
+  async listOwnerBookings(
+    @Req() req: Request,
+    @Param('businessId') businessId: string,
+    @Query(new ZodValidationPipe(ownerBookingsQuerySchema)) query: OwnerBookingsQuery,
+  ): Promise<OwnerBookingsResult> {
+    const user = requireUser(req);
+    return this.bookings.listOwnerBookings(user, assertUuid(businessId, 'businessId'), query);
   }
 
   // ─── ICS calendar feed (B6.4) ──────────────────────────────────────────

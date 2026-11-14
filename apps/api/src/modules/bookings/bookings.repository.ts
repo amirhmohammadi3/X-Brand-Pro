@@ -172,6 +172,46 @@ export interface BookingsRepositoryLike {
   } | null>;
   /** The business's ACTIVE services, ordered (public flow, F6.1). */
   listActiveServices(businessId: string): Promise<PublicBookingServiceRow[]>;
+  /** The business's services (every `is_active` value), ordered (F7.5 owner panel). */
+  listOwnerServices(businessId: string): Promise<PublicBookingServiceRow[]>;
+  /** One service row + its business lifecycle context (F7.5 owner CRUD gates). */
+  findServiceForOwner(serviceId: string): Promise<{
+    service: BookingServiceContext['service'];
+    business: {
+      ownerId: string | null;
+      status: string;
+      deletedAt: Date | null;
+    };
+  } | null>;
+  /** Create one bookable service row for the business (F7.5). */
+  createOwnerService(
+    businessId: string,
+    input: Omit<BookingServiceContext['service'], 'id' | 'businessId'>,
+  ): Promise<PublicBookingServiceRow>;
+  /** Patch one service row — returns the updated row, null when the row is gone. */
+  updateOwnerService(
+    serviceId: string,
+    patch: Partial<Omit<BookingServiceContext['service'], 'id' | 'businessId'>>,
+  ): Promise<PublicBookingServiceRow | null>;
+  /** Delete one service row (cascades its bookings). Returns whether a row was deleted. */
+  deleteOwnerService(serviceId: string): Promise<boolean>;
+  /** The business's booking closed days (F7.5), ordered by date. */
+  listClosedDays(
+    businessId: string,
+  ): Promise<{ id: string; date: string; note: string | null; createdAt: Date }[]>;
+  /** Insert a closed day — returns the row; caller surfaces the unique race as 409. */
+  insertClosedDay(
+    businessId: string,
+    date: string,
+    note: string | null,
+  ): Promise<{ id: string; date: string; note: string | null; createdAt: Date }>;
+  /** Delete one closed day (businessId, date). Returns whether a row was deleted. */
+  deleteClosedDay(businessId: string, date: string): Promise<boolean>;
+  /** Page over the business's bookings (F7.5 owner calendar), newest first. */
+  listOwnerBookings(
+    businessId: string,
+    opts: { page: number; pageSize: number; date?: string; status?: string },
+  ): Promise<BookingPage>;
   /** Page over the user's bookings, newest first, optional status + scope. */
   listUserBookings(
     userId: string,
@@ -609,6 +649,218 @@ export class BookingsRepository implements BookingsRepositoryLike {
       .from(bookingServices)
       .where(and(eq(bookingServices.businessId, businessId), eq(bookingServices.isActive, true)))
       .orderBy(asc(bookingServices.sortOrder), asc(bookingServices.id));
+  }
+
+  /** Every service row of the business (incl. inactive), ordered (F7.5). */
+  async listOwnerServices(businessId: string): Promise<PublicBookingServiceRow[]> {
+    return this.client.db
+      .select({
+        id: bookingServices.id,
+        businessId: bookingServices.businessId,
+        name: bookingServices.name,
+        description: bookingServices.description,
+        durationMinutes: bookingServices.durationMinutes,
+        slotStepMinutes: bookingServices.slotStepMinutes,
+        capacity: bookingServices.capacity,
+        minPartySize: bookingServices.minPartySize,
+        maxPartySize: bookingServices.maxPartySize,
+        minLeadMinutes: bookingServices.minLeadMinutes,
+        cancelWindowMinutes: bookingServices.cancelWindowMinutes,
+        maxAdvanceDays: bookingServices.maxAdvanceDays,
+        isActive: bookingServices.isActive,
+        sortOrder: bookingServices.sortOrder,
+        createdAt: bookingServices.createdAt,
+        updatedAt: bookingServices.updatedAt,
+      })
+      .from(bookingServices)
+      .where(eq(bookingServices.businessId, businessId))
+      .orderBy(asc(bookingServices.sortOrder), asc(bookingServices.id));
+  }
+
+  /** One service row + its business lifecycle context (F7.5 owner CRUD gates). */
+  async findServiceForOwner(serviceId: string): Promise<{
+    service: BookingServiceContext['service'];
+    business: { ownerId: string | null; status: string; deletedAt: Date | null };
+  } | null> {
+    const rows = await this.client.db
+      .select({
+        service: {
+          id: bookingServices.id,
+          businessId: bookingServices.businessId,
+          name: bookingServices.name,
+          description: bookingServices.description,
+          durationMinutes: bookingServices.durationMinutes,
+          slotStepMinutes: bookingServices.slotStepMinutes,
+          capacity: bookingServices.capacity,
+          minPartySize: bookingServices.minPartySize,
+          maxPartySize: bookingServices.maxPartySize,
+          minLeadMinutes: bookingServices.minLeadMinutes,
+          cancelWindowMinutes: bookingServices.cancelWindowMinutes,
+          maxAdvanceDays: bookingServices.maxAdvanceDays,
+          isActive: bookingServices.isActive,
+          sortOrder: bookingServices.sortOrder,
+        },
+        ownerId: businesses.ownerId,
+        status: businesses.status,
+        deletedAt: businesses.deletedAt,
+      })
+      .from(bookingServices)
+      .innerJoin(businesses, eq(businesses.id, bookingServices.businessId))
+      .where(eq(bookingServices.id, serviceId))
+      .limit(1);
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      service: row.service,
+      business: { ownerId: row.ownerId, status: row.status, deletedAt: row.deletedAt },
+    };
+  }
+
+  /** Create one bookable service row (F7.5). */
+  async createOwnerService(
+    businessId: string,
+    input: Omit<BookingServiceContext['service'], 'id' | 'businessId'>,
+  ): Promise<PublicBookingServiceRow> {
+    const inserted = await this.client.db
+      .insert(bookingServices)
+      .values({
+        businessId,
+        name: input.name,
+        description: input.description,
+        durationMinutes: input.durationMinutes,
+        slotStepMinutes: input.slotStepMinutes,
+        capacity: input.capacity,
+        minPartySize: input.minPartySize,
+        maxPartySize: input.maxPartySize,
+        minLeadMinutes: input.minLeadMinutes,
+        cancelWindowMinutes: input.cancelWindowMinutes,
+        maxAdvanceDays: input.maxAdvanceDays,
+        isActive: input.isActive,
+        sortOrder: input.sortOrder,
+      })
+      .returning();
+    const row = inserted[0];
+    if (!row) throw new Error('booking_service insert returned no row');
+    return row;
+  }
+
+  /** Patch one service row — returns the updated row, null when the row is gone. */
+  async updateOwnerService(
+    serviceId: string,
+    patch: Partial<Omit<BookingServiceContext['service'], 'id' | 'businessId'>>,
+  ): Promise<PublicBookingServiceRow | null> {
+    const updated = await this.client.db
+      .update(bookingServices)
+      .set({ ...patch, updatedAt: new Date() })
+      .where(eq(bookingServices.id, serviceId))
+      .returning();
+    return updated[0] ?? null;
+  }
+
+  /** Delete one service row (cascades its bookings). */
+  async deleteOwnerService(serviceId: string): Promise<boolean> {
+    const deleted = await this.client.db
+      .delete(bookingServices)
+      .where(eq(bookingServices.id, serviceId))
+      .returning({ id: bookingServices.id });
+    return deleted.length > 0;
+  }
+
+  /** The business's booking closed days (F7.5), ordered by date. */
+  async listClosedDays(
+    businessId: string,
+  ): Promise<{ id: string; date: string; note: string | null; createdAt: Date }[]> {
+    return this.client.db
+      .select({
+        id: bookingClosedDays.id,
+        date: bookingClosedDays.date,
+        note: bookingClosedDays.note,
+        createdAt: bookingClosedDays.createdAt,
+      })
+      .from(bookingClosedDays)
+      .where(eq(bookingClosedDays.businessId, businessId))
+      .orderBy(asc(bookingClosedDays.date), asc(bookingClosedDays.id));
+  }
+
+  /** Insert a closed day — caller surfaces the unique race as 409. */
+  async insertClosedDay(
+    businessId: string,
+    date: string,
+    note: string | null,
+  ): Promise<{ id: string; date: string; note: string | null; createdAt: Date }> {
+    const inserted = await this.client.db
+      .insert(bookingClosedDays)
+      .values({ businessId, date, note })
+      .returning({
+        id: bookingClosedDays.id,
+        date: bookingClosedDays.date,
+        note: bookingClosedDays.note,
+        createdAt: bookingClosedDays.createdAt,
+      });
+    const row = inserted[0];
+    if (!row) throw new Error('booking_closed_day insert returned no row');
+    return row;
+  }
+
+  /** Delete one closed day (businessId, date). */
+  async deleteClosedDay(businessId: string, date: string): Promise<boolean> {
+    const deleted = await this.client.db
+      .delete(bookingClosedDays)
+      .where(and(eq(bookingClosedDays.businessId, businessId), eq(bookingClosedDays.date, date)))
+      .returning({ id: bookingClosedDays.id });
+    return deleted.length > 0;
+  }
+
+  /** Page over the business's bookings (F7.5 owner calendar), newest first. */
+  async listOwnerBookings(
+    businessId: string,
+    opts: { page: number; pageSize: number; date?: string; status?: string },
+  ): Promise<BookingPage> {
+    const filters: SQL[] = [eq(bookings.businessId, businessId) as SQL];
+    if (opts.date) filters.push(eq(bookings.date, opts.date) as SQL);
+    if (opts.status) filters.push(eq(bookings.status, opts.status as BookingRow['status']) as SQL);
+
+    const where = and(...filters);
+    const offset = (opts.page - 1) * opts.pageSize;
+
+    const rows = await this.client.db
+      .select({
+        row: bookings,
+        serviceName: bookingServices.name,
+        businessName: businesses.name,
+        businessSlug: businesses.slug,
+        businessOwnerId: businesses.ownerId,
+        businessStatus: businesses.status,
+        timezone: cities.timezone,
+        cancelWindowMinutes: bookingServices.cancelWindowMinutes,
+      })
+      .from(bookings)
+      .innerJoin(bookingServices, eq(bookingServices.id, bookings.serviceId))
+      .innerJoin(businesses, eq(businesses.id, bookings.businessId))
+      .innerJoin(cities, eq(cities.id, businesses.cityId))
+      .where(where)
+      .orderBy(desc(bookings.date), desc(bookings.startTime), desc(bookings.id))
+      .limit(opts.pageSize)
+      .offset(offset);
+
+    const totalRows = await this.client.db
+      .select({ cnt: count(bookings.id) })
+      .from(bookings)
+      .where(where);
+
+    return {
+      rows: rows.map((found) => ({
+        ...found.row,
+        serviceName: found.serviceName,
+        businessName: found.businessName,
+        businessSlug: found.businessSlug,
+        businessOwnerId: found.businessOwnerId,
+        businessStatus: found.businessStatus,
+        timezone: found.timezone,
+        cancelWindowMinutes: found.cancelWindowMinutes,
+      })),
+      total: Number(totalRows[0]?.cnt ?? 0),
+    };
   }
 
   async listUserBookings(

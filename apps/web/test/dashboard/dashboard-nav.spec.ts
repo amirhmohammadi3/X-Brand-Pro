@@ -35,13 +35,21 @@ describe('dashboardNavGroups structure', () => {
     expect(overview?.available).toBe(true);
   });
 
-  it('overview + profile + gallery + menu + reviews + qa are built (F7.1–F7.4); every other section is "soon"', () => {
+  it('overview + profile + gallery + menu + reviews + qa + bookings are built (F7.1–F7.5); every other section is "soon"', () => {
     const items = flattenItems(dashboardNavGroups(BIZ_ID));
     const available = items.filter((i) => i.available).map((i) => i.key);
-    expect(available).toEqual(['overview', 'profile', 'gallery', 'menu', 'reviews', 'qa']);
+    expect(available).toEqual([
+      'overview',
+      'profile',
+      'gallery',
+      'menu',
+      'reviews',
+      'qa',
+      'bookings',
+    ]);
     const soon = items.filter((i) => !i.available).map((i) => i.key);
-    // The F7.5–F7.8 sections, all disabled until their prompt lands.
-    expect(soon).toEqual(expect.arrayContaining(['bookings', 'messages', 'analytics']));
+    // The F7.6–F7.8 sections, all disabled until their prompt lands.
+    expect(soon).toEqual(expect.arrayContaining(['messages', 'analytics']));
   });
 
   it('different business ids interpolate into the hrefs', () => {
@@ -52,7 +60,7 @@ describe('dashboardNavGroups structure', () => {
 });
 
 describe('availableDashboardItems', () => {
-  it('returns only linkable items (overview + profile + gallery + menu + reviews + qa in F7.1–F7.4)', () => {
+  it('returns only linkable items (overview + profile + gallery + menu + reviews + qa + bookings in F7.1–F7.5)', () => {
     const items = availableDashboardItems(BIZ_ID);
     expect(items.map((i) => i.key)).toEqual([
       'overview',
@@ -61,6 +69,7 @@ describe('availableDashboardItems', () => {
       'menu',
       'reviews',
       'qa',
+      'bookings',
     ]);
   });
 });

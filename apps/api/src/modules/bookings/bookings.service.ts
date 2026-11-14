@@ -15,11 +15,21 @@ import {
   timeToMinutes,
   type AvailabilityResult,
   type Booking,
+  type BookingClosedDay,
   type BookingService,
   type BookingSlot,
   type CreateBookingBody,
+  type CreateBookingClosedDayBody,
+  type CreateBookingClosedDayResult,
+  type CreateBookingServiceBody,
+  type CreateBookingServiceResult,
+  type DeleteBookingClosedDayResult,
   type MyBookingsQuery,
   type MyBookingsResult,
+  type OwnerBookingsQuery,
+  type OwnerBookingsResult,
+  type UpdateBookingServiceBody,
+  type UpdateBookingServiceResult,
 } from '@app/contracts';
 import {
   BOOKINGS_REPOSITORY,
@@ -852,6 +862,225 @@ export class BookingsService {
         totalPages: Math.ceil(page.total / query.pageSize),
       },
     };
+  }
+
+  // ─── F7.5 — owner booking settings + reservation calendar ────────────────
+
+  /**
+   * GET /bookings/services/owner/:businessId (F7.5) — the owner's full service
+   * list (every `is_active` value). Owner-gated: 404-never-leak for a
+   * missing/deleted business, 403 for a non-owner (so the route can't be used
+   * to enumerate another business's inactive services).
+   */
+  async listOwnerServices(actor: LifecycleActor, businessId: string): Promise<BookingService[]> {
+    await this.verifyBusinessOwner(actor, businessId);
+    const rows = await this.repo.listOwnerServices(businessId);
+    return rows.map((row) => this.toServiceDto(row));
+  }
+
+  /** POST /bookings/services/:businessId (F7.5) — create one bookable service. */
+  async createOwnerService(
+    actor: LifecycleActor,
+    businessId: string,
+    input: CreateBookingServiceBody,
+  ): Promise<CreateBookingServiceResult> {
+    await this.verifyBusinessOwner(actor, businessId);
+    const row = await this.repo.createOwnerService(businessId, {
+      name: input.name,
+      description: input.description ?? null,
+      durationMinutes: input.durationMinutes,
+      slotStepMinutes: input.slotStepMinutes,
+      capacity: input.capacity,
+      minPartySize: input.minPartySize,
+      maxPartySize: input.maxPartySize,
+      minLeadMinutes: input.minLeadMinutes,
+      cancelWindowMinutes: input.cancelWindowMinutes,
+      maxAdvanceDays: input.maxAdvanceDays,
+      isActive: input.isActive,
+      sortOrder: input.sortOrder,
+    });
+    return { service: this.toServiceDto(row) };
+  }
+
+  /** PATCH /bookings/services/:id (F7.5) — update one service's fields. */
+  async updateOwnerService(
+    actor: LifecycleActor,
+    serviceId: string,
+    input: UpdateBookingServiceBody,
+  ): Promise<UpdateBookingServiceResult> {
+    await this.requireOwnedService(actor, serviceId);
+    const row = await this.repo.updateOwnerService(serviceId, {
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.description !== undefined ? { description: input.description } : {}),
+      ...(input.durationMinutes !== undefined ? { durationMinutes: input.durationMinutes } : {}),
+      ...(input.slotStepMinutes !== undefined ? { slotStepMinutes: input.slotStepMinutes } : {}),
+      ...(input.capacity !== undefined ? { capacity: input.capacity } : {}),
+      ...(input.minPartySize !== undefined ? { minPartySize: input.minPartySize } : {}),
+      ...(input.maxPartySize !== undefined ? { maxPartySize: input.maxPartySize } : {}),
+      ...(input.minLeadMinutes !== undefined ? { minLeadMinutes: input.minLeadMinutes } : {}),
+      ...(input.cancelWindowMinutes !== undefined
+        ? { cancelWindowMinutes: input.cancelWindowMinutes }
+        : {}),
+      ...(input.maxAdvanceDays !== undefined ? { maxAdvanceDays: input.maxAdvanceDays } : {}),
+      ...(input.isActive !== undefined ? { isActive: input.isActive } : {}),
+      ...(input.sortOrder !== undefined ? { sortOrder: input.sortOrder } : {}),
+    });
+    if (!row) throw notFoundException();
+    return { service: this.toServiceDto(row) };
+  }
+
+  /**
+   * DELETE /bookings/services/:id (F7.5) — remove a service (cascades its
+   * bookings). Idempotent for a 404-never-leak owner view: a missing service
+   * answers 404 the same as a stranger's service.
+   */
+  async deleteOwnerService(actor: LifecycleActor, serviceId: string): Promise<void> {
+    await this.requireOwnedService(actor, serviceId);
+    await this.repo.deleteOwnerService(serviceId);
+  }
+
+  /** GET /bookings/closed-days/:businessId (F7.5) — the business's closures. */
+  async listClosedDays(actor: LifecycleActor, businessId: string): Promise<BookingClosedDay[]> {
+    await this.verifyBusinessOwner(actor, businessId);
+    const rows = await this.repo.listClosedDays(businessId);
+    return rows.map((row) => ({
+      id: row.id,
+      businessId,
+      date: row.date,
+      note: row.note,
+      createdAt: row.createdAt.toISOString(),
+    }));
+  }
+
+  /**
+   * POST /bookings/closed-days/:businessId (F7.5) — add a full-day booking
+   * closure. The (business, date) unique constraint races to 409 (caller
+   * already has the date closed).
+   */
+  async createClosedDay(
+    actor: LifecycleActor,
+    businessId: string,
+    input: CreateBookingClosedDayBody,
+  ): Promise<CreateBookingClosedDayResult> {
+    await this.verifyBusinessOwner(actor, businessId);
+    try {
+      const row = await this.repo.insertClosedDay(businessId, input.date, input.note ?? null);
+      return {
+        day: {
+          id: row.id,
+          businessId,
+          date: row.date,
+          note: row.note,
+          createdAt: row.createdAt.toISOString(),
+        },
+      };
+    } catch (error) {
+      if ((error as { code?: string }).code === '23505') {
+        throw conflictException('the date is already closed', { reason: 'closed_day_exists' });
+      }
+      throw error;
+    }
+  }
+
+  /**
+   * DELETE /bookings/closed-days/:businessId/:date (F7.5) — idempotent removal.
+   * A missing date answers 204 (the end-state is reached either way); only the
+   * owner can call it.
+   */
+  async deleteClosedDay(
+    actor: LifecycleActor,
+    businessId: string,
+    date: string,
+  ): Promise<DeleteBookingClosedDayResult> {
+    await this.verifyBusinessOwner(actor, businessId);
+    await this.repo.deleteClosedDay(businessId, date);
+    return { date };
+  }
+
+  /**
+   * GET /bookings/business/:businessId (F7.5) — the owner calendar: one page
+   * of the business's bookings (optionally filtered by date / status). Owner-
+   * gated; the rows carry the display joins (service name, business slug) the
+   * calendar grid renders.
+   */
+  async listOwnerBookings(
+    actor: LifecycleActor,
+    businessId: string,
+    query: OwnerBookingsQuery,
+  ): Promise<OwnerBookingsResult> {
+    await this.verifyBusinessOwner(actor, businessId);
+    const page = await this.repo.listOwnerBookings(businessId, {
+      page: query.page,
+      pageSize: query.pageSize,
+      date: query.date,
+      status: query.status,
+    });
+    return {
+      bookings: page.rows.map((row) => this.toBookingDto(row)),
+      meta: {
+        page: query.page,
+        pageSize: query.pageSize,
+        total: page.total,
+        totalPages: Math.ceil(page.total / query.pageSize),
+      },
+    };
+  }
+
+  /** Wire shape (contracts bookingServiceSchema) of a service row. */
+  private toServiceDto(row: {
+    id: string;
+    businessId: string;
+    name: string;
+    description: string | null;
+    durationMinutes: number;
+    slotStepMinutes: number;
+    capacity: number;
+    minPartySize: number;
+    maxPartySize: number;
+    minLeadMinutes: number;
+    cancelWindowMinutes: number;
+    maxAdvanceDays: number;
+    isActive: boolean;
+    sortOrder: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }): BookingService {
+    return {
+      id: row.id,
+      businessId: row.businessId,
+      name: row.name,
+      description: row.description,
+      durationMinutes: row.durationMinutes,
+      slotStepMinutes: row.slotStepMinutes,
+      capacity: row.capacity,
+      minPartySize: row.minPartySize,
+      maxPartySize: row.maxPartySize,
+      minLeadMinutes: row.minLeadMinutes,
+      cancelWindowMinutes: row.cancelWindowMinutes,
+      maxAdvanceDays: row.maxAdvanceDays,
+      isActive: row.isActive,
+      sortOrder: row.sortOrder,
+      createdAt: row.createdAt.toISOString(),
+      updatedAt: row.updatedAt.toISOString(),
+    };
+  }
+
+  /** 404-never-leak + owner gate for one service row (F7.5 owner CRUD). */
+  private async requireOwnedService(
+    actor: LifecycleActor,
+    serviceId: string,
+  ): Promise<BookingServiceContext['service']> {
+    const ctx = await this.repo.findServiceForOwner(serviceId);
+    if (!ctx) throw notFoundException();
+    if (
+      !canManageBusiness(actor, {
+        ownerId: ctx.business.ownerId,
+        status: ctx.business.status as never,
+      })
+    ) {
+      throw new ForbiddenException();
+    }
+    return ctx.service;
   }
 
   /** Shared 404-never-leak gate: exists + active business + active service. */

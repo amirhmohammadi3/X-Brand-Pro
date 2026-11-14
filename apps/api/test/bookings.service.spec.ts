@@ -118,13 +118,22 @@ type RepoStub = BookingsRepositoryLike & {
   transitionResult: BookingDetailRow | null;
   reminderCandidates: ReminderCandidate[];
   stampedReminderIds: string[];
+  // F7.5 owner CRUD stubs — tests override to assert behavior.
+  ownerServices: BookingServiceContext['service'][];
+  ownerServiceCreated: Array<{ businessId: string; input: Record<string, unknown> }>;
+  ownerServiceUpdated: Array<{ id: string; patch: Record<string, unknown> }>;
+  ownerServiceDeleted: string[];
+  closedDays: Array<{ id: string; date: string; note: string | null; createdAt: Date }>;
+  closedDayInserted: Array<{ businessId: string; date: string; note: string | null }>;
+  closedDayDeleted: Array<{ businessId: string; date: string }>;
+  ownerBookings: BookingDetailRow[];
 };
 
 const OWNER = '55555555-5555-4555-8555-555555555555';
 
 function makeRepo(
   ctx: BookingServiceContext | null,
-  overrides: Partial<BookingsRepositoryLike> = {},
+  overrides: Partial<RepoStub> = {},
   createOutcome: (attempt: number) => CreateBookingOutcome = () => ({
     ok: true,
     row: bookingRow(),
@@ -137,6 +146,14 @@ function makeRepo(
     transitionResult: null,
     reminderCandidates: [],
     stampedReminderIds: [],
+    ownerServices: [],
+    ownerServiceCreated: [],
+    ownerServiceUpdated: [],
+    ownerServiceDeleted: [],
+    closedDays: [],
+    closedDayInserted: [],
+    closedDayDeleted: [],
+    ownerBookings: [],
     async findServiceContext() {
       return ctx;
     },
@@ -200,6 +217,81 @@ function makeRepo(
     },
     async listUserBookings() {
       return { rows: [], total: 0 };
+    },
+    async listOwnerServices() {
+      return repo.ownerServices.map((svc) => ({
+        ...svc,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      }));
+    },
+    async findServiceForOwner(serviceId: string) {
+      const svc = repo.ownerServices.find((s) => s.id === serviceId);
+      if (!svc) return null;
+      return {
+        service: svc,
+        business: { ownerId: OWNER, status: 'active', deletedAt: null },
+      };
+    },
+    async createOwnerService(
+      businessId: string,
+      input: Omit<BookingServiceContext['service'], 'id' | 'businessId'>,
+    ) {
+      repo.ownerServiceCreated.push({ businessId, input: input as Record<string, unknown> });
+      const id = 'svc-new-00000000-0000-4000-8000-000000000000';
+      return {
+        id,
+        businessId,
+        name: input.name,
+        description: input.description,
+        durationMinutes: input.durationMinutes,
+        slotStepMinutes: input.slotStepMinutes,
+        capacity: input.capacity,
+        minPartySize: input.minPartySize,
+        maxPartySize: input.maxPartySize,
+        minLeadMinutes: input.minLeadMinutes,
+        cancelWindowMinutes: input.cancelWindowMinutes,
+        maxAdvanceDays: input.maxAdvanceDays,
+        isActive: input.isActive,
+        sortOrder: input.sortOrder,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+        updatedAt: new Date('2026-01-01T00:00:00Z'),
+      };
+    },
+    async updateOwnerService(serviceId: string, patch: Partial<BookingServiceContext['service']>) {
+      repo.ownerServiceUpdated.push({ id: serviceId, patch: patch as Record<string, unknown> });
+      const svc = repo.ownerServices.find((s) => s.id === serviceId);
+      if (!svc) return null;
+      return { ...svc, ...patch, createdAt: new Date(), updatedAt: new Date() };
+    },
+    async deleteOwnerService(serviceId: string) {
+      repo.ownerServiceDeleted.push(serviceId);
+      return true;
+    },
+    async listClosedDays(_businessId: string) {
+      return repo.closedDays.map((d) => ({
+        id: d.id,
+        date: d.date,
+        note: d.note,
+        createdAt: d.createdAt,
+      }));
+    },
+    async insertClosedDay(businessId: string, date: string, note: string | null) {
+      repo.closedDayInserted.push({ businessId, date, note });
+      return {
+        id: 'cd-new-00000000-0000-4000-8000-000000000000',
+        date,
+        note,
+        createdAt: new Date('2026-01-01T00:00:00Z'),
+      };
+    },
+    async deleteClosedDay(businessId: string, date: string) {
+      repo.closedDayDeleted.push({ businessId, date });
+      return true;
+    },
+    async listOwnerBookings(businessId: string) {
+      void businessId;
+      return { rows: repo.ownerBookings, total: repo.ownerBookings.length };
     },
     ...overrides,
   } as unknown as RepoStub;
@@ -783,5 +875,179 @@ describe('ICS calendar feed — B6.4', () => {
     // TEXT escaping + CRLF-only line endings (no bare LF anywhere).
     expect(ics).toContain('کنار پنجره');
     expect(ics.split('\r\n').every((line) => !line.includes('\n'))).toBe(true);
+  });
+});
+
+describe('F7.5 — owner booking settings + calendar', () => {
+  const OWNER_ACTOR = { id: OWNER, role: 'user' };
+  const STRANGER_ACTOR = { id: '66666666-6666-4666-8666-666666666666', role: 'user' };
+  const SVC_A: BookingServiceContext['service'] = {
+    id: 'svc-aaaaaaaa-0000-4000-8000-000000000001',
+    businessId: BIZ,
+    name: 'میز دونفره',
+    description: null,
+    durationMinutes: 60,
+    slotStepMinutes: 30,
+    capacity: 4,
+    minPartySize: 1,
+    maxPartySize: 6,
+    minLeadMinutes: 60,
+    cancelWindowMinutes: 120,
+    maxAdvanceDays: 30,
+    isActive: true,
+    sortOrder: 0,
+  };
+  const SVC_B: BookingServiceContext['service'] = {
+    ...SVC_A,
+    id: 'svc-bbbbbbbb-0000-4000-8000-000000000002',
+    name: 'پکیج پاکسازی پوست',
+    isActive: false,
+    sortOrder: 1,
+  };
+
+  function createBody() {
+    return {
+      name: 'میز چهارنفره',
+      description: undefined,
+      durationMinutes: 90,
+      slotStepMinutes: 30,
+      capacity: 2,
+      minPartySize: 1,
+      maxPartySize: 8,
+      minLeadMinutes: 60,
+      cancelWindowMinutes: 180,
+      maxAdvanceDays: 45,
+      isActive: true,
+      sortOrder: 2,
+    };
+  }
+
+  it('listOwnerServices returns every service (incl. inactive), ordered', async () => {
+    const repo = makeRepo(null, {
+      listOwnerServices: async () => [
+        { ...SVC_A, createdAt: new Date(), updatedAt: new Date() },
+        { ...SVC_B, createdAt: new Date(), updatedAt: new Date() },
+      ],
+    });
+    const { service } = makeService(repo);
+    const out = await service.listOwnerServices(OWNER_ACTOR, BIZ);
+    expect(out).toHaveLength(2);
+    expect(out[0]?.name).toBe('میز دونفره');
+    expect(out[1]?.isActive).toBe(false);
+  });
+
+  it('listOwnerServices 403 for a non-owner', async () => {
+    const { service } = makeService(makeRepo(null));
+    await expect(service.listOwnerServices(STRANGER_ACTOR, BIZ)).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  it('createOwnerService writes the service + ISO timestamps', async () => {
+    const repo = makeRepo(null);
+    const { service } = makeService(repo);
+    const result = await service.createOwnerService(OWNER_ACTOR, BIZ, createBody());
+    expect(result.service.name).toBe('میز چهارنفره');
+    expect(result.service.businessId).toBe(BIZ);
+    expect(result.service.capacity).toBe(2);
+    // ISO timestamp shape (not a Date object).
+    expect(typeof result.service.createdAt).toBe('string');
+    expect(result.service.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+    expect(repo.ownerServiceCreated[0]?.businessId).toBe(BIZ);
+    expect(repo.ownerServiceCreated[0]?.input).toMatchObject({ name: 'میز چهارنفره', capacity: 2 });
+  });
+
+  it('updateOwnerService 404 for a missing service; patches the matched row', async () => {
+    const repo = makeRepo(null, { ownerServices: [SVC_A] });
+    const { service } = makeService(repo);
+    await expect(
+      service.updateOwnerService(OWNER_ACTOR, 'svc-missing-0000-0000-4000-8000-000000000000', {
+        isActive: false,
+      }),
+    ).rejects.toMatchObject({ status: 404 });
+    const updated = await service.updateOwnerService(OWNER_ACTOR, SVC_A.id, { isActive: false });
+    expect(updated.service.isActive).toBe(false);
+    expect(repo.ownerServiceUpdated[0]?.patch).toMatchObject({ isActive: false });
+  });
+
+  it('deleteOwnerService 404 for a missing service; cascades via repo', async () => {
+    const repo = makeRepo(null, { ownerServices: [SVC_A] });
+    const { service } = makeService(repo);
+    await expect(
+      service.deleteOwnerService(OWNER_ACTOR, 'svc-missing-0000-0000-4000-8000-000000000000'),
+    ).rejects.toMatchObject({ status: 404 });
+    await service.deleteOwnerService(OWNER_ACTOR, SVC_A.id);
+    expect(repo.ownerServiceDeleted[0]).toBe(SVC_A.id);
+  });
+
+  it('listClosedDays returns the business closures with ISO createdAt', async () => {
+    const repo = makeRepo(null, {
+      closedDays: [
+        { id: 'cd-1', date: '2026-11-20', note: 'جشن خصوصی', createdAt: new Date('2026-01-01') },
+        { id: 'cd-2', date: '2026-12-25', note: null, createdAt: new Date('2026-01-02') },
+      ],
+    });
+    const { service } = makeService(repo);
+    const out = await service.listClosedDays(OWNER_ACTOR, BIZ);
+    expect(out).toHaveLength(2);
+    expect(out[0]?.date).toBe('2026-11-20');
+    expect(out[0]?.note).toBe('جشن خصوصی');
+    expect(out[0]?.businessId).toBe(BIZ);
+    expect(typeof out[0]?.createdAt).toBe('string');
+  });
+
+  it('createClosedDay inserts; surfaces 23505 as a 409 closed_day_exists', async () => {
+    const repo = makeRepo(null);
+    const { service } = makeService(repo);
+    const result = await service.createClosedDay(OWNER_ACTOR, BIZ, {
+      date: '2026-11-20',
+      note: 'جشن خصوصی',
+    });
+    expect(result.day.date).toBe('2026-11-20');
+    expect(result.day.businessId).toBe(BIZ);
+    expect(repo.closedDayInserted[0]).toMatchObject({
+      businessId: BIZ,
+      date: '2026-11-20',
+      note: 'جشن خصوصی',
+    });
+    // The unique race → 409.
+    const racingRepo = makeRepo(null, {
+      insertClosedDay: async () => {
+        const err = new Error('unique');
+        (err as { code?: string }).code = '23505';
+        throw err;
+      },
+    });
+    await expect(
+      makeService(racingRepo).service.createClosedDay(OWNER_ACTOR, BIZ, { date: '2026-11-20' }),
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('deleteClosedDay is idempotent (always returns the date)', async () => {
+    const repo = makeRepo(null);
+    const { service } = makeService(repo);
+    const result = await service.deleteClosedDay(OWNER_ACTOR, BIZ, '2026-11-20');
+    expect(result.date).toBe('2026-11-20');
+    expect(repo.closedDayDeleted[0]).toMatchObject({ businessId: BIZ, date: '2026-11-20' });
+  });
+
+  it('listOwnerBookings paginates the business calendar', async () => {
+    const detail = bookingDetail({ status: 'confirmed' });
+    const repo = makeRepo(null, { ownerBookings: [detail] });
+    const { service } = makeService(repo);
+    const out = await service.listOwnerBookings(OWNER_ACTOR, BIZ, {
+      page: 1,
+      pageSize: 20,
+    });
+    expect(out.bookings).toHaveLength(1);
+    expect(out.meta.total).toBe(1);
+    expect(out.meta.totalPages).toBe(1);
+  });
+
+  it('listOwnerBookings 403 for a non-owner', async () => {
+    const { service } = makeService(makeRepo(null));
+    await expect(
+      service.listOwnerBookings(STRANGER_ACTOR, BIZ, { page: 1, pageSize: 20 }),
+    ).rejects.toMatchObject({ status: 403 });
   });
 });

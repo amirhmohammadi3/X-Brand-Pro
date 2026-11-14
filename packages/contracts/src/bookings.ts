@@ -192,6 +192,28 @@ export const updateBookingServiceBodySchema = bookingServiceBodyObjectSchema
   );
 export type UpdateBookingServiceBody = z.infer<typeof updateBookingServiceBodySchema>;
 
+/**
+ * `GET /bookings/services/owner/:businessId` (F7.5) — the owner's full
+ * service list (every `is_active` value, ordered by `sortOrder`). Mirrors the
+ * public `businessServicesResultSchema` but the owner sees inactive rows too.
+ */
+export const ownerBookingServicesResultSchema = z
+  .object({ services: z.array(bookingServiceSchema) })
+  .strict();
+export type OwnerBookingServicesResult = z.infer<typeof ownerBookingServicesResultSchema>;
+
+/** `POST /bookings/services/:businessId` (F7.5) — create result. */
+export const createBookingServiceResultSchema = z
+  .object({ service: bookingServiceSchema })
+  .strict();
+export type CreateBookingServiceResult = z.infer<typeof createBookingServiceResultSchema>;
+
+/** `PATCH /bookings/services/:id` (F7.5) — update result. */
+export const updateBookingServiceResultSchema = z
+  .object({ service: bookingServiceSchema })
+  .strict();
+export type UpdateBookingServiceResult = z.infer<typeof updateBookingServiceResultSchema>;
+
 // ─── Closed days (روزهای تعطیل) ─────────────────────────────────────────────
 
 export const bookingClosedDaySchema = z
@@ -217,6 +239,16 @@ export const bookingClosedDaysResultSchema = z
   .object({ days: z.array(bookingClosedDaySchema) })
   .strict();
 export type BookingClosedDaysResult = z.infer<typeof bookingClosedDaysResultSchema>;
+
+/** `POST /bookings/closed-days/:businessId` (F7.5) — create result. */
+export const createBookingClosedDayResultSchema = z
+  .object({ day: bookingClosedDaySchema })
+  .strict();
+export type CreateBookingClosedDayResult = z.infer<typeof createBookingClosedDayResultSchema>;
+
+/** `DELETE /bookings/closed-days/:businessId/:date` (F7.5) — idempotent delete. */
+export const deleteBookingClosedDayResultSchema = z.object({ date: bookingDateSchema }).strict();
+export type DeleteBookingClosedDayResult = z.infer<typeof deleteBookingClosedDayResultSchema>;
 
 // ─── Availability (B6.2) ────────────────────────────────────────────────────
 
