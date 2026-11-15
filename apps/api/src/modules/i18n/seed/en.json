@@ -1890,6 +1890,19 @@
         "exists": "This date is already closed.",
         "error": "Failed to add closed day."
       }
+    },
+    "messages": {
+      "title": "Messages",
+      "loading": "Loading conversations…",
+      "loadError": "Failed to load conversations.",
+      "emptyTitle": "No conversations yet",
+      "emptyBody": "Start a conversation from a user's profile — this lists your private messages as the business owner.",
+      "count": "{total} conversations",
+      "unreadBadge": "{count} unread",
+      "thread": {
+        "deletedPlaceholder": "This message was deleted.",
+        "attachmentAlt": "Attachment"
+      }
     }
   }
 }

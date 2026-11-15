@@ -59,7 +59,7 @@ export function dashboardNavGroups(businessId: string): ReadonlyArray<DashboardN
       key: 'engagement',
       items: [
         { key: 'bookings', href: `${base}/bookings`, labelKey: 'bookings', available: true }, // F7.5
-        { key: 'messages', href: `${base}/messages`, labelKey: 'messages', available: false }, // F7.6
+        { key: 'messages', href: `${base}/messages`, labelKey: 'messages', available: true }, // F7.6
         { key: 'analytics', href: `${base}/analytics`, labelKey: 'analytics', available: false }, // F7.8
       ],
     },
