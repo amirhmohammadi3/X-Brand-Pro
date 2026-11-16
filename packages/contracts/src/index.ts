@@ -37,3 +37,6 @@ export * from './bookings.js';
 export * from './analytics.js';
 export * from './realtime.js';
 export * from './theme/index.js';
+export * from './payment.js';
+export * from './billing.js';
+export * from './ads.js';

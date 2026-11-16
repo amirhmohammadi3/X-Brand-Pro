@@ -35,3 +35,4 @@ export * from './notifications.js';
 export * from './messaging.js';
 export * from './bookings.js';
 export * from './analytics.js';
+export * from './billing.js';
