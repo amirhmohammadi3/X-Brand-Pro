@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { apiFetchServer } from '@/lib/api/server';
 import { pickLocalized } from '@/lib/localized';
 import { BusinessCard } from '@/components/business/business-card';
+import { ImpressionTracker } from '@/components/business/impression-tracker';
 import { PopularQueries } from '@/components/search/popular-queries';
 import {
   publicCitySchema,
@@ -124,7 +125,9 @@ export default async function CityPage({ params }: { params: Promise<{ slug: str
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {hits.map((hit) => (
-              <BusinessCard key={hit.id} hit={hit} locale={locale} />
+              <ImpressionTracker key={hit.id} businessId={hit.id}>
+                <BusinessCard hit={hit} locale={locale} />
+              </ImpressionTracker>
             ))}
           </div>
         )}

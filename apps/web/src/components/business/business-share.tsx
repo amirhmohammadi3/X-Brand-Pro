@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { shareWhatsAppUrl, shareTelegramUrl, shareInstagramUrl } from '@/lib/business-links';
+import { trackShareClick } from '@/lib/analytics';
 
 /**
  * Page share (F4.9) — WhatsApp / Telegram / Instagram / copy-link / native
@@ -19,9 +20,11 @@ import { shareWhatsAppUrl, shareTelegramUrl, shareInstagramUrl } from '@/lib/bus
 export interface BusinessShareProps {
   /** The business name — used as the share text/title. */
   title: string;
+  /** F7.7: the business whose page is being shared — fires one `share_click`. */
+  businessId: string;
 }
 
-export function BusinessShare({ title }: BusinessShareProps) {
+export function BusinessShare({ title, businessId }: BusinessShareProps) {
   const t = useTranslations('share');
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -30,6 +33,16 @@ export function BusinessShare({ title }: BusinessShareProps) {
   const wa = shareWhatsAppUrl(url, title);
   const tg = shareTelegramUrl(url);
   const ig = shareInstagramUrl();
+
+  // F7.7: fire one share_click when the visitor opens the share surface (the
+  // first observable intent to share; the per-channel clicks after that are
+  // not separately tracked — one share_click per share action).
+  function toggleOpen() {
+    setOpen((o) => {
+      if (!o) trackShareClick(businessId);
+      return !o;
+    });
+  }
 
   async function copyLink() {
     if (typeof navigator === 'undefined' || !navigator.clipboard) return;
@@ -60,7 +73,7 @@ export function BusinessShare({ title }: BusinessShareProps) {
     <div className="relative" data-testid="business-share">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggleOpen}
         aria-expanded={open}
         className={linkClass}
         data-testid="business-share-toggle"

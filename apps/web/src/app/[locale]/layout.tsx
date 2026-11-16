@@ -23,6 +23,7 @@ import {
 } from '../../lib/theme/mode';
 import { ActiveThemeProvider } from '../../lib/theme/active-theme-context';
 import { PwaBootstrap } from '../../components/pwa/pwa-bootstrap';
+import { AnalyticsProvider } from '../../components/analytics/analytics-provider';
 
 /**
  * Build-time prerender covers the build-safe fallback locales; languages an
@@ -138,6 +139,11 @@ export default async function LocaleLayout({
                   call useTranslations('pwa.install'); outside the main
                   content flow so it never shifts layout. */}
               <PwaBootstrap />
+              {/* F7.7: mounts the consent banner + binds the tracker's consent
+                  listener. Inside NextIntlClientProvider so the banner can
+                  call useTranslations('analytics.consent'); default-deny, so
+                  on a fresh visit nothing fires until the visitor opts in. */}
+              <AnalyticsProvider />
             </NextIntlClientProvider>
           </Providers>
         </ActiveThemeProvider>

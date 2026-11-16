@@ -4,6 +4,7 @@ import { Link } from '@/i18n/navigation';
 import { apiFetchServer } from '@/lib/api/server';
 import { pickLocalized } from '@/lib/localized';
 import { BusinessCard } from '@/components/business/business-card';
+import { ImpressionTracker } from '@/components/business/impression-tracker';
 import { accentClass, iconComponent } from '@/components/ui/category-icon';
 import { searchResultSchema, type CategoryAccent, type SearchHit } from '@app/contracts';
 import { z } from 'zod';
@@ -167,7 +168,9 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
         ) : (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {hits.map((hit) => (
-              <BusinessCard key={hit.id} hit={hit} locale={locale} />
+              <ImpressionTracker key={hit.id} businessId={hit.id}>
+                <BusinessCard hit={hit} locale={locale} />
+              </ImpressionTracker>
             ))}
           </div>
         )}

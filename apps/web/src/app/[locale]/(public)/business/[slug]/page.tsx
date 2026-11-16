@@ -1,6 +1,5 @@
 import type { Metadata } from 'next';
 import { getLocale, getTranslations } from 'next-intl/server';
-import { Navigation } from 'lucide-react';
 import { Link } from '@/i18n/navigation';
 import { apiFetchServer } from '@/lib/api/server';
 import { pickLocalized } from '@/lib/localized';
@@ -19,6 +18,8 @@ import { BookingWidget } from '@/components/business/booking-widget';
 import { BusinessReviewForm } from '@/components/business/business-review-form';
 import { BusinessQuestions } from '@/components/business/business-questions';
 import { BusinessShare } from '@/components/business/business-share';
+import { DirectionsLink } from '@/components/business/directions-link';
+import { BusinessViewTracker } from '@/components/business/business-view-tracker';
 import { BusinessClaimButton } from '@/components/business/business-claim-button';
 import { FollowButton } from '@/components/account/follow-button';
 import { businessPageSchema, type BusinessPage } from '@app/contracts';
@@ -116,6 +117,9 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
       aria-label={tA11y('mainContent')}
       className="mx-auto flex min-h-dvh max-w-5xl flex-col gap-8 px-4 py-8 sm:px-6"
     >
+      {/* F7.7: fire one business_view per session on mount. No-op until the
+          visitor grants analytics consent; renders nothing. */}
+      <BusinessViewTracker businessId={business.id} />
       {/* breadcrumb: home / city / category / current */}
       <nav aria-label={t('breadcrumb')} className="text-sm text-muted">
         <Link href="/" className="hover:text-primary">
@@ -186,7 +190,7 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
             <Badge variant={openMeta.variant} data-testid="business-open-badge">
               {t(openMeta.labelKey)}
             </Badge>
-            <BusinessShare title={business.name} />
+            <BusinessShare title={business.name} businessId={business.id} />
           </div>
 
           {placeLine !== '' ? <p className="text-sm text-muted">{placeLine}</p> : null}
@@ -320,16 +324,11 @@ export default async function BusinessPage({ params }: { params: Promise<{ slug:
           lat={business.location.lat}
           ariaLabel={t('mapAria')}
         />
-        <a
+        <DirectionsLink
           href={directionsUrl(business.location.lat, business.location.lng)}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-on-primary transition-opacity hover:opacity-90"
-          data-testid="business-directions"
-        >
-          <Navigation aria-hidden className="h-4 w-4" />
-          {t('contact.directions')}
-        </a>
+          label={t('contact.directions')}
+          businessId={business.id}
+        />
       </section>
 
       <Separator />

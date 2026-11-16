@@ -3,6 +3,7 @@ import { Link } from '@/i18n/navigation';
 import { apiFetchServer } from '@/lib/api/server';
 import { pickLocalized } from '@/lib/localized';
 import { BusinessCard } from '@/components/business/business-card';
+import { ImpressionTracker } from '@/components/business/impression-tracker';
 import { HomeSearch } from '@/components/search/home-search';
 import { accentClass, iconComponent } from '@/components/ui/category-icon';
 import {
@@ -142,7 +143,9 @@ export default async function HomePage() {
           </h2>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {featuredHits.map((hit) => (
-              <BusinessCard key={hit.id} hit={hit} locale={locale} />
+              <ImpressionTracker key={hit.id} businessId={hit.id}>
+                <BusinessCard hit={hit} locale={locale} />
+              </ImpressionTracker>
             ))}
           </div>
         </section>

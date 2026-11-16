@@ -2,13 +2,23 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
-
-/**
- * F4.9 BusinessShare — the disclosure toggle + WhatsApp/Telegram/Instagram/
- * copy-link buttons. The shared URL is window.location.href; clipboard is
- * stubbed; navigator.share is absent in jsdom so the native button is hidden.
- */
 import { BusinessShare } from '../../src/components/business/business-share';
+
+// F7.7: the share toggle now fires one `share_click` via `trackShareClick`. The
+// F4.9 tests cover the disclosure + copy + share-link UI; the beacon itself is
+// fully covered by `test/analytics/tracker.spec.ts`, so we mock it out here to
+// keep these specs focused on the share surface (and to avoid a real
+// `navigator.sendBeacon` call leaking into the test runner).
+vi.mock('@/lib/analytics', () => ({
+  trackShareClick: vi.fn(),
+  trackBusinessView: vi.fn(),
+  trackImpression: vi.fn(),
+  trackCallClick: vi.fn(),
+  trackDirectionClick: vi.fn(),
+  track: vi.fn(),
+  bindConsentListener: vi.fn(() => () => {}),
+  consentAllowsTracking: vi.fn(() => true),
+}));
 
 const messages = {
   share: {
@@ -25,10 +35,12 @@ const messages = {
 
 const writeText = vi.fn().mockResolvedValue(undefined);
 
+const BUSINESS_ID = '00000000-0000-4000-8000-000000000099';
+
 function renderShare(title = 'کافه نمونه') {
   return render(
     <NextIntlClientProvider locale="fa" messages={messages}>
-      <BusinessShare title={title} />
+      <BusinessShare title={title} businessId={BUSINESS_ID} />
     </NextIntlClientProvider>,
   );
 }
