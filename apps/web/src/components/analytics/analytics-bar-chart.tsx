@@ -15,9 +15,9 @@
  * (a tooltip would add complexity for little value on a 30-day owner view);
  * the exact daily counts live in the sr-only table for anyone who needs them.
  *
- * RTL-aware: the bars flow left→right by date (a timeline reads the same way
- * in every locale); the y-axis labels are right-aligned in LTR, left in RTL via
- * `textAnchor` + a logical `dir` attribute on the svg root.
+ * RTL-aware: the bars flow inline-start→inline-end by date (a timeline reads
+ * the same way in every locale); the y-axis labels use the logical `text-anchor`
+ * so they follow the inline-start side in both LTR and RTL.
  */
 import { useId } from 'react';
 import { useLocale } from 'next-intl';

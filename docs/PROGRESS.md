@@ -176,7 +176,13 @@
 - [x] F7.6 🟡 پیام‌های داشبورد (2026-11-15)
 - [x] F7.7 🟡 کلاینت ردیابی (رضایت‌محور، حریم‌خصوصی) (2026-11-16)
 - [x] F7.8 🔴 داشبورد آنالیتیکس (نمودارهای self-host) (2026-11-16)
-- [ ] Q7.1 🟢 جمع‌بندی فاز ۷
+- [x] Q7.1 🟢 جمع‌بندی فاز ۷ (2026-11-16)
+
+> **Phase 7 gate (2026-11-16).** هر ۱۰ پرامپت فاز ۷ (B7.1، B7.2، F7.1–F7.8، Q7.1) تکمیل و تیک‌خورده است. سبز در سندباکس (بدون Docker): هفت چک پروژه (`check:foundation/brand/env/secrets/rtl/no-external` + `check:tiles` که فقط هشدار آرشیو PMTiles ماشین‌محلی است)، lint و typecheck هر دو اپ (۶/۶)، **۱۰۱۶ تست API** (۷۶ فایل؛ ۵۴ integration با Postgres محلی skip) و **۷۰۱ تست وب** (۹۷ فایل) و **build پروداکشن وب** (Turbopack؛ مسیر جدید فاز ۷: `/[locale]/dashboard/[businessId]/analytics` با انتخابگر بازهٔ ۷/۳۰/۹۰ روزه، ۵ کارت آمار، ۵ نمودار میله‌ای SVG بدون وابستگی، و قیف تبدیل view→call→direction→share). محتوای فاز روی origin/main: backend آنالیتیکس (B7.1/B7.2 در 77e8152 — `0034_analytics` migration، endpoint عمومی `/analytics/events` با batch و dedup سalty-ip-hash در Redis، endpoint owner `/analytics/business/:id/stats` از `analytics_daily`، job تجمیع ۳۰ ثانیه‌ای)، قالب داشبورد + انتخاب کسب‌وکار (F7.1 در 7015273)، ویرایشگرهای پروفایل/گالری/منو/نظرات-Q&A/رزرو/پیام (F7.2–F7.6 در 3ef7d2a، 15fe79b، 14d20c3، bdbf329، 5e1d6ec)، و کلاینت ردیابی رضایت‌محور (F7.7 در 72562e8 — `consent.ts` pub/sub با persistence در localStorage و default-deny، `tracker.ts` با batch cap و sendBeacon + fetch keepalive fallback و fail-soft، consent banner، hooks برای business_view/impression/click ها)، و داشبورد آنالیتیکس خودمیزبان (F7.8 در cbf297e — نمودارهای SVG دستی بدون کتابخانه، helpers خالص pivot/funnel، بازه‌های ۷/۳۰/۹۰ روزه). تصمیم‌های مستند: کلاینت هیچ هویتی نمی‌فرستد (فقط `{businessId, type, occurredAt?}`، dedup سمت API)، نمودارها hand-rolled SVG (فلسفهٔ lean-dep کدبیس).
+>
+> **معوق به ماشین Docker:** اجرای مهاجرت `0034_analytics` روی Postgres واقعی، تست یکپارچگی dedup سalty-ip-hash در Redis، EXPLAIN ایندکس‌های `analytics_daily`، e2e جریان کامل (consent → beacon → rollup → dashboard)، تست بار endpoint عمومی با k6 (۶۰/min per IP)، تأیید دستی «Done when» (یک بازدید واقعی → آمار فردای آن در داشبورد). جریان‌های HTTP و کلاینت با فیک/این‌مموری پوشش داده شده‌اند (۳۸ تست آنالیتیکس وب + ۲۳ تست کلاینت ردیابی).
+>
+> **تگ:** `phase-7`.
 
 ## فاز ۸ — درآمدزایی: پرداخت، اشتراک، تبلیغات
 
