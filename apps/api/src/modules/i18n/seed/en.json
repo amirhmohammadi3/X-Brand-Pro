@@ -1289,6 +1289,28 @@
         "deletedPlaceholder": "This message was deleted.",
         "attachmentAlt": "Attachment"
       }
+    },
+    "analytics": {
+      "title": "Analytics",
+      "loadError": "Failed to load analytics.",
+      "window": "Range: {from} to {to}",
+      "range": {
+        "label": "Time range",
+        "7d": "7 days",
+        "30d": "30 days",
+        "90d": "90 days"
+      },
+      "empty": {
+        "title": "No data yet",
+        "body": "As visitors view your business page, view / call / direction / share counts will appear here."
+      },
+      "charts": {
+        "title": "Daily trend"
+      },
+      "funnel": {
+        "title": "Conversion funnel",
+        "conv": "Conversion: {pct}%"
+      }
     }
   },
   "errors": {

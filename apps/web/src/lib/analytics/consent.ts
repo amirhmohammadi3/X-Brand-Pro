@@ -76,7 +76,7 @@ export function getConsent(): AnalyticsConsent {
   return current;
 }
 
-/** Whether beacons may fire right now (consent is `granted` AND we're on the client). */
+/** Whether beacons may fire at this moment (consent is `granted` AND we're on the client). */
 export function consentAllowsTracking(): boolean {
   return current === 'granted' && typeof navigator !== 'undefined';
 }
