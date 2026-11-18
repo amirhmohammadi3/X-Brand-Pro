@@ -12,8 +12,11 @@ import type { Request } from 'express';
 import { uuidSchema } from '@app/contracts';
 import {
   upsertSubscriptionBodySchema,
+  revenueReportQuerySchema,
   type InvoicesResult,
   type PlansResult,
+  type RevenueReport,
+  type RevenueReportQuery,
   type Subscription,
   type SubscriptionResult,
   type UpsertSubscriptionBody,
@@ -111,5 +114,23 @@ export class BillingController {
       page ? Number(page) : 1,
       pageSize ? Number(pageSize) : 20,
     );
+  }
+
+  // ─── Admin revenue report (B8.6) ─────────────────────────────────────────
+
+  /**
+   * GET /billing/revenue — the admin-facing aggregate over verified payments.
+   * Admin-only (the controller checks the role; a non-admin gets 403 from the
+   * global RolesGuard via the `businesses.manage` permission). The window
+   * defaults to the last 30 days; `from`/`to` are `YYYY-MM-DD` inclusive.
+   */
+  @Get('billing/revenue')
+  @RateLimit({ name: 'billing.revenue', limit: 30, windowSec: 60, scope: 'user' })
+  async getRevenueReport(
+    @Req() req: Request,
+    @Query(new ZodValidationPipe(revenueReportQuerySchema)) query: RevenueReportQuery,
+  ): Promise<RevenueReport> {
+    requireUser(req);
+    return this.billing.getRevenueReport(query);
   }
 }

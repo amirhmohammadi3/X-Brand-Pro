@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, desc, eq, lte, sql } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import { DrizzleClient } from '../../db/drizzle.client.js';
 import {
   invoices,
+  payments,
   plans,
   subscriptions,
   type InvoiceRow,
@@ -65,6 +66,21 @@ export interface BillingRepositoryLike {
   nextInvoiceNumber(): Promise<string>;
   /** Link an invoice to a payment (settles it). */
   settleInvoice(invoiceId: string, paymentId: string, paymentStatus: PaymentStatus): Promise<InvoiceRow | null>;
+
+  // --- revenue report (B8.6) ---
+  /**
+   * Aggregate the verified payments in [from, to] (YYYY-MM-DD, inclusive) by
+   * purpose + by plan tier (the plan tier is read from the invoice's plan).
+   * Returns the raw rows; the service shapes the report.
+   */
+  revenueAggregates(
+    from: string,
+    to: string,
+  ): Promise<{
+    byPurpose: Array<{ purpose: string; count: number; amount: number }>;
+    byPlan: Array<{ planTier: string | null; count: number; amount: number }>;
+    total: { count: number; amount: number };
+  }>;
 }
 
 @Injectable()
@@ -214,6 +230,71 @@ export class BillingRepository implements BillingRepositoryLike {
       .where(eq(invoices.id, invoiceId))
       .returning();
     return updated[0] ?? null;
+  }
+
+  /**
+   * Aggregate the verified payments in [from, to] by purpose + by plan tier.
+   * Joins payments ↔ invoices (the plan tier lives on the invoice) so an ad
+   * campaign payment (no invoice → no plan tier) is counted under `null` tier.
+   * The window is inclusive on both ends (YYYY-MM-DD, business-local).
+   */
+  async revenueAggregates(
+    from: string,
+    to: string,
+  ): Promise<{
+    byPurpose: Array<{ purpose: string; count: number; amount: number }>;
+    byPlan: Array<{ planTier: string | null; count: number; amount: number }>;
+    total: { count: number; amount: number };
+  }> {
+    const fromTs = new Date(`${from}T00:00:00Z`);
+    const toTs = new Date(`${to}T23:59:59Z`);
+    // byPurpose — group verified payments by purpose.
+    const byPurposeRows = await this.client.db
+      .select({
+        purpose: payments.purpose,
+        count: sql<number>`count(*)::int`,
+        amount: sql<number>`coalesce(sum(${payments.amount}), 0)::int`,
+      })
+      .from(payments)
+      .where(
+        and(
+          eq(payments.status, 'verified'),
+          gte(payments.verifiedAt, fromTs),
+          lte(payments.verifiedAt, toTs),
+        ),
+      )
+      .groupBy(payments.purpose);
+    // byPlan — left-join payments to invoices (the plan tier is on the invoice).
+    const byPlanRows = await this.client.db
+      .select({
+        planTier: sql<string | null>`${plans.tier}`,
+        count: sql<number>`count(*)::int`,
+        amount: sql<number>`coalesce(sum(${payments.amount}), 0)::int`,
+      })
+      .from(payments)
+      .leftJoin(invoices, eq(invoices.paymentId, payments.id))
+      .leftJoin(plans, eq(plans.id, invoices.planId))
+      .where(
+        and(
+          eq(payments.status, 'verified'),
+          gte(payments.verifiedAt, fromTs),
+          lte(payments.verifiedAt, toTs),
+        ),
+      )
+      .groupBy(sql`${plans.tier}`);
+    const byPurpose = byPurposeRows.map((r) => ({
+      purpose: r.purpose,
+      count: Number(r.count),
+      amount: Number(r.amount),
+    }));
+    const byPlan = byPlanRows.map((r) => ({
+      planTier: r.planTier,
+      count: Number(r.count),
+      amount: Number(r.amount),
+    }));
+    const totalAmount = byPurpose.reduce((s, r) => s + r.amount, 0);
+    const totalCount = byPurpose.reduce((s, r) => s + r.count, 0);
+    return { byPurpose, byPlan, total: { count: totalCount, amount: totalAmount } };
   }
 }
 

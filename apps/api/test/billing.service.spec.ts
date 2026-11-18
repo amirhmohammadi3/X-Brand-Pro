@@ -153,6 +153,12 @@ function makeRepo(initialPlans: PlanRow[] = [], initialSubs: SubscriptionRow[] =
       invoices.set(invoiceId, updated);
       return updated;
     },
+    async revenueAggregates() {
+      // The fake has no payment rows; return an empty report. The
+      // revenue-report logic is exercised against the real Drizzle repo in
+      // the integration suite (B8.6 follow-up).
+      return { byPurpose: [], byPlan: [], total: { count: 0, amount: 0 } };
+    },
   };
   return repo;
 }

@@ -154,3 +154,62 @@ export const invoicesResultSchema = z
   })
   .strict();
 export type InvoicesResult = z.infer<typeof invoicesResultSchema>;
+
+/**
+ * Revenue + transaction report (B8.6) — the admin-facing aggregate read over
+ * verified payments. Used by the admin dashboard's «درآمد» (Revenue) panel.
+ * The report covers a `YYYY-MM-DD` window (defaults to the last 30 days);
+ * every amount is in Tomans (integer).
+ *
+ * The `byPurpose` breakdown splits the verified revenue by payment purpose
+ * (subscription / ads / topup); the `byPlan` breakdown splits by the plan
+ * tier the subscription was on (free/subscriber-revenue only — ad/topup
+ * revenue is `null` plan-tier).
+ */
+export const revenueReportQuerySchema = z
+  .object({
+    from: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'invalid date')
+      .optional(),
+    to: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'invalid date')
+      .optional(),
+  })
+  .strict();
+export type RevenueReportQuery = z.infer<typeof revenueReportQuerySchema>;
+
+export const revenueByPurposeRowSchema = z
+  .object({
+    purpose: z.enum(PAYMENT_PURPOSES),
+    count: z.number().int().min(0),
+    amount: z.number().int().min(0),
+  })
+  .strict();
+export type RevenueByPurposeRow = z.infer<typeof revenueByPurposeRowSchema>;
+
+export const revenueByPlanRowSchema = z
+  .object({
+    planTier: z.enum(PLAN_TIERS).nullable(),
+    count: z.number().int().min(0),
+    amount: z.number().int().min(0),
+  })
+  .strict();
+export type RevenueByPlanRow = z.infer<typeof revenueByPlanRowSchema>;
+
+export const revenueReportSchema = z
+  .object({
+    from: z.string(),
+    to: z.string(),
+    /** The total verified revenue in the window (Tomans). */
+    totalRevenue: z.number().int().min(0),
+    /** The count of verified payments in the window. */
+    totalTransactions: z.number().int().min(0),
+    /** The average verified-transaction value (Tomans). */
+    averageTransaction: z.number().int().min(0),
+    byPurpose: z.array(revenueByPurposeRowSchema),
+    byPlan: z.array(revenueByPlanRowSchema),
+  })
+  .strict();
+export type RevenueReport = z.infer<typeof revenueReportSchema>;

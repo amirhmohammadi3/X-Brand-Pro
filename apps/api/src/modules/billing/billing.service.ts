@@ -6,6 +6,7 @@ import {
   type Plan,
   type PlanLimits,
   type PlanTier,
+  type RevenueReport,
   type Subscription,
   type SubscriptionResult,
   type SubscriptionStatus,
@@ -189,6 +190,37 @@ export class BillingService {
     }
   }
 
+  // --- revenue report (B8.6) ---
+  /**
+   * The admin-facing revenue report over a `YYYY-MM-DD` window (defaults to
+   * the last 30 days). Aggregates verified payments by purpose + by plan tier;
+   * the by-plan breakdown joins payments↔invoices (an ad campaign payment has
+   * no invoice → `null` plan tier).
+   */
+  async getRevenueReport(query: { from?: string; to?: string }): Promise<RevenueReport> {
+    const to = query.to ?? todayIso();
+    const from = query.from ?? rangeWindow(30).from;
+    const { byPurpose, byPlan, total } = await this.repo.revenueAggregates(from, to);
+    const averageTransaction = total.count > 0 ? Math.round(total.amount / total.count) : 0;
+    return {
+      from,
+      to,
+      totalRevenue: total.amount,
+      totalTransactions: total.count,
+      averageTransaction,
+      byPurpose: byPurpose.map((r) => ({
+        purpose: r.purpose as PaymentPurpose,
+        count: r.count,
+        amount: r.amount,
+      })),
+      byPlan: byPlan.map((r) => ({
+        planTier: r.planTier as PlanTier | null,
+        count: r.count,
+        amount: r.amount,
+      })),
+    };
+  }
+
   // --- expiry job (called by the maintenance dispatcher) ---
   /**
    * Mark subscriptions whose period has ended. Auto-renewing ones stay
@@ -236,6 +268,18 @@ function parseLimits(raw: string): PlanLimits {
   } catch {
     return FREE_TIER_LIMITS;
   }
+}
+
+function todayIso(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+/** The last `days` days inclusive of today (YYYY-MM-DD). */
+function rangeWindow(days: number): { from: string; to: string } {
+  const to = new Date();
+  const from = new Date(to);
+  from.setUTCDate(from.getUTCDate() - (days - 1));
+  return { from: from.toISOString().slice(0, 10), to: to.toISOString().slice(0, 10) };
 }
 
 function toPlan(row: PlanRow): Plan {
