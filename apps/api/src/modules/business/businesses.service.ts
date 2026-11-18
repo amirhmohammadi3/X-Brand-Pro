@@ -348,6 +348,35 @@ export class BusinessesService {
     return { business: refreshed, previousStatus: from };
   }
 
+  // ─── Admin manual Featured (B8.5) ────────────────────────────────────────
+
+  /**
+   * Toggle a business's `isFeatured` flag (admin-only). A featured business
+   * surfaces in the home page's featured grid (F3.3) + the search results'
+   * `isFeatured` badge — a manual editorial boost, distinct from the paid
+   * `isSponsored` ad placements (B8.4). Only a `businesses.manage` holder
+   * may set it; the owner cannot self-feature (an anti-abuse boundary).
+   *
+   * The toggle is audited (the controller logs the before→after). Returns the
+   * refreshed business detail.
+   */
+  async setFeatured(actor: BusinessActor, id: string, featured: boolean): Promise<{ business: BusinessDetail; previousFeatured: boolean }> {
+    const isAdmin = roleHasPermissions(actor.role as never, ['businesses.manage']);
+    if (!isAdmin) {
+      throw forbiddenException('Only a moderator may feature a business.');
+    }
+    const existing = await this.repo.findById(id);
+    if (!existing) throw notFoundException('Business', id);
+    const previousFeatured = existing.isFeatured;
+    if (previousFeatured === featured) {
+      return { business: existing, previousFeatured };
+    }
+    await this.repo.update(id, { isFeatured: featured });
+    const refreshed = await this.repo.findById(id);
+    if (!refreshed) throw notFoundException('Business', id);
+    return { business: refreshed, previousFeatured };
+  }
+
   // ─── Soft delete ─────────────────────────────────────────────────────────
 
   /**

@@ -16,10 +16,12 @@ import {
   updateBusinessBodySchema,
   businessTransitionBodySchema,
   businessPageQuerySchema,
+  setBusinessFeaturedBodySchema,
   type BusinessPageQuery,
   type CreateBusinessBody,
   type UpdateBusinessBody,
   type BusinessTransitionBody,
+  type SetBusinessFeaturedBody,
 } from '@app/contracts';
 import { Public } from '../../common/decorators/public.decorator.js';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
@@ -181,6 +183,37 @@ export class BusinessesController {
       entityId: id,
       before: { status: previousStatus },
       after: { status: business.status, rejectionReason: body.rejectionReason ?? null },
+      request,
+    });
+    return business;
+  }
+
+  // ─── Admin manual Featured (B8.5) ────────────────────────────────────────
+
+  /**
+   * POST /businesses/:id/featured — toggle a business's `isFeatured` flag.
+   * Admin-only (`businesses.manage`): a manual editorial boost, NOT a paid
+   * placement (that's B8.4's `isSponsored`). The owner cannot self-feature
+   * (anti-abuse). The toggle is audited (the before→after is logged).
+   */
+  @Post('businesses/:id/featured')
+  @RateLimit({ name: 'business.featured', limit: 30, windowSec: 60, scope: 'user' })
+  async setFeatured(
+    @Req() req: Request,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(setBusinessFeaturedBodySchema)) body: SetBusinessFeaturedBody,
+  ) {
+    const user = userOf(req);
+    if (!user) return null as never;
+    const { actor, request } = auditInfo(req);
+    const { business, previousFeatured } = await this.businesses.setFeatured(user, id, body.featured);
+    this.audit.log({
+      actor,
+      action: 'business.featured',
+      entityType: 'business',
+      entityId: id,
+      before: { isFeatured: previousFeatured },
+      after: { isFeatured: business.isFeatured },
       request,
     });
     return business;

@@ -319,3 +319,14 @@ export type ReorderBusinessPhotosBody = z.infer<typeof reorderBusinessPhotosBody
 /** Cover body — must reference a media id already attached to THIS business. */
 export const setBusinessCoverBodySchema = z.object({ mediaId: uuidSchema }).strict();
 export type SetBusinessCoverBody = z.infer<typeof setBusinessCoverBodySchema>;
+
+/**
+ * Featured toggle body (B8.5) — admin-only manual editorial boost. A featured
+ * business surfaces in the home page's featured grid (F3.3) + the search
+ * results' `isFeatured` badge. Distinct from the paid `isSponsored` ad
+ * placements (B8.4) — this is free editorial, not bought.
+ */
+export const setBusinessFeaturedBodySchema = z
+  .object({ featured: z.boolean() })
+  .strict();
+export type SetBusinessFeaturedBody = z.infer<typeof setBusinessFeaturedBodySchema>;

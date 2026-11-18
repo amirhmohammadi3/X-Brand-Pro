@@ -134,6 +134,7 @@ function makeFakeRepo(opts: FakeOpts = {}): BusinessesRepositoryLike & {
           ? { rejectionReason: input.rejectionReason }
           : {}),
         ...('phone' in input && input.phone !== undefined ? { phone: input.phone } : {}),
+        ...('isFeatured' in input && input.isFeatured !== undefined ? { isFeatured: input.isFeatured } : {}),
         updatedAt: new Date().toISOString(),
       };
       store.set(id, merged);
@@ -440,5 +441,61 @@ describe('BusinessesService.updateBusiness (B2.6)', () => {
     await expect(
       service.updateBusiness(owner, biz.id, { categoryIds: [CAT_ID_2] }),
     ).rejects.toMatchObject({ status: HttpStatus.NOT_FOUND });
+  });
+});
+
+describe('BusinessesService.setFeatured (B8.5)', () => {
+  it('lets an admin feature a business (false → true)', async () => {
+    const { service, repo } = makeService();
+    const biz = await service.createBusiness(owner, VALID_BODY);
+    expect(biz.isFeatured).toBe(false);
+    const { business, previousFeatured } = await service.setFeatured(admin, biz.id, true);
+    expect(previousFeatured).toBe(false);
+    expect(business.isFeatured).toBe(true);
+    expect(repo.store.get(biz.id)?.isFeatured).toBe(true);
+  });
+
+  it('lets an admin unfeature a business (true → false)', async () => {
+    const { service, repo } = makeService();
+    const biz = await service.createBusiness(owner, VALID_BODY);
+    await service.setFeatured(admin, biz.id, true);
+    const { business, previousFeatured } = await service.setFeatured(admin, biz.id, false);
+    expect(previousFeatured).toBe(true);
+    expect(business.isFeatured).toBe(false);
+    expect(repo.store.get(biz.id)?.isFeatured).toBe(false);
+  });
+
+  it('is a no-op when the flag is already the requested value (idempotent)', async () => {
+    const { service, repo } = makeService();
+    const biz = await service.createBusiness(owner, VALID_BODY);
+    // The business starts unfeatured. Asking to unfeature again is a no-op.
+    const { business, previousFeatured } = await service.setFeatured(admin, biz.id, false);
+    expect(previousFeatured).toBe(false);
+    expect(business.isFeatured).toBe(false);
+    // The repo's update was NOT called (no write).
+    expect(repo.store.get(biz.id)?.isFeatured).toBe(false);
+  });
+
+  it('blocks the owner from featuring their own business (anti-abuse)', async () => {
+    const { service } = makeService();
+    const biz = await service.createBusiness(owner, VALID_BODY);
+    await expect(service.setFeatured(owner, biz.id, true)).rejects.toMatchObject({
+      status: HttpStatus.FORBIDDEN,
+    });
+  });
+
+  it('blocks a non-owner non-admin caller with 403', async () => {
+    const { service } = makeService();
+    const biz = await service.createBusiness(owner, VALID_BODY);
+    await expect(
+      service.setFeatured({ id: OTHER_ID, role: 'user' }, biz.id, true),
+    ).rejects.toMatchObject({ status: HttpStatus.FORBIDDEN });
+  });
+
+  it('404s when the business does not exist', async () => {
+    const { service } = makeService();
+    await expect(service.setFeatured(admin, 'missing-id', true)).rejects.toMatchObject({
+      status: HttpStatus.NOT_FOUND,
+    });
   });
 });
