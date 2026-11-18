@@ -15,6 +15,7 @@ import './i18n.seed.js';
 import './theme.seed.js';
 import './catalog.seed.js'; // B2.10: tehran geo, categories/amenities, demo businesses
 import './notifications.seed.js'; // B5.3: the event catalog
+import './plans.seed.js'; // B8.2: plans catalog (free/starter/pro active + enterprise hidden)
 
 async function main(): Promise<void> {
   loadDotenvIntoProcessEnv();

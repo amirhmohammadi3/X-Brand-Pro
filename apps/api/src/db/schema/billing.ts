@@ -52,6 +52,7 @@ export const billingIntervalEnum = pgEnum('billing_interval', ['monthly', 'yearl
 
 /** The subscription state (B8.2). */
 export const subscriptionStatusEnum = pgEnum('subscription_status', [
+  'pending_payment',
   'active',
   'past_due',
   'cancelled',

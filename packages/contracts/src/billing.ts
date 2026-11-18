@@ -70,8 +70,17 @@ export const plansResultSchema = z
   .strict();
 export type PlansResult = z.infer<typeof plansResultSchema>;
 
-/** A business's subscription state. */
-export const SUBSCRIPTION_STATUSES = ['active', 'past_due', 'cancelled', 'expired'] as const;
+/** A business's subscription state. `pending_payment` = created, awaiting the
+ *  payment to verify before it goes `active` (the upsert drafts an invoice +
+ *  flips to `pending_payment`; the PaymentService.onPaymentVerified hook
+ *  flips it to `active` when the verify lands). */
+export const SUBSCRIPTION_STATUSES = [
+  'pending_payment',
+  'active',
+  'past_due',
+  'cancelled',
+  'expired',
+] as const;
 export type SubscriptionStatus = (typeof SUBSCRIPTION_STATUSES)[number];
 
 export const subscriptionSchema = z

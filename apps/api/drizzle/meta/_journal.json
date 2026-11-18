@@ -253,6 +253,13 @@
       "when": 1794865144819,
       "tag": "0035_deep_victor_mancha",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794983052560,
+      "tag": "0036_lovely_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

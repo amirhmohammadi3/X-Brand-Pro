@@ -735,6 +735,73 @@
     },
     "rateLimited": "درخواست بیش از حد. بعداً دوباره تلاش کنید."
   },
+  "billing": {
+    "plan": {
+      "free": {
+        "name": "رایگان",
+        "tagline": "برای کسب‌وکارهای کوچک"
+      },
+      "starter": {
+        "name": "استارتر",
+        "tagline": "برای رشد"
+      },
+      "pro": {
+        "name": "حرفه‌ای",
+        "tagline": "امکانات کامل"
+      },
+      "enterprise": {
+        "name": "سازمانی",
+        "tagline": "برای شبکه‌ها"
+      },
+      "interval": {
+        "monthly": "ماهانه",
+        "yearly": "سالانه"
+      },
+      "cta": {
+        "subscribe": "انتخاب پلن",
+        "current": "پلن فعلی شما",
+        "upgrade": "ارتقا"
+      },
+      "limits": {
+        "galleryPhotos": "حداکثر {count} عکس گالری",
+        "menuItems": "حداکثر {count} آیتم منو",
+        "videos": "پشتیبانی از ویدیو",
+        "ai": "امکانات هوش مصنوعی",
+        "ads": "اجازهٔ تبلیغات",
+        "adCampaigns": "تا {count} کمپین هم‌زمان"
+      }
+    },
+    "subscription": {
+      "title": "اشتراک",
+      "status": {
+        "active": "فعال",
+        "past_due": "سررسید گذشته",
+        "cancelled": "لغو شده",
+        "expired": "منقضی",
+        "pending_payment": "در انتظار پرداخت"
+      },
+      "period": "بازه: {start} تا {end}",
+      "autoRenew": "تمدید خودکار",
+      "cancel": "لغو اشتراک",
+      "cancelled": "اشتراک لغو شد.",
+      "none": "بدون اشتراک فعال (پلن رایگان)",
+      "upgradePrompt": "برای دسترسی به امکانات بیشتر، پلن خود را ارتقا دهید."
+    },
+    "invoice": {
+      "title": "فاکتور",
+      "number": "شمارهٔ فاکتور",
+      "amount": "مبلغ",
+      "period": "دوره",
+      "status": {
+        "pending": "در انتظار پرداخت",
+        "verified": "پرداخت شده",
+        "failed": "ناموفق",
+        "cancelled": "لغو شده"
+      },
+      "list": "تاریخچه فاکتورها",
+      "empty": "هنوز فاکتوری ثبت نشده."
+    }
+  },
   "bookings": {
     "widget": {
       "title": "رزرو آنلاین",

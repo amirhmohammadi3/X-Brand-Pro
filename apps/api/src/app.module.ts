@@ -29,6 +29,7 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { BookingsModule } from './modules/bookings/bookings.module.js';
 import { AnalyticsModule } from './modules/analytics/analytics.module.js';
 import { PaymentModule } from './modules/payment/payment.module.js';
+import { BillingModule } from './modules/billing/billing.module.js';
 import { PostgresHealthIndicator } from './modules/health/postgres.health.js';
 import { I18nModule } from './modules/i18n/i18n.module.js';
 import { MediaModule } from './modules/media/media.module.js';
@@ -104,6 +105,7 @@ import { RedisModule } from './redis/redis.module.js';
     BookingsModule,
     AnalyticsModule,
     PaymentModule,
+    BillingModule,
     ModerationModule,
     SearchModule,
     MapModule,

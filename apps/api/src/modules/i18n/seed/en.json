@@ -735,6 +735,73 @@
     },
     "rateLimited": "Too many requests. Please try again later."
   },
+  "billing": {
+    "plan": {
+      "free": {
+        "name": "Free",
+        "tagline": "For small businesses"
+      },
+      "starter": {
+        "name": "Starter",
+        "tagline": "For growth"
+      },
+      "pro": {
+        "name": "Pro",
+        "tagline": "Full features"
+      },
+      "enterprise": {
+        "name": "Enterprise",
+        "tagline": "For networks"
+      },
+      "interval": {
+        "monthly": "Monthly",
+        "yearly": "Yearly"
+      },
+      "cta": {
+        "subscribe": "Choose plan",
+        "current": "Your current plan",
+        "upgrade": "Upgrade"
+      },
+      "limits": {
+        "galleryPhotos": "Up to {count} gallery photos",
+        "menuItems": "Up to {count} menu items",
+        "videos": "Video support",
+        "ai": "AI features",
+        "ads": "Ad campaigns allowed",
+        "adCampaigns": "Up to {count} concurrent campaigns"
+      }
+    },
+    "subscription": {
+      "title": "Subscription",
+      "status": {
+        "active": "Active",
+        "past_due": "Past due",
+        "cancelled": "Cancelled",
+        "expired": "Expired",
+        "pending_payment": "Pending payment"
+      },
+      "period": "Period: {start} to {end}",
+      "autoRenew": "Auto-renew",
+      "cancel": "Cancel subscription",
+      "cancelled": "Subscription cancelled.",
+      "none": "No active subscription (Free plan)",
+      "upgradePrompt": "Upgrade your plan for more features."
+    },
+    "invoice": {
+      "title": "Invoice",
+      "number": "Invoice number",
+      "amount": "Amount",
+      "period": "Period",
+      "status": {
+        "pending": "Pending",
+        "verified": "Paid",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "list": "Invoice history",
+      "empty": "No invoices yet."
+    }
+  },
   "bookings": {
     "widget": {
       "title": "Online booking",
