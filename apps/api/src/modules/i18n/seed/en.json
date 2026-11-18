@@ -1506,6 +1506,40 @@
       "currency": {
         "toman": "Toman"
       }
+    },
+    "ads": {
+      "campaign": {
+        "name": "Campaign name",
+        "placements": "Placements",
+        "budgetTotal": "Total budget",
+        "budgetRemaining": "Budget remaining",
+        "dailyCap": "Daily cap",
+        "cpc": "Cost per click",
+        "schedule": "Schedule",
+        "startsOn": "Starts on",
+        "endsOn": "Ends on",
+        "headline": "Ad headline",
+        "checkout": "Pay",
+        "status": {
+          "draft": "Draft",
+          "pending_payment": "Pending payment",
+          "active": "Active",
+          "paused": "Paused",
+          "ended": "Ended",
+          "archived": "Archived"
+        },
+        "stats": {
+          "impressions": "Impressions",
+          "clicks": "Clicks",
+          "ctr": "Click-through rate",
+          "spent": "Spent"
+        }
+      },
+      "placement": {
+        "search_top": "Top of search results",
+        "home_slot": "Home slot",
+        "category_top": "Top of category page"
+      }
     }
   },
   "errors": {

@@ -1506,6 +1506,40 @@
       "currency": {
         "toman": "تومان"
       }
+    },
+    "ads": {
+      "campaign": {
+        "name": "نام کمپین",
+        "placements": "محل نمایش",
+        "budgetTotal": "بودجهٔ کل",
+        "budgetRemaining": "بودجهٔ باقی‌مانده",
+        "dailyCap": "سقف روزانه",
+        "cpc": "هزینهٔ هر کلیک",
+        "schedule": "زمان‌بندی",
+        "startsOn": "شروع",
+        "endsOn": "پایان",
+        "headline": "تیتر تبلیغ",
+        "checkout": "پرداخت",
+        "status": {
+          "draft": "پیش‌نویس",
+          "pending_payment": "در انتظار پرداخت",
+          "active": "فعال",
+          "paused": "متوقف شده",
+          "ended": "پایان یافته",
+          "archived": "بایگانی"
+        },
+        "stats": {
+          "impressions": "نمایش",
+          "clicks": "کلیک",
+          "ctr": "نرخ کلیک",
+          "spent": "هزینه شده"
+        }
+      },
+      "placement": {
+        "search_top": "بالای نتایج جستجو",
+        "home_slot": "اسلات صفحهٔ اصلی",
+        "category_top": "بالای صفحهٔ دسته"
+      }
     }
   },
   "errors": {

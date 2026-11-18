@@ -241,4 +241,19 @@ export const qk = {
     invoicesPrefix: (businessId: string) =>
       ['billing', 'invoices', businessId] as const,
   },
+  /**
+   * Ads reads (F8.2): the per-business campaign list + a single campaign's
+   * stats. The create/status/prepare-payment mutations invalidate the list so
+   * the page refreshes after each write.
+   */
+  ads: {
+    all: () => ['ads'] as const,
+    /** `GET /ads/businesses/:id/campaigns` — the owner's campaigns (paginated). */
+    campaigns: (businessId: string, page = 1, pageSize = 20) =>
+      ['ads', 'campaigns', businessId, page, pageSize] as const,
+    /** Invalidation prefix for every campaigns page of one business. */
+    campaignsPrefix: (businessId: string) => ['ads', 'campaigns', businessId] as const,
+    /** `GET /ads/campaigns/:id/stats` — the delivery stats. */
+    stats: (campaignId: string) => ['ads', 'stats', campaignId] as const,
+  },
 };
