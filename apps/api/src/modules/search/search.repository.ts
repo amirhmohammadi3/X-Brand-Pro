@@ -189,6 +189,10 @@ export class SearchRepository {
       coverUrl: this.mediaUrl.urlFor(r.coverMediaKey),
       thumbUrl: this.mediaUrl.urlFor(r.coverMediaThumbKey ?? r.coverMediaKey),
       isFeatured: r.isFeatured,
+      // B8.4: sponsored hits are injected by the SearchService after the
+      // natural query; a raw hit is never sponsored.
+      isSponsored: false,
+      sponsoredHeadline: null,
       distance,
       rank,
     };

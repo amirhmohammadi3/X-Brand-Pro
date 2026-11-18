@@ -56,6 +56,8 @@ const hit: SearchHit = {
   coverUrl: null,
   thumbUrl: null,
   isFeatured: true,
+  isSponsored: false,
+  sponsoredHeadline: null,
   distance: null,
   rank: 0,
 };

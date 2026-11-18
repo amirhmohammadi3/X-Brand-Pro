@@ -94,6 +94,15 @@ export const searchHitSchema = z
     coverUrl: z.string().nullable(),
     thumbUrl: z.string().nullable(),
     isFeatured: z.boolean(),
+    /**
+     * Whether this hit is an active ad campaign placement (B8.4). Sponsored
+     * hits render the «تبلیغ» (Sponsored) label on the card; they are
+     * transparent, not stealth. A sponsored hit's budget is debited when the
+     * card is rendered (impression) and when it is clicked (the CPC).
+     */
+    isSponsored: z.boolean(),
+    /** The optional ad headline shown on a sponsored card (B8.4). */
+    sponsoredHeadline: z.string().nullable(),
     /** Meters from the geo origin; null when no `lat`/`lng` was supplied. */
     distance: z.number().min(0).nullable(),
     /** ts_rank of the hit against the (normalized) query; 0 when no `q`. */

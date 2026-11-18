@@ -20,10 +20,13 @@ import {
   type UpdateCampaignStatusBody,
 } from '@app/contracts';
 import { ZodValidationPipe } from '../../common/pipes/zod-validation.pipe.js';
+import { Public } from '../../common/decorators/public.decorator.js';
 import { RateLimit } from '../../common/decorators/rate-limit.decorator.js';
 // Value import: Nest reads the type at runtime via emitDecoratorMetadata.
 // eslint-disable-next-line @typescript-eslint/consistent-type-imports
 import { AdsService } from './ads.service.js';
+// eslint-disable-next-line @typescript-eslint/consistent-type-imports
+import { AdDeliveryService } from './ad-delivery.service.js';
 
 /** The req.user shape set by JwtAuthGuard. */
 function requireUser(req: Request): { id: string; role: string } {
@@ -61,7 +64,10 @@ function assertUuid(raw: string, what: string): string {
  */
 @Controller()
 export class AdsController {
-  constructor(private readonly ads: AdsService) {}
+  constructor(
+    private readonly ads: AdsService,
+    private readonly delivery: AdDeliveryService,
+  ) {}
 
   @Post('ads/businesses/:id/campaigns')
   @RateLimit({ name: 'ads.create', limit: 10, windowSec: 60, scope: 'user' })
@@ -127,5 +133,21 @@ export class AdsController {
   @RateLimit({ name: 'ads.stats', limit: 60, windowSec: 60, scope: 'user' })
   async getStats(@Param('id') id: string): Promise<CampaignStatsResult> {
     return this.ads.getStats(assertUuid(id, 'campaignId'));
+  }
+
+  /**
+   * POST /ads/campaigns/:id/click — record a sponsored-card click (B8.4).
+   * PUBLIC (the click beacon fires from the public search/home/category
+   * cards; the visitor is anonymous — the campaign id is the only signal).
+   * Rate-limited ip-scoped 60/min. Returns `{ recorded: boolean }` — false
+   * when the campaign is no longer active / the budget can't cover the CPC
+   * (a race the visitor's UI ignores silently).
+   */
+  @Public()
+  @Post('ads/campaigns/:id/click')
+  @RateLimit({ name: 'ads.click', limit: 60, windowSec: 60 })
+  async recordClick(@Param('id') id: string): Promise<{ recorded: boolean }> {
+    const recorded = await this.delivery.recordClick(assertUuid(id, 'campaignId'));
+    return { recorded };
   }
 }
