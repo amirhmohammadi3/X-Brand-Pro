@@ -65,6 +65,7 @@ describe('adminSectionsForRole', () => {
       'users',
       'settings',
       'audit',
+      'revenue',
     ]);
   });
 

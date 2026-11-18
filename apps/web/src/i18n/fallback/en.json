@@ -304,7 +304,8 @@
       "users": "Users",
       "settings": "Settings",
       "audit": "Audit log",
-      "soon": "Soon"
+      "soon": "Soon",
+      "revenue": "Revenue"
     },
     "hint": {
       "dashboard": "Admin panel overview",
@@ -323,7 +324,8 @@
       "localization": "Localization",
       "appearance": "Appearance",
       "access": "Access",
-      "platform": "Platform"
+      "platform": "Platform",
+      "revenue": "Revenue"
     },
     "overview": {
       "title": "Admin panel",
@@ -1539,6 +1541,27 @@
         "search_top": "Top of search results",
         "home_slot": "Home slot",
         "category_top": "Top of category page"
+      }
+    },
+    "admin": {
+      "revenue": {
+        "title": "Revenue report",
+        "empty": "No transactions in the selected window.",
+        "range.7d": "7 days",
+        "range.30d": "30 days",
+        "range.90d": "90 days",
+        "totalRevenue": "Total revenue",
+        "totalTransactions": "Total transactions",
+        "averageTransaction": "Average transaction",
+        "byPurpose": "By purpose",
+        "byPlan": "By plan",
+        "purpose": "Purpose",
+        "count": "Count",
+        "amount": "Amount",
+        "planTier": "Plan",
+        "purpose.subscription": "Subscription",
+        "purpose.ads": "Ads",
+        "purpose.topup": "Top-up"
       }
     }
   },

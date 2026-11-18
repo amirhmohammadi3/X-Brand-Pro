@@ -125,6 +125,18 @@ export const ADMIN_NAV_GROUPS: ReadonlyArray<AdminNavGroup> = [
       },
     ],
   },
+  {
+    key: 'revenue',
+    items: [
+      {
+        key: 'revenue',
+        href: '/admin/revenue',
+        labelKey: 'revenue',
+        permissions: ['businesses.manage'],
+        available: true, // F8.4
+      },
+    ],
+  },
 ];
 
 /**

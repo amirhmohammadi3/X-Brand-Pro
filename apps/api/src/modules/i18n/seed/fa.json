@@ -304,7 +304,8 @@
       "users": "کاربران",
       "settings": "تنظیمات",
       "audit": "گزارش رخدادها",
-      "soon": "به‌زودی"
+      "soon": "به‌زودی",
+      "revenue": "درآمد"
     },
     "hint": {
       "dashboard": "نمای کلی پنل مدیریت",
@@ -323,7 +324,8 @@
       "localization": "زبان و بومی‌سازی",
       "appearance": "ظاهر",
       "access": "دسترسی",
-      "platform": "پلتفرم"
+      "platform": "پلتفرم",
+      "revenue": "درآمد"
     },
     "overview": {
       "title": "پنل مدیریت",
@@ -1539,6 +1541,27 @@
         "search_top": "بالای نتایج جستجو",
         "home_slot": "اسلات صفحهٔ اصلی",
         "category_top": "بالای صفحهٔ دسته"
+      }
+    },
+    "admin": {
+      "revenue": {
+        "title": "گزارش درآمد",
+        "empty": "در بازهٔ انتخاب‌شده تراکنشی ثبت نشده است.",
+        "range.7d": "۷ روز",
+        "range.30d": "۳۰ روز",
+        "range.90d": "۹۰ روز",
+        "totalRevenue": "درآمد کل",
+        "totalTransactions": "تعداد تراکنش‌ها",
+        "averageTransaction": "میانگین تراکنش",
+        "byPurpose": "به تفکیک نوع",
+        "byPlan": "به تفکیک پلن",
+        "purpose": "نوع",
+        "count": "تعداد",
+        "amount": "مبلغ",
+        "planTier": "پلن",
+        "purpose.subscription": "اشتراک",
+        "purpose.ads": "تبلیغات",
+        "purpose.topup": "شارژ"
       }
     }
   },
