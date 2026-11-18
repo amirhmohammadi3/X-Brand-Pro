@@ -95,6 +95,22 @@ describe('BusinessCard (F3.3)', () => {
     expect(screen.queryByText('★')).not.toBeInTheDocument();
   });
 
+  it('shows the «تبلیغ» sponsored label + headline on sponsored hits only (F8.3)', () => {
+    // Not sponsored → no label, no headline.
+    const first = renderCard();
+    expect(first.queryByText('تبلیغ')).not.toBeInTheDocument();
+    first.unmount();
+    // Sponsored → label + headline appear.
+    renderCard({ ...hit, isSponsored: true, sponsoredHeadline: 'Special offer!' });
+    expect(screen.getByText('تبلیغ')).toBeInTheDocument();
+    expect(screen.getByText('Special offer!')).toBeInTheDocument();
+  });
+
+  it('en locale: shows «Sponsored» label (F8.3)', () => {
+    renderCard({ ...hit, isSponsored: true, sponsoredHeadline: 'Ad' }, 'en');
+    expect(screen.getByText('Sponsored')).toBeInTheDocument();
+  });
+
   it('renders a neutral placeholder when there is no thumb, the image when there is', () => {
     const first = renderCard();
     // Raw <img> elements only (the Rating's star SVGs are aria-hidden, not imgs)

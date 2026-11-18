@@ -26,8 +26,17 @@ export function BusinessCard({ hit, locale }: BusinessCardProps) {
   return (
     <article
       data-testid="business-card"
+      data-sponsored={hit.isSponsored ? 'true' : undefined}
       className="group overflow-hidden rounded-lg border border-border-subtle bg-surface transition-colors hover:border-primary"
     >
+      {hit.isSponsored ? (
+        <span
+          aria-label={locale === 'fa' ? 'تبلیغ' : 'Sponsored'}
+          className="absolute end-2 top-2 z-10 rounded bg-accent/90 px-1.5 py-0.5 text-[10px] font-medium text-on-accent"
+        >
+          {locale === 'fa' ? 'تبلیغ' : 'Sponsored'}
+        </span>
+      ) : null}
       <Link href={`/business/${hit.slug}`} className="block">
         <div className="flex aspect-[16/9] items-center justify-center bg-surface-alt">
           {hit.thumbUrl !== null ? (
@@ -59,6 +68,11 @@ export function BusinessCard({ hit, locale }: BusinessCardProps) {
           <p className="line-clamp-1 text-sm text-muted">
             {[categoryName, cityName].filter((s) => s !== '').join(' · ')}
           </p>
+          {hit.isSponsored && hit.sponsoredHeadline ? (
+            <p className="line-clamp-1 text-xs font-medium text-accent">
+              {hit.sponsoredHeadline}
+            </p>
+          ) : null}
           <div className="flex items-center gap-2">
             <Rating value={hit.avgRating} size="sm" readOnly />
             <span className="text-xs tabular-nums text-muted">{formatNumber(hit.reviewCount)}</span>
