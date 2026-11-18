@@ -222,4 +222,23 @@ export const qk = {
     stats: (businessId: string, from?: string, to?: string) =>
       ['analytics', 'stats', businessId, from ?? 'default', to ?? 'default'] as const,
   },
+  /**
+   * Billing reads (F8.1): the public plan catalog, the per-business
+   * subscription + limits, and the invoice history. The upsert + cancel
+   * mutations invalidate the subscription + invoices keys so the page
+   * refreshes after a checkout/cancel without a manual reload.
+   */
+  billing: {
+    all: () => ['billing'] as const,
+    /** `GET /billing/plans` — the public plan catalog (cached once). */
+    plans: () => ['billing', 'plans'] as const,
+    /** `GET /billing/businesses/:id/subscription` — the active sub + limits. */
+    subscription: (businessId: string) => ['billing', 'subscription', businessId] as const,
+    /** `GET /billing/businesses/:id/invoices` — the invoice history. */
+    invoices: (businessId: string, page = 1, pageSize = 20) =>
+      ['billing', 'invoices', businessId, page, pageSize] as const,
+    /** Invalidation prefix for every invoices page of one business. */
+    invoicesPrefix: (businessId: string) =>
+      ['billing', 'invoices', businessId] as const,
+  },
 };

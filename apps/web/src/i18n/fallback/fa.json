@@ -1090,7 +1090,7 @@
     "loading": "در حال بارگذاری…",
     "retry": "تلاش دوباره",
     "save": "ذخیره",
-    "cancel": "انصراف",
+    "cancel": "لغو",
     "delete": "حذف",
     "edit": "ویرایش",
     "close": "بستن",
@@ -1103,7 +1103,11 @@
       "toman": "تومان"
     },
     "language": "زبان",
-    "copied": "کپی شد"
+    "copied": "کپی شد",
+    "free": "رایگان",
+    "prev": "قبلی",
+    "confirm": "تأیید",
+    "error": "خطایی رخ داد."
   },
   "dashboard": {
     "title": "پنل صاحب کسب‌وکار",
@@ -1123,7 +1127,8 @@
     "group": {
       "overview": "نمای کلی",
       "manage": "مدیریت",
-      "engagement": "تعامل"
+      "engagement": "تعامل",
+      "growth": "رشد"
     },
     "selector": {
       "label": "کسب‌وکار:",
@@ -1420,6 +1425,86 @@
       "funnel": {
         "title": "قیف تبدیل",
         "conv": "تبدیل: {pct}٪"
+      }
+    },
+    "billing": {
+      "title": "صورتحساب و اشتراک",
+      "plans": {
+        "title": "پلن‌ها",
+        "empty": "هیچ پلنی فعال نیست."
+      },
+      "invoice": {
+        "list": "تاریخچه فاکتورها",
+        "empty": "هنوز فاکتوری ثبت نشده.",
+        "number": "شمارهٔ فاکتور",
+        "amount": "مبلغ",
+        "period": "دوره",
+        "status": {
+          "title": "وضعیت",
+          "pending": "در انتظار پرداخت",
+          "verified": "پرداخت شده",
+          "failed": "ناموفق",
+          "cancelled": "لغو شده"
+        }
+      },
+      "plan": {
+        "interval": {
+          "monthly": "ماهانه",
+          "yearly": "سالانه"
+        },
+        "cta": {
+          "subscribe": "انتخاب پلن",
+          "current": "پلن فعلی شما"
+        },
+        "limits": {
+          "galleryPhotos": "حداکثر {count} عکس گالری",
+          "menuItems": "حداکثر {count} آیتم منو",
+          "videos": "پشتیبانی از ویدیو",
+          "ai": "امکانات هوش مصنوعی",
+          "ads": "اجازهٔ تبلیغات",
+          "adCampaigns": "تا {count} کمپین هم‌زمان"
+        }
+      },
+      "subscription": {
+        "cancel": "لغو اشتراک",
+        "none": "بدون اشتراک فعال (پلن رایگان)",
+        "period": "بازه: {start} تا {end}",
+        "status": {
+          "pending_payment": "در انتظار پرداخت",
+          "active": "فعال",
+          "past_due": "سررسید گذشته",
+          "cancelled": "لغو شده",
+          "expired": "منقضی"
+        }
+      }
+    },
+    "campaigns": {
+      "title": "کمپین‌های تبلیغاتی",
+      "list": "کمپین‌ها",
+      "empty": "هنوز کمپینی نساخته‌اید.",
+      "create": "ایجاد کمپین",
+      "stats": "آمار"
+    },
+    "payment": {
+      "title": "پرداخت",
+      "verifying": "در حال تأیید پرداخت…",
+      "verifyingDescription": "لطفاً چند لحظه صبر کنید.",
+      "verified": "پرداخت موفق بود",
+      "verifiedDescription": "اشتراک شما فعال شد.",
+      "failed": "پرداخت ناموفق بود",
+      "failedDescription": "در صورت کسر مبلغ، طی ۲۴ ساعت بازمی‌گردد.",
+      "missing": "شناسه پرداخت یافت نشد",
+      "backToDashboard": "بازگشت به داشبورد"
+    },
+    "common": {
+      "cancel": "لغو",
+      "confirm": "تأیید",
+      "error": "خطایی رخ داد.",
+      "prev": "قبلی",
+      "next": "بعدی",
+      "free": "رایگان",
+      "currency": {
+        "toman": "تومان"
       }
     }
   },

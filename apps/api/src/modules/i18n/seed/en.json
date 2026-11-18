@@ -1103,7 +1103,11 @@
       "toman": "Toman"
     },
     "language": "Language",
-    "copied": "Copied"
+    "copied": "Copied",
+    "free": "Free",
+    "prev": "Previous",
+    "confirm": "Confirm",
+    "error": "An error occurred."
   },
   "dashboard": {
     "title": "Owner dashboard",
@@ -1123,7 +1127,8 @@
     "group": {
       "overview": "Overview",
       "manage": "Manage",
-      "engagement": "Engagement"
+      "engagement": "Engagement",
+      "growth": "Growth"
     },
     "selector": {
       "label": "Business:",
@@ -1420,6 +1425,86 @@
       "funnel": {
         "title": "Conversion funnel",
         "conv": "Conversion: {pct}%"
+      }
+    },
+    "billing": {
+      "title": "Billing & subscription",
+      "plans": {
+        "title": "Plans",
+        "empty": "No active plans."
+      },
+      "invoice": {
+        "list": "Invoice history",
+        "empty": "No invoices yet.",
+        "number": "Invoice number",
+        "amount": "Amount",
+        "period": "Period",
+        "status": {
+          "title": "Status",
+          "pending": "Pending",
+          "verified": "Paid",
+          "failed": "Failed",
+          "cancelled": "Cancelled"
+        }
+      },
+      "plan": {
+        "interval": {
+          "monthly": "Monthly",
+          "yearly": "Yearly"
+        },
+        "cta": {
+          "subscribe": "Choose plan",
+          "current": "Your current plan"
+        },
+        "limits": {
+          "galleryPhotos": "Up to {count} gallery photos",
+          "menuItems": "Up to {count} menu items",
+          "videos": "Video support",
+          "ai": "AI features",
+          "ads": "Ad campaigns allowed",
+          "adCampaigns": "Up to {count} concurrent campaigns"
+        }
+      },
+      "subscription": {
+        "cancel": "Cancel subscription",
+        "none": "No active subscription (Free plan)",
+        "period": "Period: {start} to {end}",
+        "status": {
+          "pending_payment": "Pending payment",
+          "active": "Active",
+          "past_due": "Past due",
+          "cancelled": "Cancelled",
+          "expired": "Expired"
+        }
+      }
+    },
+    "campaigns": {
+      "title": "Ad campaigns",
+      "list": "Campaigns",
+      "empty": "You have not created any campaigns yet.",
+      "create": "Create campaign",
+      "stats": "Stats"
+    },
+    "payment": {
+      "title": "Payment",
+      "verifying": "Verifying payment…",
+      "verifyingDescription": "Please wait a moment.",
+      "verified": "Payment successful",
+      "verifiedDescription": "Your subscription is now active.",
+      "failed": "Payment failed",
+      "failedDescription": "If charged, the amount is refunded within 24 hours.",
+      "missing": "Payment id not found",
+      "backToDashboard": "Back to dashboard"
+    },
+    "common": {
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "error": "An error occurred.",
+      "prev": "Previous",
+      "next": "Next",
+      "free": "Free",
+      "currency": {
+        "toman": "Toman"
       }
     }
   },

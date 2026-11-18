@@ -63,6 +63,13 @@ export function dashboardNavGroups(businessId: string): ReadonlyArray<DashboardN
         { key: 'analytics', href: `${base}/analytics`, labelKey: 'analytics', available: true }, // F7.8
       ],
     },
+    {
+      key: 'growth',
+      items: [
+        { key: 'billing', href: `${base}/billing`, labelKey: 'billing', available: true }, // F8.1
+        { key: 'campaigns', href: `${base}/campaigns`, labelKey: 'campaigns', available: true }, // F8.2
+      ],
+    },
   ];
 }
 

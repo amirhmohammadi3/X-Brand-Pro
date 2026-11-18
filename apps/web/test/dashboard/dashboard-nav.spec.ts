@@ -35,7 +35,7 @@ describe('dashboardNavGroups structure', () => {
     expect(overview?.available).toBe(true);
   });
 
-  it('overview + profile + gallery + menu + reviews + qa + bookings + messages + analytics are built (F7.1–F7.8); every section is available', () => {
+  it('overview + profile + gallery + menu + reviews + qa + bookings + messages + analytics + billing + campaigns are built (F7.1–F8.2); every section is available', () => {
     const items = flattenItems(dashboardNavGroups(BIZ_ID));
     const available = items.filter((i) => i.available).map((i) => i.key);
     expect(available).toEqual([
@@ -48,8 +48,10 @@ describe('dashboardNavGroups structure', () => {
       'bookings',
       'messages',
       'analytics',
+      'billing',
+      'campaigns',
     ]);
-    // Every section is now built (F7.8 flipped analytics to available).
+    // Every section is now built (F8.1 flipped billing, F8.2 campaigns).
     const soon = items.filter((i) => !i.available).map((i) => i.key);
     expect(soon).toEqual([]);
   });
@@ -62,7 +64,7 @@ describe('dashboardNavGroups structure', () => {
 });
 
 describe('availableDashboardItems', () => {
-  it('returns only linkable items (overview + profile + gallery + menu + reviews + qa + bookings + messages + analytics in F7.1–F7.8)', () => {
+  it('returns only linkable items (overview + profile + gallery + menu + reviews + qa + bookings + messages + analytics + billing + campaigns in F7.1–F8.2)', () => {
     const items = availableDashboardItems(BIZ_ID);
     expect(items.map((i) => i.key)).toEqual([
       'overview',
@@ -74,6 +76,8 @@ describe('availableDashboardItems', () => {
       'bookings',
       'messages',
       'analytics',
+      'billing',
+      'campaigns',
     ]);
   });
 });
