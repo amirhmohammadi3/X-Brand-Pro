@@ -251,3 +251,15 @@ export const adCampaigns = pgTable(
     check('ad_campaigns_counters_nonneg', sql`impressions >= 0 AND clicks >= 0`),
   ],
 );
+
+/** Inferred row types (one pair per table — the repository + service import these). */
+export type PlanRow = typeof plans.$inferSelect;
+export type NewPlanRow = typeof plans.$inferInsert;
+export type SubscriptionRow = typeof subscriptions.$inferSelect;
+export type NewSubscriptionRow = typeof subscriptions.$inferInsert;
+export type PaymentRow = typeof payments.$inferSelect;
+export type NewPaymentRow = typeof payments.$inferInsert;
+export type InvoiceRow = typeof invoices.$inferSelect;
+export type NewInvoiceRow = typeof invoices.$inferInsert;
+export type AdCampaignRow = typeof adCampaigns.$inferSelect;
+export type NewAdCampaignRow = typeof adCampaigns.$inferInsert;

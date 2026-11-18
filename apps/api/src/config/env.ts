@@ -84,6 +84,32 @@ export const envSchema = z.object({
   MEDIA_PUBLIC_BASE: z.string().default('/media'),
   // Decompression-bomb guard: refuse inputs whose declared pixels exceed this.
   MAX_IMAGE_PIXELS: z.coerce.number().int().min(1_000_000).default(50_000_000),
+
+  // --- payment / billing / ads (B8.1) ---
+  // The active gateway driver. `fake` (the default) succeeds on demand and is
+  // the test/dev path; `zarinpal_sandbox` calls the real Zarinpal v4 sandbox
+  // (https://sandbox.zarinpal.com/pg/v4/payment/{request,verify}.json). An
+  // admin flips this via the settings registry in a follow-up — the env var
+  // is the boot-time default.
+  PAYMENT_PROVIDER: z.enum(['fake', 'zarinpal_sandbox']).default('fake'),
+  // The Zarinpal merchant id (read at call time by the sandbox driver; absent
+  // → the gateway returns `{ ok: false, code: 'zarinpal_not_configured' }`
+  // and the service marks the payment `failed`). Optional so boot never
+  // hard-fails on a dev box without a merchant id.
+  ZARINPAL_MERCHANT_ID: z.string().optional(),
+  // Where the gateway redirects the user after payment (the web app's
+  // /[locale]/payments/callback?id=… route that calls POST /payments/:id/verify).
+  // Defaults to PUBLIC_WEB_URL when absent.
+  PAYMENT_CALLBACK_URL: z.string().url().optional(),
+  // The fake driver's fail rate (0..1, default 0). Tests set it to 0; a dev
+  // can set 0.2 to exercise the `failed` path.
+  PAYMENT_FAKE_FAIL_RATE: z
+    .string()
+    .default('0')
+    .transform((v) => {
+      const n = Number(v);
+      return Number.isFinite(n) && n >= 0 && n <= 1 ? n : 0;
+    }),
 });
 
 export type Env = z.infer<typeof envSchema>;
