@@ -608,6 +608,49 @@
       "revoked": "Sessions of {name} revoked."
     }
   },
+  "ads": {
+    "title": "Advertising",
+    "campaign": {
+      "title": "Ad campaign",
+      "name": "Campaign name",
+      "placements": "Placements",
+      "budget": "Budget",
+      "budgetTotal": "Total budget",
+      "budgetRemaining": "Budget remaining",
+      "dailyCap": "Daily cap",
+      "cpc": "Cost per click",
+      "schedule": "Schedule",
+      "startsOn": "Starts on",
+      "endsOn": "Ends on",
+      "headline": "Ad headline",
+      "status": {
+        "draft": "Draft",
+        "pending_payment": "Pending payment",
+        "active": "Active",
+        "paused": "Paused",
+        "ended": "Ended",
+        "archived": "Archived"
+      },
+      "create": "Create campaign",
+      "checkout": "Pay for campaign",
+      "prepared": "Campaign prepared for payment. Now create a payment with purpose=ads.",
+      "stats": {
+        "impressions": "Impressions",
+        "clicks": "Clicks",
+        "ctr": "Click-through rate",
+        "spent": "Spent",
+        "daysRun": "Days run",
+        "daysRemaining": "Days remaining"
+      }
+    },
+    "placement": {
+      "search_top": "Top of search results",
+      "home_slot": "Home slot",
+      "category_top": "Top of category page"
+    },
+    "label": "Sponsored",
+    "empty": "You have not created any campaigns yet."
+  },
   "analytics": {
     "consent": {
       "title": "Help us improve",

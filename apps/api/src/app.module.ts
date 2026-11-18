@@ -30,6 +30,7 @@ import { BookingsModule } from './modules/bookings/bookings.module.js';
 import { AnalyticsModule } from './modules/analytics/analytics.module.js';
 import { PaymentModule } from './modules/payment/payment.module.js';
 import { BillingModule } from './modules/billing/billing.module.js';
+import { AdsModule } from './modules/ads/ads.module.js';
 import { PostgresHealthIndicator } from './modules/health/postgres.health.js';
 import { I18nModule } from './modules/i18n/i18n.module.js';
 import { MediaModule } from './modules/media/media.module.js';
@@ -106,6 +107,7 @@ import { RedisModule } from './redis/redis.module.js';
     AnalyticsModule,
     PaymentModule,
     BillingModule,
+    AdsModule,
     ModerationModule,
     SearchModule,
     MapModule,
