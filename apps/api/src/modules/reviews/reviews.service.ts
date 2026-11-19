@@ -161,6 +161,30 @@ export class ReviewsService {
   }
 
   /**
+   * A9.3 — the slice the AI review-summary service reads: approved reviews,
+   * newest first, capped at `limit`. The full bodies are sent to the LLM
+   * (capped at 500 chars each by the caller); the `total` field carries the
+   * overall approved count (for the "based on N reviews" line).
+   *
+   * This is a thin wrapper around `listByBusiness` so the AI module does not
+   * duplicate the approval-gate logic. Returns `{ items, total }`.
+   */
+  async listForSummary(
+    businessId: string,
+    limit: number,
+  ): Promise<{ items: Array<{ rating: number; body: string }>; total: number }> {
+    const result = await this.listByBusiness(businessId, {
+      page: 1,
+      pageSize: Math.min(limit, 100),
+      status: 'approved',
+    });
+    return {
+      items: result.items.map((r) => ({ rating: r.rating, body: r.body })),
+      total: result.meta.total,
+    };
+  }
+
+  /**
    * B4.10 — the APPROVED-only slice of one user's reviews, served on the
    * public profile (GET /users/:username/reviews). The caller's own
    * every-status list stays on listMine (GET /reviews/me); pending/rejected

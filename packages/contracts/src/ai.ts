@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { uuidSchema } from './primitives.js';
 
 /**
  * AI contracts (Phase 9). The driver abstraction (interface + the fake +
@@ -220,3 +221,62 @@ export const aiCallLogResultSchema = z
   })
   .strict();
 export type AiCallLogResult = z.infer<typeof aiCallLogResultSchema>;
+
+// ─── A9.3 — Review summary ──────────────────────────────────────────────
+
+/**
+ * A business's AI-generated review summary (A9.3). One row per business;
+ * regenerated (debounced) on review changes + on admin demand + on
+ * prompt-version bump. The summary is ALWAYS available — a stale flag tells
+ * the page to show the previous text while the regenerate job runs (the
+ * page is never empty, never blocked).
+ */
+export const aiReviewSummarySchema = z
+  .object({
+    businessId: uuidSchema,
+    /** The summary text (Persian, 2-3 sentences). Null only on the very first read before the first job completes. */
+    summary: z.string().nullable(),
+    /** The driver that actually answered (fake / openai / rule). */
+    driver: z.enum(AI_DRIVER_NAMES),
+    /** The model id (rule-fa-v1 / gpt-4o-mini / null on fake). */
+    model: z.string().nullable(),
+    /** The prompt version that produced this summary (matches ai.prompts.reviewSummary.version). */
+    promptVersion: z.number().int().min(1),
+    /** True when a review changed but the regenerate job has not completed. The page shows the stale summary + a "regenerating" hint. */
+    stale: z.boolean(),
+    /** Tokens used by the last successful generation (for the cost display). */
+    promptTokens: z.number().int().min(0),
+    completionTokens: z.number().int().min(0),
+    /** Review snapshot at the last generation (count + average rating). */
+    reviewCount: z.number().int().min(0),
+    reviewAvgRating: z.number().min(0).max(5).nullable(),
+    /** The last error code (null on success). */
+    lastError: z.string().nullable(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  })
+  .strict();
+export type AiReviewSummary = z.infer<typeof aiReviewSummarySchema>;
+
+/** GET /businesses/:id/ai-summary — public (cached 60s on the API side). */
+export const aiReviewSummaryQuerySchema = z
+  .object({
+    /** If true, the endpoint waits up to 5s for the regenerate job to finish (used by the page's soft-refresh). Default false. */
+    wait: z.coerce.boolean().optional(),
+  })
+  .strict();
+export type AiReviewSummaryQuery = z.infer<typeof aiReviewSummaryQuerySchema>;
+
+/** POST /admin/businesses/:id/ai-summary/regenerate — owner + admin only. */
+export const aiReviewSummaryRegenerateResultSchema = z
+  .object({
+    enqueued: z.boolean(),
+    /** The job id (BullMQ), null when the request was deduped within the debounce window. */
+    jobId: z.string().nullable(),
+  })
+  .strict();
+export type AiReviewSummaryRegenerateResult = z.infer<typeof aiReviewSummaryRegenerateResultSchema>;
+
+/** GET /admin/businesses/:id/ai-summary — the admin/owner-only full read (includes the prompt version + last_error). */
+export const aiReviewSummaryAdminSchema = aiReviewSummarySchema;
+export type AiReviewSummaryAdmin = z.infer<typeof aiReviewSummaryAdminSchema>;

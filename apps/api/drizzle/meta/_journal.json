@@ -267,6 +267,13 @@
       "when": 1795098000000,
       "tag": "0037_ai_calls",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1795185000000,
+      "tag": "0038_ai_review_summaries",
+      "breakpoints": true
     }
   ]
 }

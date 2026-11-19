@@ -493,6 +493,44 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     description:
       'Enable the A9.6 fraud/toxicity score (a 0..1 score on each review for the moderation queue).',
   },
+  // A9.3 — the editable prompt templates. The admin can edit the system
+  // prompt the LLM driver gets (in Persian, with placeholders the service
+  // fills). Bumping `version` invalidates every existing summary (the
+  // service detects the version mismatch + regenerates on next read).
+  'ai.prompts.reviewSummary.system': {
+    key: 'ai.prompts.reviewSummary.system',
+    schema: z.string().min(20).max(4000),
+    default:
+      'شما یک دستیار خلاصه‌ساز نظرات هستید. نظرات کاربران را خلاصه کنید: ' +
+      'یک پاراگراف کوتاه (۲-۳ جمله) به فارسی، با ذکر تعداد نظرات، میانگین ' +
+      'امتیاز، و نکات کلیدی مثبت و منفی. فقط از متن نظرات استفاده کنید؛ ' +
+      'اطلاعات ساختگی نسازید. فارسی روان و محترمانه بنویسید.',
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The system prompt sent to the LLM for the A9.3 review-summary feature. Editable by admins. Bumping ai.prompts.reviewSummary.version invalidates all existing summaries.',
+  },
+  'ai.prompts.reviewSummary.version': {
+    key: 'ai.prompts.reviewSummary.version',
+    schema: z.number().int().min(1).max(1000),
+    default: 1,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The prompt-template version. Bumping this value marks every existing summary as stale (next read regenerates with the new prompt).',
+  },
+  'ai.prompts.reviewSummary.maxReviews': {
+    key: 'ai.prompts.reviewSummary.maxReviews',
+    schema: z.number().int().min(3).max(100),
+    default: 30,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'Max number of recent approved reviews sent to the LLM in one prompt (newest first, capped to keep the prompt within token budget).',
+  },
 };
 
 export function getSettingDefinition(key: string): SettingDefinition<unknown> | undefined {
