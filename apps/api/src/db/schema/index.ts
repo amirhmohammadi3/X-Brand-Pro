@@ -38,3 +38,4 @@ export * from './analytics.js';
 export * from './billing.js';
 export * from './ai.js';
 export * from './ai-review-summaries.js';
+export * from './ai-faq-answers.js';

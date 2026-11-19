@@ -11,6 +11,7 @@ import type {
   QaListResult,
   QaQuestion,
   QaAnswer,
+  QaStatus,
   UpdateQaQuestionBody,
   UpsertQaAnswerBody,
   UpsertQaAnswerResult,
@@ -307,6 +308,51 @@ export class QaService {
       });
     }
     return { deleted };
+  }
+
+  /**
+   * A9.4 — the AI FAQ-answer service reads a question's body to build the
+   * LLM prompt. Returns null when the question doesn't exist; the caller
+   * (FaqAnswerService) skips generation in that case.
+   *
+   * Visibility: APPROVED questions only — a pending/rejected question is
+   * never sent to the LLM (the moderation queue may flip it later, at
+   * which point the question.updated subscriber marks the draft stale).
+   *
+   * Returns only the question body + business_id; the business context
+   * (name + recent reviews) is fetched by the FAQ service itself via its
+   * own injected dependencies (avoids coupling the QA module to businesses
+   * + reviews).
+   */
+  async findQuestionForAi(questionId: string): Promise<{
+    id: string;
+    businessId: string;
+    body: string;
+    status: QaStatus;
+  } | null> {
+    const row = await this.repo.findQuestionById(questionId);
+    if (!row) return null;
+    return {
+      id: row.id,
+      businessId: row.businessId,
+      body: row.body,
+      status: row.status,
+    };
+  }
+
+  /**
+   * A9.4 — the AI FAQ-answer publish flow needs the existing business_answer
+   * row (when the draft says published but the answer still exists). Returns
+   * the answer row joined with its author's display name; null when no
+   * answer exists yet.
+   */
+  async findAnswerForQuestion(questionId: string): Promise<{
+    id: string;
+    body: string;
+  } | null> {
+    const answer = await this.repo.findAnswerByQuestion(questionId);
+    if (!answer) return null;
+    return { id: answer.id, body: answer.body };
   }
 
   /** Map a joined row to the contract shape. */

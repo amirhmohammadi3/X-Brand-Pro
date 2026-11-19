@@ -280,3 +280,76 @@ export type AiReviewSummaryRegenerateResult = z.infer<typeof aiReviewSummaryRege
 /** GET /admin/businesses/:id/ai-summary — the admin/owner-only full read (includes the prompt version + last_error). */
 export const aiReviewSummaryAdminSchema = aiReviewSummarySchema;
 export type AiReviewSummaryAdmin = z.infer<typeof aiReviewSummaryAdminSchema>;
+
+// ─── A9.4 — AI FAQ answers ──────────────────────────────────────────────
+
+/**
+ * An AI draft answer to a business question (A9.4). One row per question;
+ * the owner can publish (creates a business_answer with the AI text + the
+ * aiGenerated label) or dismiss. The draft is generated automatically
+ * when a question is created, and regenerated when the question is edited
+ * or the prompt version bumps.
+ */
+export const aiFaqAnswerSchema = z
+  .object({
+    questionId: uuidSchema,
+    /** The AI draft text (Persian). Null only between row create + first generation. */
+    draft: z.string().nullable(),
+    /** The driver that produced the draft. */
+    driver: z.enum(AI_DRIVER_NAMES),
+    /** The model id. */
+    model: z.string().nullable(),
+    /** The prompt version. */
+    promptVersion: z.number().int().min(1),
+    /** True when the owner has published the draft as a business_answer. */
+    published: z.boolean(),
+    /** True when the owner dismissed the draft. */
+    dismissed: z.boolean(),
+    /** True when a regenerate is pending. */
+    stale: z.boolean(),
+    promptTokens: z.number().int().min(0),
+    completionTokens: z.number().int().min(0),
+    lastError: z.string().nullable(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  })
+  .strict();
+export type AiFaqAnswer = z.infer<typeof aiFaqAnswerSchema>;
+
+/** GET /businesses/:id/questions/:qid/ai-draft — owner + admin only. */
+export const aiFaqDraftResultSchema = z
+  .object({
+    draft: aiFaqAnswerSchema.nullable(),
+  })
+  .strict();
+export type AiFaqDraftResult = z.infer<typeof aiFaqDraftResultSchema>;
+
+/** POST /businesses/:id/questions/:qid/ai-draft/publish — owner publishes the AI draft as the question's answer. */
+export const aiFaqPublishResultSchema = z
+  .object({
+    /** The business_answer id created (or the existing one if already published). */
+    answerId: uuidSchema,
+    /** The published text (the AI draft). */
+    text: z.string(),
+    /** True if this publish created a new answer; false if it was already published. */
+    created: z.boolean(),
+  })
+  .strict();
+export type AiFaqPublishResult = z.infer<typeof aiFaqPublishResultSchema>;
+
+/** POST /businesses/:id/questions/:qid/ai-draft/dismiss — owner hides the draft (regenerate-on-demand only). */
+export const aiFaqDismissResultSchema = z
+  .object({
+    dismissed: z.boolean(),
+  })
+  .strict();
+export type AiFaqDismissResult = z.infer<typeof aiFaqDismissResultSchema>;
+
+/** POST /admin/businesses/:id/questions/:qid/ai-draft/regenerate — admin forces a regenerate. */
+export const aiFaqRegenerateResultSchema = z
+  .object({
+    enqueued: z.boolean(),
+    jobId: z.string().nullable(),
+  })
+  .strict();
+export type AiFaqRegenerateResult = z.infer<typeof aiFaqRegenerateResultSchema>;

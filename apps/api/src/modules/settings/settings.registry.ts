@@ -531,6 +531,34 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     description:
       'Max number of recent approved reviews sent to the LLM in one prompt (newest first, capped to keep the prompt within token budget).',
   },
+  // A9.4 — the FAQ-answer prompt templates. The admin can edit the system
+  // prompt the LLM gets for drafting answers to user questions on the
+  // business page.
+  'ai.prompts.faqAnswer.system': {
+    key: 'ai.prompts.faqAnswer.system',
+    schema: z.string().min(20).max(4000),
+    default:
+      'شما دستیار پاسخ به پرسش‌های کاربران درباره کسب‌وکار هستید. یک پاسخ ' +
+      'کوتاه (۱-۳ جمله) به فارسی، مودبانه و واقع‌بینانه بنویسید. اگر ' +
+      'اطلاعات کافی ندارید، صادقانه بگویید. هیچ قیمت یا ساعاتی که در متن ' +
+      'ورودی نباشد نسازید. در پایان یک جمله پیشنهاد دهید که کاربر برای ' +
+      'اطلاعات بیشتر مستقیماً با کسب‌وکار تماس بگیرد.',
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The system prompt sent to the LLM for the A9.4 FAQ auto-answer feature. Editable by admins. Bumping ai.prompts.faqAnswer.version invalidates all existing drafts.',
+  },
+  'ai.prompts.faqAnswer.version': {
+    key: 'ai.prompts.faqAnswer.version',
+    schema: z.number().int().min(1).max(1000),
+    default: 1,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The prompt-template version for FAQ answers. Bumping marks every existing draft as stale.',
+  },
 };
 
 export function getSettingDefinition(key: string): SettingDefinition<unknown> | undefined {
