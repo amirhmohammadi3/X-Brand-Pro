@@ -15,7 +15,8 @@ export type SettingsGroup =
   | 'integrations'
   | 'theme'
   | 'flags'
-  | 'moderation';
+  | 'moderation'
+  | 'ai';
 
 export type SettingDefinition<T = unknown> = {
   key: string;
@@ -359,6 +360,138 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     isSecret: false,
     description:
       'Default city slug; the public cities list flags the matching active city with isDefault.',
+  },
+  // AI module (Phase 9, A9.1) — the OpenAI-compatible driver config. The
+  // apiKey is a secret (encrypted at rest, masked in listings); the rest is
+  // admin-readable. The driver + model + baseUrl are read at every call (the
+  // service reads through the SettingsService cache, so a settings change
+  // takes effect on the next call without a restart). The per-feature
+  // enable flags gate each feature separately AND the global `ai.enabled`
+  // gate must be on for any of them to fire (the service resolves the AND).
+  'ai.enabled': {
+    key: 'ai.enabled',
+    schema: z.boolean(),
+    default: false,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'Master switch for the AI module (Phase 9). When false, every feature returns AI_DISABLED without calling the driver — the rule-based fallback (A9.2) is still used by the features that have one.',
+  },
+  'ai.driver': {
+    key: 'ai.driver',
+    schema: z.enum(['fake', 'openai', 'rule']),
+    default: 'fake',
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The driver the AI service will call. fake returns a canned response (no network); openai calls the OpenAI-compatible chat/completions endpoint; rule is the no-model statistical driver (A9.2).',
+  },
+  'ai.openai.baseUrl': {
+    key: 'ai.openai.baseUrl',
+    schema: z
+      .string()
+      .url()
+      .max(300)
+      // Accept http://localhost (Ollama, LM Studio) and https endpoints.
+      .refine((u) => u.startsWith('http://') || u.startsWith('https://'), 'must be http(s)://'),
+    default: 'https://api.openai.com/v1',
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The base URL the openai driver appends /chat/completions to. Use https://api.openai.com/v1 for OpenAI, an OpenRouter URL, or http://localhost:11434/v1 for Ollama.',
+  },
+  'ai.openai.apiKey': {
+    key: 'ai.openai.apiKey',
+    schema: z.string().min(1).max(300),
+    default: '',
+    group: 'ai',
+    public: false,
+    isSecret: true,
+    description:
+      'The API key sent as `Authorization: Bearer <key>`. Encrypted at rest; masked in admin listings. Empty string = not configured (the openai driver returns AI_NO_CREDENTIALS).',
+  },
+  'ai.openai.model': {
+    key: 'ai.openai.model',
+    schema: z.string().min(1).max(100),
+    default: 'gpt-4o-mini',
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The model id sent in the chat/completions request body (e.g. gpt-4o-mini, gpt-4o, llama3:8b for Ollama).',
+  },
+  'ai.timeoutMs': {
+    key: 'ai.timeoutMs',
+    schema: z.number().int().min(1000).max(120_000),
+    default: 15_000,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'Per-call timeout in ms. The driver aborts the fetch after this and returns AI_DRIVER_FAILED (the service retries up to ai.maxRetries).',
+  },
+  'ai.maxRetries': {
+    key: 'ai.maxRetries',
+    schema: z.number().int().min(0).max(5),
+    default: 2,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'Retry count for transient failures (timeout, 5xx, network). Linear backoff: 250ms × attempt. A 4xx is not retried (the request is malformed).',
+  },
+  'ai.monthlyBudgetTokens': {
+    key: 'ai.monthlyBudgetTokens',
+    schema: z.number().int().min(0).max(1_000_000_000),
+    default: 1_000_000,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'Monthly token budget (prompt + completion) summed across all features. When the current month spend reaches this, calls return AI_BUDGET_EXHAUSTED until the next calendar month. 0 disables the cap (unlimited).',
+  },
+  'ai.feature.reviewSummaryEnabled': {
+    key: 'ai.feature.reviewSummaryEnabled',
+    schema: z.boolean(),
+    default: false,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'Enable the A9.3 review-summary feature (the business page shows an AI summary of recent reviews).',
+  },
+  'ai.feature.faqAutoAnswerEnabled': {
+    key: 'ai.feature.faqAutoAnswerEnabled',
+    schema: z.boolean(),
+    default: false,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'Enable the A9.4 FAQ auto-answer feature (a draft answer is generated for new questions the owner can publish with an AI label).',
+  },
+  'ai.feature.recommendationsEnabled': {
+    key: 'ai.feature.recommendationsEnabled',
+    schema: z.boolean(),
+    default: false,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'Enable the A9.5 personalized recommendation feature (the home page shows a «For You» section).',
+  },
+  'ai.feature.fraudToxicityEnabled': {
+    key: 'ai.feature.fraudToxicityEnabled',
+    schema: z.boolean(),
+    default: false,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'Enable the A9.6 fraud/toxicity score (a 0..1 score on each review for the moderation queue).',
   },
 };
 

@@ -36,3 +36,4 @@ export * from './messaging.js';
 export * from './bookings.js';
 export * from './analytics.js';
 export * from './billing.js';
+export * from './ai.js';

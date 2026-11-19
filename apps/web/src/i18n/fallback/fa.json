@@ -1770,15 +1770,7 @@
       "selectDate": "انتخاب تاریخ",
       "selected": "انتخاب شده",
       "disabledDate": "غیرقابل انتخاب",
-      "weekdaysNarrow": [
-        "ش",
-        "ی",
-        "د",
-        "س",
-        "چ",
-        "پ",
-        "ج"
-      ],
+      "weekdaysNarrow": ["ش", "ی", "د", "س", "چ", "پ", "ج"],
       "weekStart": "شروع هفته: {day}",
       "invalid": "یک تاریخ معتبر وارد کنید.",
       "outOfRange": "تاریخ خارج از بازه است.",
@@ -2195,5 +2187,82 @@
     "password": "رمز باید حداقل {min} نویسه و شامل حروف و عدد باشد.",
     "username": "نام کاربری باید {min} تا {max} نویسه از حروف، عدد یا زیرخط باشد.",
     "match": "دو مقدار با هم مطابقت ندارند."
+  },
+  "ai": {
+    "title": "هوش مصنوعی",
+    "summary": {
+      "title": "خلاصهٔ هوش مصنوعی",
+      "label": "خلاصهٔ AI",
+      "empty": "هنوز نظری برای خلاصه‌سازی ثبت نشده است.",
+      "disclaimer": "این خلاصه با کمک هوش مصنوعی از روی نظرات کاربران تولید شده است."
+    },
+    "faqAutoAnswer": {
+      "label": "پاسخ هوش مصنوعی",
+      "disclaimer": "این پاسخ با کمک هوش مصنوعی پیش‌نویس شده و توسط صاحب کسب‌وکار منتشر شده است."
+    },
+    "forYou": {
+      "title": "برای شما",
+      "subtitle": "پیشنهادها بر اساس فعالیت شما",
+      "empty": "برای پیشنهاد شخصی، ابتدا چند کسب‌وکار را بازدید کنید."
+    },
+    "admin": {
+      "config": {
+        "title": "تنظیمات هوش مصنوعی",
+        "driver": "درایور",
+        "model": "مدل",
+        "baseUrl": "آدرس پایه",
+        "apiKey": "کلید API",
+        "apiKeySet": "تنظیم شده",
+        "apiKeyNotSet": "تنظیم نشده",
+        "timeoutMs": "مهلت (میلی‌ثانیه)",
+        "maxRetries": "تلاش مجدد",
+        "monthlyBudget": "بودجهٔ ماهانه (توکن)",
+        "monthlyUsed": "مصرف این ماه",
+        "features": "قابلیت‌ها"
+      },
+      "drivers": {
+        "fake": "تست (بدون شبکه)",
+        "openai": "OpenAI-سازگار",
+        "rule": "قاعده‌محور (بدون مدل)"
+      },
+      "features": {
+        "review_summary": "خلاصهٔ نظرات",
+        "faq_auto_answer": "پاسخ خودکار پرسش‌ها",
+        "recommendation": "پیشنهاد شخصی‌سازی‌شده",
+        "fraud_toxicity": "امتیاز تقلب/سمّی"
+      },
+      "test": {
+        "button": "تست اتصال",
+        "promptLabel": "پرامپت آزمایشی",
+        "promptPlaceholder": "در یک کلمه بگو سلام",
+        "resultOk": "پاسخ دریافت شد",
+        "resultFailed": "اتصال ناموفق",
+        "resultLatency": "زمان پاسخ",
+        "resultTokens": "توکن مصرف شده"
+      },
+      "calls": {
+        "title": "تاریخچهٔ فراخوانی‌ها",
+        "feature": "قابلیت",
+        "driver": "درایور",
+        "model": "مدل",
+        "status": "وضعیت",
+        "tokens": "توکن",
+        "latency": "زمان",
+        "errorCode": "خطا",
+        "prompt": "پرامپت",
+        "completion": "پاسخ",
+        "createdAt": "زمان",
+        "ok": "موفق",
+        "failed": "ناموفق",
+        "empty": "هنوز فراخوانی ثبت نشده است."
+      },
+      "errors": {
+        "AI_DISABLED": "قابلیت غیرفعال است",
+        "AI_BUDGET_EXHAUSTED": "بودجهٔ ماهانه تمام شد",
+        "AI_DRIVER_FAILED": "خطای درایور",
+        "AI_INVALID_RESPONSE": "پاسخ نامعتبر",
+        "AI_NO_CREDENTIALS": "کلید API تنظیم نشده"
+      }
+    }
   }
 }

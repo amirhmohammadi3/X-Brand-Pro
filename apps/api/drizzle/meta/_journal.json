@@ -260,6 +260,13 @@
       "when": 1794983052560,
       "tag": "0036_lovely_black_tarantula",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1795098000000,
+      "tag": "0037_ai_calls",
+      "breakpoints": true
     }
   ]
 }
