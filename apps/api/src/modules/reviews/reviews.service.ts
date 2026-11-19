@@ -185,6 +185,22 @@ export class ReviewsService {
   }
 
   /**
+   * A9.6 — the AI fraud/toxicity service reads a review's body to compute
+   * the score. Returns null when the review doesn't exist; the caller
+   * (FraudScoreService) skips generation in that case.
+   *
+   * Visibility: ALL statuses (the score is computed for pending reviews
+   * too — the moderation queue uses the score to prioritize triage, so a
+   * pending review with a high score should surface first). The body is
+   * not exposed to the public; only the score is.
+   */
+  async findByIdForAi(reviewId: string): Promise<{ id: string; body: string } | null> {
+    const row = await this.repo.findById(reviewId);
+    if (!row) return null;
+    return { id: row.id, body: row.body };
+  }
+
+  /**
    * B4.10 — the APPROVED-only slice of one user's reviews, served on the
    * public profile (GET /users/:username/reviews). The caller's own
    * every-status list stays on listMine (GET /reviews/me); pending/rejected

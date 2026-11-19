@@ -353,3 +353,88 @@ export const aiFaqRegenerateResultSchema = z
   })
   .strict();
 export type AiFaqRegenerateResult = z.infer<typeof aiFaqRegenerateResultSchema>;
+
+// ─── A9.6 — Fraud / toxicity score ──────────────────────────────────────
+
+/**
+ * A review's AI fraud/toxicity score (A9.6). One row per review; a 0..1
+ * score (0 = benign, 1 = high-risk) + a list of signals + the model/driver
+ * that produced the score. Generated when the review is created +
+ * regenerated on edit. The moderation queue sorts by score DESC.
+ */
+export const aiFraudScoreSchema = z
+  .object({
+    reviewId: uuidSchema,
+    /** 0..1 score (0 = benign, 1 = high-risk). */
+    score: z.number().min(0).max(1),
+    driver: z.enum(AI_DRIVER_NAMES),
+    model: z.string().nullable(),
+    promptVersion: z.number().int().min(1),
+    stale: z.boolean(),
+    /** Comma-separated signal names (e.g. "long_body,all_caps,blocked_word"). */
+    signals: z.string().nullable(),
+    promptTokens: z.number().int().min(0),
+    completionTokens: z.number().int().min(0),
+    lastError: z.string().nullable(),
+    createdAt: z.string().datetime(),
+    updatedAt: z.string().datetime(),
+  })
+  .strict();
+export type AiFraudScore = z.infer<typeof aiFraudScoreSchema>;
+
+/** GET /admin/reviews/:id/fraud-score — moderator reads the score. */
+export const aiFraudScoreResultSchema = z
+  .object({
+    score: aiFraudScoreSchema.nullable(),
+  })
+  .strict();
+export type AiFraudScoreResult = z.infer<typeof aiFraudScoreResultSchema>;
+
+/** GET /admin/reviews/fraud-scores — the moderation queue (sorted by score DESC). */
+export const aiFraudScoreQueueQuerySchema = z
+  .object({
+    /** Only show reviews with score >= minScore (default 0.5). */
+    minScore: z.coerce.number().min(0).max(1).optional(),
+    page: z.coerce.number().int().min(1).max(10_000).optional(),
+    pageSize: z.coerce.number().int().min(1).max(100).optional(),
+  })
+  .strict();
+export type AiFraudScoreQueueQuery = z.infer<typeof aiFraudScoreQueueQuerySchema>;
+
+/** One row in the moderation queue. */
+export const aiFraudScoreQueueItemSchema = z
+  .object({
+    reviewId: uuidSchema,
+    businessId: uuidSchema,
+    businessName: z.string(),
+    userId: uuidSchema,
+    userUsername: z.string(),
+    rating: z.number().int().min(1).max(5),
+    body: z.string(),
+    reviewStatus: z.enum(['approved', 'pending', 'rejected']),
+    score: z.number().min(0).max(1),
+    signals: z.string().nullable(),
+    scoreUpdatedAt: z.string().datetime(),
+    reviewCreatedAt: z.string().datetime(),
+  })
+  .strict();
+export type AiFraudScoreQueueItem = z.infer<typeof aiFraudScoreQueueItemSchema>;
+
+export const aiFraudScoreQueueResultSchema = z
+  .object({
+    items: z.array(aiFraudScoreQueueItemSchema),
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1),
+    total: z.number().int().min(0),
+  })
+  .strict();
+export type AiFraudScoreQueueResult = z.infer<typeof aiFraudScoreQueueResultSchema>;
+
+/** POST /admin/reviews/:id/fraud-score/regenerate — admin forces a regenerate. */
+export const aiFraudScoreRegenerateResultSchema = z
+  .object({
+    enqueued: z.boolean(),
+    jobId: z.string().nullable(),
+  })
+  .strict();
+export type AiFraudScoreRegenerateResult = z.infer<typeof aiFraudScoreRegenerateResultSchema>;

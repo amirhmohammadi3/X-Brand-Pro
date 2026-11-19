@@ -8,14 +8,21 @@ import {
   AI_REVIEW_SUMMARIES_REPOSITORY,
 } from './ai-review-summaries.repository.js';
 import { AiFaqAnswersRepository, AI_FAQ_ANSWERS_REPOSITORY } from './ai-faq-answers.repository.js';
+import {
+  AiFraudScoresRepository,
+  AI_FRAUD_SCORES_REPOSITORY,
+} from './ai-fraud-scores.repository.js';
 import { AiAdminController } from './ai-admin.controller.js';
 import { AiReviewSummaryController } from './ai-review-summary.controller.js';
 import { AiFaqAnswerController } from './ai-faq-answer.controller.js';
+import { AiFraudScoreController } from './ai-fraud-score.controller.js';
 import { AiService } from './ai.service.js';
 import { ReviewSummaryService } from './review-summary.service.js';
 import { ReviewSummarySubscriber } from './review-summary.subscriber.js';
 import { FaqAnswerService } from './faq-answer.service.js';
 import { FaqAnswerSubscriber } from './faq-answer.subscriber.js';
+import { FraudScoreService } from './fraud-score.service.js';
+import { FraudScoreSubscriber } from './fraud-score.subscriber.js';
 import { AI_DRIVER } from './ai-driver.interface.js';
 import { FakeAiDriver } from './fake-ai.driver.js';
 import { OpenAiDriver } from './openai-ai.driver.js';
@@ -54,14 +61,25 @@ const faqAnswersRepositoryProvider: Provider = {
   useClass: AiFaqAnswersRepository,
 };
 
+const fraudScoresRepositoryProvider: Provider = {
+  provide: AI_FRAUD_SCORES_REPOSITORY,
+  useClass: AiFraudScoresRepository,
+};
+
 @Module({
   imports: [SettingsModule, ReviewsModule, QaModule],
-  controllers: [AiAdminController, AiReviewSummaryController, AiFaqAnswerController],
+  controllers: [
+    AiAdminController,
+    AiReviewSummaryController,
+    AiFaqAnswerController,
+    AiFraudScoreController,
+  ],
   providers: [
     driverProvider,
     callsRepositoryProvider,
     summariesRepositoryProvider,
     faqAnswersRepositoryProvider,
+    fraudScoresRepositoryProvider,
     FakeAiDriver,
     OpenAiDriver,
     RuleAiDriver,
@@ -70,7 +88,9 @@ const faqAnswersRepositoryProvider: Provider = {
     ReviewSummarySubscriber,
     FaqAnswerService,
     FaqAnswerSubscriber,
+    FraudScoreService,
+    FraudScoreSubscriber,
   ],
-  exports: [AiService, ReviewSummaryService, FaqAnswerService],
+  exports: [AiService, ReviewSummaryService, FaqAnswerService, FraudScoreService],
 })
 export class AiModule {}

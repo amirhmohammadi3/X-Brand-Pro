@@ -559,6 +559,32 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     description:
       'The prompt-template version for FAQ answers. Bumping marks every existing draft as stale.',
   },
+  // A9.6 — the fraud/toxicity-score prompt template. The admin can edit
+  // the system prompt the LLM gets for classifying reviews.
+  'ai.prompts.fraudToxicity.system': {
+    key: 'ai.prompts.fraudToxicity.system',
+    schema: z.string().min(20).max(4000),
+    default:
+      'شما یک طبقه‌بند نظرات هستید. یک نمرهٔ تقلب/سمّی بودن بین ۰ تا ۱ ' +
+      'به هر نظر بدهید (۰ = بی‌خطر، ۱ = پرخطر). فقط JSON برگردانید: ' +
+      '{"score": 0.0, "signals": ["long_body", "all_caps", "blocked_word"]}. ' +
+      'سیگنال‌های ممکن: long_body, all_caps, repeated_punctuation, blocked_word.',
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The system prompt sent to the LLM for the A9.6 fraud/toxicity feature. Editable by admins. Bumping ai.prompts.fraudToxicity.version invalidates all existing scores.',
+  },
+  'ai.prompts.fraudToxicity.version': {
+    key: 'ai.prompts.fraudToxicity.version',
+    schema: z.number().int().min(1).max(1000),
+    default: 1,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The prompt-template version for fraud scores. Bumping marks every existing score as stale.',
+  },
 };
 
 export function getSettingDefinition(key: string): SettingDefinition<unknown> | undefined {
