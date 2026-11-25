@@ -585,6 +585,35 @@ export const settingsRegistry: Readonly<Record<string, SettingDefinition<unknown
     description:
       'The prompt-template version for fraud scores. Bumping marks every existing score as stale.',
   },
+  // A9.5 — the personalized-recommendation explanation prompt. The ranking
+  // itself is rule-based (similarity math, no LLM); this prompt is only used
+  // when a caller passes ?explain=true (one short Persian sentence explaining
+  // why the page's top business was recommended). Bumping the version
+  // invalidates cached explanations on the next request.
+  'ai.prompts.recommendation.system': {
+    key: 'ai.prompts.recommendation.system',
+    schema: z.string().min(20).max(4000),
+    default:
+      'شما دستیار توضیح پیشنهادها هستید. با توجه به علایق کاربر (دسته‌ها و ' +
+      'امکانات مورد علاقه) و کسب‌وکار پیشنهادشده، یک جمله کوتاه به فارسی ' +
+      'بنویسید و توضیح دهید چرا این کسب‌وکار برای او پیشنهاد شده است. ' +
+      'مودبانه، واقع‌بینانه و بدون اغراق. فقط یک جمله.',
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The system prompt sent to the LLM for the A9.5 recommendation explanation (only when ?explain=true). Editable by admins. The ranking itself is rule-based and needs no prompt.',
+  },
+  'ai.prompts.recommendation.version': {
+    key: 'ai.prompts.recommendation.version',
+    schema: z.number().int().min(1).max(1000),
+    default: 1,
+    group: 'ai',
+    public: false,
+    isSecret: false,
+    description:
+      'The prompt-template version for recommendation explanations. Bumping invalidates cached explanations on the next request.',
+  },
 };
 
 export function getSettingDefinition(key: string): SettingDefinition<unknown> | undefined {

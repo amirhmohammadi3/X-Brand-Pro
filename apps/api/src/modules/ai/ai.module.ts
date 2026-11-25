@@ -16,6 +16,12 @@ import { AiAdminController } from './ai-admin.controller.js';
 import { AiReviewSummaryController } from './ai-review-summary.controller.js';
 import { AiFaqAnswerController } from './ai-faq-answer.controller.js';
 import { AiFraudScoreController } from './ai-fraud-score.controller.js';
+import { RecommendationController } from './recommendation.controller.js';
+import { RecommendationService } from './recommendation.service.js';
+import {
+  RecommendationRepository,
+  RECOMMENDATION_REPOSITORY,
+} from './recommendation.repository.js';
 import { AiService } from './ai.service.js';
 import { ReviewSummaryService } from './review-summary.service.js';
 import { ReviewSummarySubscriber } from './review-summary.subscriber.js';
@@ -66,6 +72,11 @@ const fraudScoresRepositoryProvider: Provider = {
   useClass: AiFraudScoresRepository,
 };
 
+const recommendationsRepositoryProvider: Provider = {
+  provide: RECOMMENDATION_REPOSITORY,
+  useClass: RecommendationRepository,
+};
+
 @Module({
   imports: [SettingsModule, ReviewsModule, QaModule],
   controllers: [
@@ -73,6 +84,7 @@ const fraudScoresRepositoryProvider: Provider = {
     AiReviewSummaryController,
     AiFaqAnswerController,
     AiFraudScoreController,
+    RecommendationController,
   ],
   providers: [
     driverProvider,
@@ -80,6 +92,7 @@ const fraudScoresRepositoryProvider: Provider = {
     summariesRepositoryProvider,
     faqAnswersRepositoryProvider,
     fraudScoresRepositoryProvider,
+    recommendationsRepositoryProvider,
     FakeAiDriver,
     OpenAiDriver,
     RuleAiDriver,
@@ -90,7 +103,14 @@ const fraudScoresRepositoryProvider: Provider = {
     FaqAnswerSubscriber,
     FraudScoreService,
     FraudScoreSubscriber,
+    RecommendationService,
   ],
-  exports: [AiService, ReviewSummaryService, FaqAnswerService, FraudScoreService],
+  exports: [
+    AiService,
+    ReviewSummaryService,
+    FaqAnswerService,
+    FraudScoreService,
+    RecommendationService,
+  ],
 })
 export class AiModule {}

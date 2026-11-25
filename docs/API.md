@@ -994,3 +994,20 @@ Privacy-first analytics: the ingest endpoint is **public** and accepts NO identi
 - Schemas: contracts/analytics.ts (`analyticsEventInputSchema`, `ingestAnalyticsBodySchema`, `analyticsStatsResultSchema`, `analyticsPointSchema`, …) — the F7.1 owner overview and the F7.8 charts dashboard render from the same types.
 - Migration: `0034_analytics` (`analytics_events` raw + `analytics_daily` idempotent bucket upsert, unique `(business_id, date, type)`).
 - Notes: the F7.1 tracking client (F7.7) sends view/click events from the public business page; the owner dashboard (`/dashboard/:businessId`) reads the stats server-side. No identity crosses the wire in either direction.
+
+## AI — recommendations (A9.5)
+
+Personalized business recommendations. The ranking is rule-based (similarity to
+the user's profile built from their approved reviews + favorites) and is always
+available, even with AI fully off. `?explain=true` opts into one LLM
+explanation for the page's top item (gated by `ai.feature.recommendationsEnabled`
+through AiService, fail-soft).
+
+### GET /api/v1/recommendations
+
+- Auth: any authenticated user (JwtAuthGuard; the JWT identifies the user — no `@Public`).
+- Query: `aiRecommendationQuerySchema` — `page?` (1..10000), `pageSize?` (1..50, default 10), `cityId?` (uuid; defaults to the user's top interaction city), `explain?` (boolean; requests an LLM reason on the top item).
+- Response: `aiRecommendationResultSchema` — `items[]` (`aiRecommendationItem`: `businessId`, `slug`, `name`, `cityId`, `primaryCategoryId`, `avgRating`, `reviewCount`, `score` 0..1, `reason` nullable), `page`, `pageSize`, `total`, `profile` (`interactionCount`, `topCategories[]` top 3, `topCityId`).
+- Rate limit: `recommendations.read` 30/min/user.
+- Error codes: standard envelope (validation 400; unauthenticated 401; rate limited 429 with `Retry-After`). The LLM explanation never throws — a disabled feature or a driver outage resolves to `reason: null` (the ranking is unaffected).
+- Notes: the scored candidate pool + profile summary are cached 60s per (user, city). Cold-start users (no reviews/favorites) get a popularity-based ranking (`avg_rating × log(review_count)`). The candidate pool excludes businesses the user already reviewed/favorited and is scoped to the user's top city unless `?cityId` overrides it. DB-requiring repository specs + the Tehran-seed e2e are Docker-deferred (see `docs/PROGRESS.md` follow-ups).

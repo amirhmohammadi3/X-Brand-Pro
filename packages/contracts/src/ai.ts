@@ -438,3 +438,76 @@ export const aiFraudScoreRegenerateResultSchema = z
   })
   .strict();
 export type AiFraudScoreRegenerateResult = z.infer<typeof aiFraudScoreRegenerateResultSchema>;
+
+// ─── A9.5 — Personalized recommendations ─────────────────────────────────
+
+/**
+ * One recommended business (A9.5). The ranking is rule-based (similarity to
+ * the user's profile); `reason` is an OPTIONAL Persian LLM explanation,
+ * present only on the page's top item when the caller passes `?explain=true`
+ * AND the AI feature is enabled (AiService gates it; on a disabled/cold-start
+ * profile the reason is null). The ranking itself always works — even with AI
+ * fully off — so a brand-new or AI-less install still gets a useful list.
+ */
+export const aiRecommendationItemSchema = z
+  .object({
+    businessId: uuidSchema,
+    slug: z.string(),
+    name: z.string(),
+    cityId: uuidSchema.nullable(),
+    primaryCategoryId: uuidSchema.nullable(),
+    avgRating: z.number().min(0).max(5),
+    reviewCount: z.number().int().min(0),
+    /** 0..1 similarity score (higher = better match for the user). */
+    score: z.number().min(0).max(1),
+    /** Optional Persian LLM explanation (only the page's top item, when ?explain=true). */
+    reason: z.string().nullable(),
+  })
+  .strict();
+export type AiRecommendationItem = z.infer<typeof aiRecommendationItemSchema>;
+
+/** GET /recommendations — user-scoped (the JWT identifies the user). */
+export const aiRecommendationQuerySchema = z
+  .object({
+    page: z.coerce.number().int().min(1).max(10_000).optional(),
+    pageSize: z.coerce.number().int().min(1).max(50).optional(),
+    /** Scope candidates to a city (defaults to the user's top interaction city). */
+    cityId: uuidSchema.optional(),
+    /** Request an LLM explanation for the page's top item (costs tokens). */
+    explain: z.coerce.boolean().optional(),
+  })
+  .strict();
+export type AiRecommendationQuery = z.infer<typeof aiRecommendationQuerySchema>;
+
+/** A transparency summary of the profile the ranking was built from. */
+export const aiRecommendationProfileSummarySchema = z
+  .object({
+    /** How many distinct businesses the user has reviewed (approved) or favorited. */
+    interactionCount: z.number().int().min(0),
+    /** The user's top categories (categoryId → affinity weight, top 3). */
+    topCategories: z
+      .array(
+        z
+          .object({
+            categoryId: uuidSchema,
+            weight: z.number().min(0),
+          })
+          .strict(),
+      )
+      .max(3),
+    /** The user's top city (the weighted mode of their interactions). */
+    topCityId: uuidSchema.nullable(),
+  })
+  .strict();
+export type AiRecommendationProfileSummary = z.infer<typeof aiRecommendationProfileSummarySchema>;
+
+export const aiRecommendationResultSchema = z
+  .object({
+    items: z.array(aiRecommendationItemSchema),
+    page: z.number().int().min(1),
+    pageSize: z.number().int().min(1),
+    total: z.number().int().min(0),
+    profile: aiRecommendationProfileSummarySchema,
+  })
+  .strict();
+export type AiRecommendationResult = z.infer<typeof aiRecommendationResultSchema>;
