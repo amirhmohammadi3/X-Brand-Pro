@@ -2,7 +2,7 @@
 
 هر پرامپت بعد از تأیید «Done when» توسط شما و commit، تیک می‌خورد. فرمت تیک: `- [x] ID عنوان (تاریخ)`.
 
-وضعیت فاز جاری: فاز ۷ — پنل صاحب کسب‌وکار و آنالیتیکس (فاز ۶ کامل شد: B6.1 تا B6.4، F6.1، F6.2، Q6.1 ✅)
+وضعیت فاز جاری: فاز ۹ — هوش مصنوعی (فاز ۸ کامل شد: B8.1–B8.6، F8.1–F8.4، Q8.1 ✅). بک‌اند فاز ۹ کامل شد: A9.1، A9.2، A9.3، A9.4، A9.6، A9.7 ✅ (2026-11-25). باقی‌ماندهٔ فاز ۹: A9.5 (پیشنهاد شخصی‌سازی‌شده — تنها پرامپت بک‌اندِ ناقص)، F9.1–F9.3 (وب)، Q9.1 (گیت).
 
 ## فاز ۰ — اسکلت و زیرساخت
 
@@ -200,13 +200,18 @@
 
 ## فاز ۹ — هوش مصنوعی
 
-- [ ] A9.1 🔴 ماژول AI: درایور OpenAI-compatible (آدرس، توکن، مدل از پنل)، timeout، retry، سقف مصرف، لاگ، تست اتصال
-- [ ] A9.2 🟡 درایور پایه بدون مدل (خلاصه‌سازی آماری/قاعده‌محور فارسی)
-- [ ] A9.3 🔴 خلاصهٔ نظرات (job، پرامپت‌های قابل ویرایش، مزایا/معایب/موضوع‌ها، کش، بازتولید)
-- [ ] A9.4 🟡 پاسخ خودکار به پرسش‌های پرتکرار (برچسب AI، با منبع)
+- [x] A9.1 🔴 ماژول AI: درایور OpenAI-compatible (آدرس، توکن، مدل از پنل)، timeout، retry، سقف مصرف، لاگ، تست اتصال (2026-11-25)
+- [x] A9.2 🟡 درایور پایه بدون مدل (خلاصه‌سازی آماری/قاعده‌محور فارسی) (2026-11-25)
+- [x] A9.3 🔴 خلاصهٔ نظرات (job، پرامپت‌های قابل ویرایش، مزایا/معایب/موضوع‌ها، کش، بازتولید) (2026-11-25)
+- [x] A9.4 🟡 پاسخ خودکار به پرسش‌های پرتکرار (برچسب AI، با منبع) (2026-11-25)
 - [ ] A9.5 🔴 پیشنهاد شخصی‌سازی‌شده (رفتار کاربر + شباهت، توضیح اختیاری با LLM)
-- [ ] A9.6 🟡 امتیاز تقلب/سمّی بودن برای صف مدیریت
-- [ ] A9.7 🟡 ادمین: تنظیمات AI (توکن، مدل، فعال/غیرفعال هر قابلیت، تست)
+- [x] A9.6 🟡 امتیاز تقلب/سمّی بودن برای صف مدیریت (2026-11-25)
+- [x] A9.7 🟡 ادمین: تنظیمات AI (توکن، مدل، فعال/غیرفعال هر قابلیت، تست) (2026-11-25)
+
+> **بک‌اند فاز ۹ (2026-11-25).** شش پرامپت بک‌اندِ فاز ۹ (A9.1، A9.2، A9.3، A9.4، A9.6، A9.7) تکمیل و تیک‌خورده‌اند. سبز در سندباکس (بدون Docker): typecheck ۶/۶ و lint ۶/۶ (دو هشدار `no-console` از اسکریپت‌های CLI که baseline است). معماری AI: درایور قابل‌تعویض (fake/rule/openai) با `AiService` به‌عنوان لایهٔ orchestration واحد — feature gate (هر قابلیت جدا + `ai.enabled` سراسری)، budget gate (سقف ماهانهٔ token)، retry با backoff خطی برای خطاهای transient، و fallback خودکار به درایور rule (A9.2) در صورت شکست LLM — fail-soft همیشه. مهاجرت‌ها: `0037_ai_calls`، `0038_ai_review_summaries`، `0039_ai_faq_answers`، `0040_ai_fraud_scores`. خلاصهٔ نظرات (A9.3) با پرامپت‌های قابل ویرایش + نسخه‌گذاری (بمب نسخه → invalidate کش) و debounce ۶۰ثانیه‌ای بازتولید؛ پاسخ FAQ (A9.4) با جریان draft→publish/dismiss و برچسب AI؛ امتیاز تقلب (A9.6) advisory برای صف مدیریت با fallback rule از هیوریستیک‌های B4.5. پنل ادمین (A9.7): `GET /admin/ai/config` (secretها mask)، `POST /admin/ai/test` (دکمهٔ تست اتصال، rate-limited ۵/min fail-closed)، `GET /admin/ai/calls` (لاگ صفحه‌بندی‌شده) + کل کلیدهای `ai.*` در `settings.registry.ts` (اعمال از طریق پنل تنظیمات عمومی).
+>
+> **معوق:** A9.5 (پیشنهاد شخصی‌سازی‌شده) هنوز پیاده نشده — تنها پرامپت بک‌اندِ ناقص فاز ۹. F9.1–F9.3 (وب) و Q9.1 (گیت) نیز باقی‌مانده. تست‌های یکپارچگی DB و e2e (Playwright) به ماشین Docker موکول می‌شوند (الگوی تأییدشده). ورودی‌های DECISIONS برای F7.8/Q7.1 و کل فاز ۸ نیز بعداً پر می‌شود (Follow-up).
+
 - [ ] F9.1 🟡 بلوک خلاصهٔ AI در صفحهٔ کسب‌وکار
 - [ ] F9.2 🟡 بخش «برای شما» در خانه
 - [ ] F9.3 🟡 نشانگر پاسخ AI در پرسش و پاسخ
@@ -257,6 +262,8 @@
 
 ## Follow-ups
 
+- [ ] (docs) Backfill DECISIONS.md entries for F7.8, Q7.1, and the whole of phase 8 (B8.1–B8.6, F8.1–F8.4, Q8.1) — these prompts shipped code + PROGRESS ticks but no DECISIONS entry (the last DECISIONS entry before this run was F7.6, 2026-11-15). Reason: AGENTS.md §5 requires every non-obvious decision be recorded; the gap predates the phase-9 backend work.
+- [ ] (A9.5) Implement personalized recommendations — the only remaining phase-9 backend prompt. Needs a user-behavior profile from the B7.1 analytics events + category/city/amenity similarity + an optional LLM explanation via `AiService.complete({feature:'recommendation'})`; a `GET /recommendations` user-scoped endpoint + pure-logic ranking tests (no DB). Then F9.1–F9.3 (web) + Q9.1 (gate).
 - [ ] (B5.6) With a Docker machine: `pnpm services:up` + `pnpm db:migrate` (applies `0032_messaging` — enums `message_report_reason`/`message_report_status`, `conversations` with `conversations_pair_key_unq` + the `conversations_pair_key_shape` regex CHECK, `conversation_participants` with `conversation_participants_unq`, `messages` with the `messages_has_content`/`messages_body_len` CHECKs (body 1..4000) and `messages_conversation_idx`/`messages_sender_idx`, `user_blocks` with `user_blocks_unq` + `user_blocks_not_self`, `message_reports` with `message_reports_unq` + the 1..500 details CHECK), then an e2e: (a) POST /messaging/conversations {peerId} twice (second with the ids REVERSED) → the SAME id, `created:false`; (b) a raw SQL INSERT into `messages` with NULL body + NULL attachment must be refused by `messages_has_content`; a body of 4001 chars refused by `messages_body_len`; (c) send → the recipient's inbox row shows `unreadCount:1` + the trimmed preview; POST .../read with the message id → `unreadCount:0`; a LATE markRead on an older message never re-raises the receipt (GREATEST guard); (d) block via POST /messaging/blocks → send answers 403 in BOTH directions while GET thread stays 200; (e) a raw SQL self-block INSERT must be refused by `user_blocks_not_self`; (f) double report → 409 (`message_reports_unq`); (g) `EXPLAIN` the inbox query rides `conversation_participants_user_idx` + the DISTINCT-ON last-message probe scans `messages_conversation_idx` (no seq scans); (h) socket: join `conversation:<id>` as a participant → ack ok; the same join as a non-member → FORBIDDEN_ROOM. The 31 sandbox specs (14 pure service + 17 HTTP/gateway-level with in-memory repos) run green here without a DB/Redis.
 - [ ] (B5.5) With a Docker machine: `pnpm services:up`, then a two-instance realtime e2e: (a) start TWO API instances (different API_PORT, same Postgres+Redis), connect a socket.io-client to each with the same user's token, `emitToUser` from instance A → the client on instance B receives (proves the Redis adapter fan-out — the in-memory path is already covered by the 13 sandbox integration specs); (b) revoke the session (POST /auth/logout) and confirm a NEW handshake with the same token is rejected `UNAUTHENTICATED`; (c) the polling probe `GET /api/v1/socket.io/?EIO=4&transport=polling` behind the production nginx/caddy config returns the engine.io handshake (the `/api/v1/*` forward rule covers the WS upgrade — no extra location block); (d) kill Redis mid-session and confirm both instances keep serving local sockets (fail-soft attach) and re-attach after Redis returns.
 - [ ] (B5.5→B5.7) Worker-process emits: events that fire inside BullMQ processors (e.g. reminder/notification jobs) must reach API-instance sockets via `@socket.io/redis-emitter` — add it when B5.7 wires the event→notification subscribers and decide whether RealtimeService gains a `fromWorker()` factory or the worker publishes a queue job the API consumes.
